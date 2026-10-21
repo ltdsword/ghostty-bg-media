@@ -1,0 +1,6 @@
+Command: ldd zig-out/bin/ghostty
+Exit: 0
+First diagnostic: /usr/lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.43' not found (required by zig-out/bin/ghostty)
+Unresolved library: libgtk4-layer-shell.so.0 => not found
+Resolved: libadwaita-1.so.0, libgtk-4.so.1, and libwayland-client.so.0.
+The remaining ldd entries are omitted from this trimmed evidence file.

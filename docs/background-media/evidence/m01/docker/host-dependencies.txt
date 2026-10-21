@@ -1,0 +1,6 @@
+Host context: Ubuntu 24.04.4, GNOME Wayland.
+Command: pkg-config --modversion gtk4 libadwaita-1
+Exit: 0
+Output:
+4.14.5
+1.5.0

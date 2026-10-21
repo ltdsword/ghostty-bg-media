@@ -1,0 +1,3 @@
+Command: docker --context desktop-linux run --rm --user "$(id -u):$(id -g)" -v "$PWD":/src -w /src -v "$HOME/.local/opt/zig/0.16.0":/opt/zig:ro -e ZIG_GLOBAL_CACHE_DIR=/src/.zig-cache/global -e HOME=/tmp ghostty-bgm-dev:26.04 /opt/zig/zig build -Dapp-runtime=gtk -Demit-docs=false
+Attempt 1: exit 1, about 60 s. First error: /src/zig-pkg/vaxis-0.6.0/build.zig.zon: unable to discover remote git server capabilities: HttpConnectionClosing while fetching zigimg.
+Retry, same command: exit 0, about 4 min. No stdout/stderr. The container-built zig-out/bin/ghostty was later inspected with host ldd.

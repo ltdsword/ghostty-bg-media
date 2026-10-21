@@ -1,0 +1,4 @@
+Command: docker --context desktop-linux run --rm --user "$(id -u):$(id -g)" -v "$PWD":/src -w /src -v "$HOME/.local/opt/zig/0.16.0":/opt/zig:ro -e ZIG_GLOBAL_CACHE_DIR=/src/.zig-cache/global -e HOME=/tmp ghostty-bgm-dev:26.04 /opt/zig/zig build -Dapp-runtime=gtk test
+Exit: 1. Wall time: about 3 min 48 s.
+First real error: test compiler process terminated with signal KILL.
+Build Summary: 137/140 steps succeeded (1 failed); compiling ghostty-test failed. Test execution did not start, so display requirements remain unknown.

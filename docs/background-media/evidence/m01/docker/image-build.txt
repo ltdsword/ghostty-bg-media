@@ -1,0 +1,7 @@
+Command: docker --context desktop-linux build -t ghostty-bgm-dev:26.04 -f docs/background-media/build-env/ubuntu-26.04.Dockerfile docs/background-media/build-env
+Initial sandbox attempt: exit 1; Buildx activity file under ~/.docker was read-only.
+Cold build retry: exit 0, about 4 min total; BuildKit reported the image export phase as 91.7 s.
+Version-recording rebuild: exit 0; command wall time 6.85 s (apt layer cached).
+Apt blueprint-compiler version: 0.19.0-2.
+Final versions: gtk4=4.22.4; libadwaita=1.9.1; blueprint-compiler=0.20.0.
+The image installed blueprint-compiler v0.20.0 from the upstream tag. The system gtk4-layer-shell package was available and linked by the successful GTK build.

@@ -1,0 +1,4 @@
+Requested help command with Wayland socket and --device /dev/dri: exit 127, about 1.2 s.
+Error: Docker daemon could not find /dev/dri (error gathering device information while adding custom device).
+Read-only help command without display/device mounts: exit 0, about 1.6 s.
+Help confirms `-e <command>` and generic `--<key>=<value>` syntax for configuration keys. It does not list every config key.
