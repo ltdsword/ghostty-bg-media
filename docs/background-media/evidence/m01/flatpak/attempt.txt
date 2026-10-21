@@ -1,0 +1,15 @@
+Flatpak build attempt (2026-10-22)
+
+Context: Docker Desktop 4.82.0, context desktop-linux, Engine 29.6.1. `docker pull ubuntu:24.04` exit 0; image already present.
+
+Command: `docker run --rm -v "$PWD:/work" -w /work --security-opt seccomp=unconfined --security-opt apparmor=unconfined ubuntu:24.04 bash -lc '<install flatpak/flatpak-builder; copy local source beneath .zig-cache; add Flathub; run flatpak-builder --disable-rofiles-fuse --user --install-deps-from=flathub --force-clean>'`
+
+Container apt setup and Flathub remote succeeded. Builder resolved/installed SDK 50, Platform 50, GL and codec extensions, downloaded build sources, and reached the first module (`zig`). Source copy printed two `fatal: not a git repository` warnings because the worktree `.git` pointer targets Git metadata outside the mounted worktree; builder continued.
+
+First module stopped with:
+`bwrap: Creating new namespace failed: Operation not permitted`
+`Error: module zig: Child process exited with code 1`
+
+Docker run exit code: 1. Total elapsed: 466 seconds (7m46s), including apt setup, Flathub/runtime resolution and installation, source downloads, and the first module start. The allowed seccomp/apparmor options did not resolve bwrap. No `--privileged` retry was made. No Ghostty module completed.
+
+Separate remote metadata query (exit 0) reports current SDK/runtime ref sizes in `runtime-sizes.txt`. Those are advertised download/installed sizes, not measured transfer totals for this build. SDK-only elapsed time was not isolated.

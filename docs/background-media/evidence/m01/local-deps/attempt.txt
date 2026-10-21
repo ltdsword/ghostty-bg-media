@@ -1,0 +1,22 @@
+Noble local dependency attempt (2026-10-22)
+
+Container: official ubuntu:24.04; worktree mounted at /work; apt packages installed only inside the disposable container. GTK 4.18.0, libadwaita 1.7.0, and Blueprint v0.20.0 sources were cloned from GNOME release tags. Meson prefix: /opt/bgm-deps.
+
+Installed Noble versions:
+- GLib: 2.80.0-6ubuntu3.10
+- GTK: 4.14.5+ds-0ubuntu0.10
+- Pango: 1.52.1+ds-1build1
+- Cairo: 1.18.0-3build1
+- HarfBuzz: 8.3.0-2build2
+- Graphene: 1.10.8-3build2
+
+GTK 4.18.0 setup command used Meson with no fallback, introspection enabled, and tests/demos/docs plus optional media/Vulkan/print/cloud features disabled. Exit code: 1.
+First dependency error: `Dependency cairo found: NO found 1.18.0 but need: '>= 1.18.2'`; `ERROR: Dependency 'cairo' is required but not found.`
+
+libadwaita 1.7.0 setup against Noble GTK exited 1:
+`Dependency gtk4 found: NO found 4.14.5 but need: '>= 4.17.5'`
+`ERROR: Dependency 'gtk4' is required but not found.`
+
+Blueprint 0.20.0 Meson setup, compile, and install exited 0. `/opt/bgm-deps/bin/blueprint-compiler --version` returned `0.20.0`; installed prefix size was 1.5 MiB. GTK/libadwaita and Ghostty were not built. No relevant shared object/app binary existed for ldd/readelf inspection.
+
+Outer Docker run exit code: 0 (script recorded GTK/libadwaita configure failures and continued to Blueprint). Total elapsed: 200 seconds (3m20s), including apt setup, source clones, Meson configure/build/install.

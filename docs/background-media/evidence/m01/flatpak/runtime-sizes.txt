@@ -1,0 +1,8 @@
+Flathub remote metadata (queried in a disposable Ubuntu 24.04 container, 2026-10-22)
+Command: flatpak remote-info --user flathub org.gnome.Sdk//50
+Result: runtime/org.gnome.Sdk/x86_64/50; download 838.4 MB; installed 2.3 GB
+
+Command: flatpak remote-info --user flathub org.gnome.Platform//50
+Result: runtime/org.gnome.Platform/x86_64/50; download 418.6 MB; installed 1.1 GB
+
+Docker run exit code: 0. Sizes are current remote metadata, not byte counts from the Flatpak build attempt.

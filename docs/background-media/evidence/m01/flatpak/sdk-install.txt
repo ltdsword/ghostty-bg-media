@@ -1,0 +1,7 @@
+Timed Flatpak ref install in a fresh disposable Ubuntu 24.04 container (2026-10-22)
+Command: `flatpak install --assumeyes --noninteractive --user flathub org.gnome.Sdk//50 org.gnome.Platform//50`
+Resolved refs included GNOME SDK 50, GNOME Platform 50, GL/codec extensions, and locale extensions.
+Install exit code: 0
+Elapsed for SDK + Platform + dependencies/extensions: 173 seconds (2m53s)
+Outer Docker run exit code: 0
+This is an independent install-time measurement, not the SDK-only transfer duration from the failed builder attempt. Remote sizes are in `runtime-sizes.txt`.
