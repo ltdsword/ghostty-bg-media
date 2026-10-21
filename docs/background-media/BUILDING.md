@@ -4,9 +4,43 @@
 
 The host is Ubuntu 24.04.4 with GNOME Wayland, per the supplied host context. Measured host versions are GTK 4.14.5 and libadwaita 1.5.0 (`pkg-config --modversion gtk4 libadwaita-1`; [host-dependencies.txt](evidence/m01/docker/host-dependencies.txt)). The source checks require blueprint-compiler >= 0.20.0 ([blueprint.zig](../../src/apprt/gtk/build/blueprint.zig)) and libadwaita >= 1.7.0 ([gresource.zig](../../src/apprt/gtk/build/gresource.zig)). The host libadwaita is below its source floor. The host blueprint-compiler version was not measured. Zig 0.16.0 is mounted read-only from `~/.local/opt/zig/0.16.0` rather than installed in the image.
 
+## Primary lane: host Flatpak (D-004)
+
+The user manually installed Flatpak and flatpak-builder once on the Ubuntu 24.04.4 host, then added Flathub for the user:
+
+```sh
+sudo apt install flatpak flatpak-builder
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+```
+
+Build from outside the repository, keeping the state and build directories outside it:
+
+```sh
+flatpak-builder --user --install-deps-from=flathub --force-clean --state-dir=<state> <builddir> flatpak/com.mitchellh.ghostty.yml
+```
+
+Run the built app without installing it:
+
+```sh
+flatpak-builder --run <builddir> flatpak/com.mitchellh.ghostty.yml ghostty
+```
+
+| Check | Exit | Time | Result |
+| --- | ---: | ---: | --- |
+| Build 1, unchanged manifest | 1 | 603 s | `translate-c` could not find `gtk4-layer-shell.h`; the module installed under `/app/lib64`, outside the configured pkg-config path. |
+| Build 2, with the `--libdir=lib` fix | 0 | 464 s | Ghostty built successfully. |
+| `flatpak-builder --run` launch | Not recorded | — | Ghostty launched with OpenGL 4.6 and started a shell on the host through Flatpak HostCommand. |
+| Manual smoke | — | — | User confirmed typing, scrolling, selection/copy, and opening a new tab: “all ok”. |
+
+The `gtk4-layer-shell` Meson module defaults to `lib64` on this host, while the Flatpak build's pkg-config lookup did not find its `.pc` file there. The `config-opts` entry `--libdir=lib` installs the library and pkg-config metadata under `/app/lib`, allowing `translate-c` to find the header. The manual smoke showed the expected default gray window; background media is not implemented yet.
+
+Evidence: [manual smoke test](evidence/m01/flatpak-host/smoke-test.txt), [first build failure](evidence/m01/flatpak-host/build-failure.txt), and [launch log](evidence/m01/flatpak-host/launch.txt).
+
 ## Container recipe
 
 The Ubuntu 26.04 image installs the GTK build dependencies from apt, including `libgtk4-layer-shell-dev` when available. It does not install Zig. Apt supplied GTK 4.22.4, libadwaita 1.9.1, and blueprint-compiler 0.19.0-2. The Dockerfile installs upstream blueprint-compiler tag `v0.20.0` because apt's version is below the source floor. The final in-image versions were GTK 4.22.4, libadwaita 1.9.1, and blueprint-compiler 0.20.0. The system layer-shell package was present and linked by the GTK build, so `-fno-sys=gtk4-layer-shell` was not used. See [image-build.txt](evidence/m01/docker/image-build.txt).
+
+This Ubuntu 26.04 container is a secondary, dev-only compile lane; the primary Linux build-and-run lane is host Flatpak above.
 
 The Docker Desktop VM context was selected explicitly:
 

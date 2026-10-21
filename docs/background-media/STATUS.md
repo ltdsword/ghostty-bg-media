@@ -7,7 +7,7 @@ yet.
 | Milestone | Owner | State | Commit | Evidence | Blockers | Next task |
 | --- | --- | --- | --- | --- | --- | --- |
 | M00 — Baselines | T2 audit | PARTIAL | — | [BASELINE](BASELINE.md), [macOS baseline](MACOS_BASELINE.md), gate log (Agent-Kit workspace `notes/m00/gate-full-baseline.log`) | Linux app launch and macOS build/runtime unverified | Complete approved Linux and macOS baseline runs |
-| M01 — Build environment | T3–T4 environment | PARTIAL | — | [BUILDING](BUILDING.md), [options](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/) | Host GTK blocked by libadwaita 1.5 < 1.7 and absent Blueprint compiler; Flatpak build stopped at bwrap; launch unverified | Evidence a GTK build and launch in the approved Flatpak lane |
+| M01 — Build environment | T3–T4 environment | DONE | — | [BUILDING](BUILDING.md), [options](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/), [host Flatpak](evidence/m01/flatpak-host/) | — | M02 compositor spike |
 | M02 — Compositor spike | TBD | NOT_STARTED | — | — | — | Prove terminal-over-media composition |
 | M03 — Domain/config | TBD | NOT_STARTED | — | — | — | Decide config and source contracts |
 | M04 — Static images | TBD | NOT_STARTED | — | — | — | Implement PNG/JPEG/WebP media behavior |
@@ -53,32 +53,32 @@ yet.
 ## M01 — Developer environment and checks
 
 - **Milestone:** M01 — Developer environment, reproducible build and checks
-- **Status:** PARTIAL
+- **Status:** DONE
 - **Branch / commit:** `feat/linux-background-media` at baseline `24fa0219908a`; no M01 commit is
   recorded.
 - **Changed files:** `docs/background-media/BUILDING.md`,
   `docs/background-media/BUILD_ENV_OPTIONS.md`, and `docs/background-media/evidence/m01/`.
 - **Decisions:** D-003, D-004, and D-006 are ACCEPTED. Flatpak is the Linux development-run and
   distribution format; the Ubuntu 26.04 container remains a dev-only compile/test lane.
-- **Build commands + results:** The GTK app built in the Ubuntu 26.04 container after a transient
-  fetch failure; the Flatpak builder stopped at bwrap namespace creation. The GTK app was not
-  built by the Flatpak lane.
+- **Build commands + results:** Host Flatpak build 1 failed with exit 1 after 603 seconds because
+  `gtk4-layer-shell` installed under `/app/lib64` and `translate-c` could not find its header.
+  Build 2 with the `--libdir=lib` manifest fix succeeded with exit 0 after 464 seconds.
 - **Automated tests + results:** Host `zig build -Dapp-runtime=none -Demit-docs=false test`
   passed. Both container test targets stopped during test-binary compilation with SIGKILL; test
   execution did not start.
-- **Manual visual/functional tests + environment:** The container launch failed before Ghostty
-  started because Docker Desktop could not resolve `/dev/dri`; visual result UNVERIFIED. Flatpak
-  app launch is also UNVERIFIED.
+- **Manual visual/functional tests + environment:** The Flatpak app launched on Ubuntu 24.04.4
+  GNOME Wayland. The user confirmed typing, scrolling, selection/copy, and opening a new tab:
+  “all ok”. The window showed the expected default gray background; media is not implemented yet.
 - **Performance / resource measurements:** No media performance measurements.
 - **Platform-isolation check:** The host gate's macOS-untouched and no-Apple-framework-in-GTK
   checks passed; macOS build evidence is absent.
-- **Linux evidence:** [build record](BUILDING.md),
-  [environment assessment](BUILD_ENV_OPTIONS.md), [Docker evidence](evidence/m01/docker/),
-  [Flatpak evidence](evidence/m01/flatpak/).
+- **Linux evidence:** [host Flatpak smoke test](evidence/m01/flatpak-host/smoke-test.txt),
+  [first build failure](evidence/m01/flatpak-host/build-failure.txt),
+  [launch log](evidence/m01/flatpak-host/launch.txt).
 - **macOS CI evidence:** UNVERIFIED; a separate CI lane is planned for M15.
-- **Remaining risks:** Host GTK floors block the host build; GTK build/launch in the approved
-  Flatpak lane, host runtime compatibility, and container tests remain unresolved.
-- **Next task:** Produce GTK build and launch evidence in the approved Flatpak lane.
+- **Remaining risks:** Container test targets remain open after SIGKILL during compilation; test
+  execution did not start. macOS build/runtime validation also remains open. Neither blocks M01.
+- **Next task:** M02 compositor spike.
 
 ## How to resume
 

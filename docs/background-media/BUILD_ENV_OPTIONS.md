@@ -1,7 +1,9 @@
 # Build environment options: Flatpak and local GNOME dependencies
 
-Assessment date: 2026-10-22  
-Repository base: `24fa0219908a3b474eae4766440c3d3662106a3d` (`agent/m00-m01-t4-r2`)  
+Assessment date: 2026-10-22
+
+Repository base: `24fa0219908a3b474eae4766440c3d3662106a3d` (`agent/m00-m01-t4-r2`)
+
 Host context: Ubuntu 24.04.4 GNOME Wayland; GTK 4.14.5 and libadwaita 1.5.0. Flatpak and flatpak-builder are absent on the host. No host packages were installed.
 
 This compares (A) the repository Flatpak manifests and (B) a source-built GTK/libadwaita/Blueprint stack for Noble. App/runtime behaviors are **ASSESSED** from source or documentation unless explicitly marked otherwise. The container build outcomes below are execution evidence; neither built Ghostty to a runnable app.

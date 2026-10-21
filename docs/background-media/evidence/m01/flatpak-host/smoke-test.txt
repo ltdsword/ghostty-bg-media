@@ -1,0 +1,13 @@
+Host Flatpak build + Wayland smoke test (2026-10-22, Ubuntu 24.04.4 GNOME Wayland, Intel Arrow Lake / Mesa)
+Tools: Flatpak 1.14.6, flatpak-builder 1.4.2 (apt, installed by user); Flathub remote --user; GNOME SDK/Platform 50.
+Build 1 (repo manifest unchanged): exit 1, 603 s. 262/266 steps; translate-c gtk4_layer_shell_c.h:
+  fatal error: 'gtk4-layer-shell.h' not found. Cause: gtk4-layer-shell meson module installed to /app/lib64
+  (pkgconfig at /app/lib64/pkgconfig/gtk4-layer-shell-0.pc, not on PKG_CONFIG_PATH) -> no -I flag.
+Build 2 (workspace copy of manifest, gtk4-layer-shell module + `config-opts: [--libdir=lib]`): exit 0, 464 s;
+  /app/bin/ghostty 30,245,816 bytes.
+Launch: flatpak-builder --run <builddir> <manifest> ghostty (no install):
+  GTK build=4.22.5 runtime=4.22.5; libadwaita build=1.9.4 runtime=1.9.4; renderer OpenGL; EGL vendor Mesa;
+  OpenGL 4.6; "started subcommand on host via flatpak API path=/bin/sh"; shell integration bash injected.
+  Warnings: fontconfig /run/host/font-dirs.xml missing; a11y bus unavailable; unimplemented action .cell_size.
+Manual (user, 2026-10-22): window opened (default gray background, no media - expected, feature not yet built);
+  user reply to typing `ls`, scroll, select+copy Ctrl+Shift+C, new tab Ctrl+Shift+T: "all ok".

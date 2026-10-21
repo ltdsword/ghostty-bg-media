@@ -1,0 +1,21 @@
+Running: zig build -Doptimize=ReleaseFast -Dcpu=baseline -Dflatpak=true -Dstrip=false -fno-sys=oniguruma --prefix /app --search-prefix /app --system $PWD/vendor/p
+install
++- install ghostty
+   +- compile exe ghostty ReleaseFast native-native
+      +- translate-c gtk4_layer_shell_c.h failure
+./.zig-cache/o/e273399fd543cea33a77d1de6091546d/gtk4_layer_shell_c.h:1:10: fatal error: 'gtk4-layer-shell.h' not found
+#include <gtk4-layer-shell.h>
+         ^
+error: process exited with error code 1
+failed command: ./.zig-cache/o/7b510a34c906ef09af065ff0b26f1d2b/translate-c -o=./.zig-cache/tmp/b28efd6afaf6ab41/gtk4_layer_shell_c.h.zig -O=ReleaseFast --target=native-native -mcpu=baseline -lc -l=00111,gtk4 -l=00111,gtk4-layer-shell-0 --zig-lib=/app/zig/lib -fmodule-libs -- ./.zig-cache/o/e273399fd543cea33a77d1de6091546d/gtk4_layer_shell_c.h -MD -MV -MF ./.zig-cache/tmp/b28efd6afaf6ab41/deps.d -w -resource-dir /run/build/ghostty/vendor/p/aro-0.0.0-JSD1Qk6lNgDdcDV4Vh7Sfy-34m2TluIVOdPzMmj_0BjX
+
+Build Summary: 262/266 steps succeeded (1 failed)
+install transitive failure
++- install ghostty transitive failure
+   +- compile exe ghostty ReleaseFast native-native transitive failure
+      +- translate-c gtk4_layer_shell_c.h failure
+
+error: the following build command failed with exit code 1:
+.zig-cache/o/187fd43509ad9e25e28c576a4f92ecb1/build /app/zig/zig /app/zig/lib /run/build/ghostty .zig-cache <user-home>/.cache/zig --seed 0xfc560421 -Z7ebf413f46e7cfd3 -Doptimize=ReleaseFast -Dcpu=baseline -Dflatpak=true -Dstrip=false -fno-sys=oniguruma --prefix /app --search-prefix /app --system
+Error: module ghostty: Child process exited with code 1
+flatpak-builder exit=1 elapsed=603s

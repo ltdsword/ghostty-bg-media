@@ -14,9 +14,9 @@ audit docs and logs.
 - **Decision:** Flatpak-first. GNOME 50 runtime (GTK 4.22, libadwaita 1.9) is the Linux dev-run and
   distribution format. The Ubuntu 26.04 container remains a dev-only compile/test lane. Docker is
   never required for end users or to run the app. This records user decision D24.
-- **Consequences:** Host setup requires a pending manual Flatpak and flatpak-builder install.
-  Flatpak app build/launch remain UNVERIFIED. M16 needs an app-ID/coexistence decision against
-  `com.mitchellh.ghostty`.
+- **Consequences:** Host Flatpak tooling installed by the user; the app builds and launches on the
+  Noble host with the gtk4-layer-shell `--libdir=lib` manifest fix (see BUILDING.md). M16 needs an
+  app-ID/coexistence decision against `com.mitchellh.ghostty`.
 - **Evidence:** [BUILDING.md](BUILDING.md), [BUILD_ENV_OPTIONS.md](BUILD_ENV_OPTIONS.md),
   [Flatpak attempt](evidence/m01/flatpak/attempt.txt),
   [host linkage](evidence/m01/docker/host-ldd.txt).
