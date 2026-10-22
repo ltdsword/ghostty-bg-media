@@ -8,6 +8,7 @@ const global = @import("../../../global.zig");
 const Common = @import("../class.zig").Common;
 const pattern = @import("../media_spike_pattern.zig");
 const bg = @import("../background_media/main.zig");
+const media_loader = @import("../media_loader.zig");
 const Application = @import("application.zig").Application;
 
 const log = std.log.scoped(.gtk_media_view);
@@ -33,6 +34,10 @@ pub const MediaView = extern struct {
         config_notify_id: c_ulong = 0,
         start_us: i64 = 0,
         frames: u64 = 0,
+        fit: bg.layout.Fit = .cover,
+        position: bg.layout.Position = .center,
+        dim: f32 = 0,
+        bg_rgb: struct { r: u8, g: u8, b: u8 } = .{ .r = 0, .g = 0, .b = 0 },
 
         pub var offset: c_int = 0;
     };
@@ -75,11 +80,13 @@ pub const MediaView = extern struct {
             self,
             .{ .detail = "config" },
         );
+        media_loader.register(self);
         self.applyConfig();
     }
 
     fn unrealize(self: *Self) callconv(.c) void {
         const priv = self.private();
+        media_loader.unregister(self);
         if (priv.config_notify_id != 0) {
             gobject.signalHandlerDisconnect(
                 Application.default().as(gobject.Object),
@@ -113,12 +120,20 @@ pub const MediaView = extern struct {
         defer config_obj.unref();
         const config = config_obj.get();
 
-        var next_state: bg.state.State = .disabled;
-        var source_value: ?[]const u8 = null;
+        priv.fit = std.meta.stringToEnum(bg.layout.Fit, @tagName(config.@"background-media-fit")).?;
+        priv.position = std.meta.stringToEnum(bg.layout.Position, @tagName(config.@"background-media-position")).?;
+        priv.dim = config.@"background-media-dim";
+        priv.bg_rgb = .{
+            .r = config.background.r,
+            .g = config.background.g,
+            .b = config.background.b,
+        };
+
         if (config.@"background-media") |source| {
             switch (source) {
                 .url => |url| {
-                    source_value = url;
+                    media_loader.request(null);
+                    var next_state: bg.state.State = undefined;
                     if (bg.source.classifyUrl(url)) |kind| {
                         next_state = .{ .ready = .{
                             .kind = kind,
@@ -128,79 +143,54 @@ pub const MediaView = extern struct {
                     } else {
                         next_state = .{ .failed = .invalid_url };
                     }
+
+                    const changed = !std.meta.eql(priv.state, next_state);
+                    const action = bg.state.reconcile(priv.state, next_state);
+                    priv.state = next_state;
+
+                    if (next_state == .failed and changed) {
+                        log.warn("background-media: {s} state=failed reason={s} source={s}", .{
+                            @tagName(action),
+                            @tagName(next_state.failed),
+                            url,
+                        });
+                    } else if (action != .none) {
+                        switch (next_state) {
+                            .disabled => log.info("background-media: {s} state=disabled kind=none type=none", .{
+                                @tagName(action),
+                            }),
+                            .ready => |ready| log.info("background-media: {s} state=ready kind={s} type={s}", .{
+                                @tagName(action),
+                                @tagName(ready.kind),
+                                @tagName(ready.media_type),
+                            }),
+                            .failed => unreachable,
+                        }
+                    }
                 },
-                .path => |path| path_block: {
+                .path => |path| {
                     const path_value, const optional = switch (path) {
                         .optional => |value| .{ value, true },
                         .required => |value| .{ value, false },
                     };
-                    source_value = path_value;
-
-                    const file = std.Io.Dir.openFileAbsolute(
-                        global.io(),
-                        path_value,
-                        .{ .mode = .read_only },
-                    ) catch |err| {
-                        if (err == error.FileNotFound and optional) {
-                            next_state = .disabled;
-                        } else {
-                            next_state = .{ .failed = if (err == error.FileNotFound)
-                                .not_found
-                            else
-                                .unreadable };
-                        }
-                        break :path_block;
-                    };
-                    defer file.close(global.io());
-
-                    var reader_buffer: [bg.source.sniff_len]u8 = undefined;
-                    var file_reader = file.reader(global.io(), &reader_buffer);
-                    var header: [bg.source.sniff_len]u8 = undefined;
-                    const read_len = file_reader.interface.readSliceShort(&header) catch {
-                        next_state = .{ .failed = .unreadable };
-                        break :path_block;
-                    };
-                    const header_type = bg.source.sniff(header[0..read_len]);
-                    const media_type = if (header_type == .unknown)
-                        bg.source.fromExtension(path_value)
-                    else
-                        header_type;
-                    if (media_type == .unknown) {
-                        next_state = .{ .failed = .unsupported_type };
-                    } else {
-                        next_state = .{ .ready = .{
-                            .kind = .local_file,
-                            .media_type = media_type,
-                            .source_id = bg.state.sourceId(path_value),
-                        } };
-                    }
+                    media_loader.request(.{
+                        .id = bg.state.sourceId(path_value),
+                        .path = path_value,
+                        .optional = optional,
+                    });
+                    priv.state = .disabled;
                 },
             }
+        } else {
+            media_loader.request(null);
+            priv.state = .disabled;
         }
 
-        const changed = !std.meta.eql(priv.state, next_state);
-        const action = bg.state.reconcile(priv.state, next_state);
-        priv.state = next_state;
+        self.as(gtk.Widget).queueDraw();
+    }
 
-        if (next_state == .failed and changed) {
-            log.warn("background-media: {s} state=failed reason={s} source={s}", .{
-                @tagName(action),
-                @tagName(next_state.failed),
-                source_value orelse "",
-            });
-        } else if (action != .none) {
-            switch (next_state) {
-                .disabled => log.info("background-media: {s} state=disabled kind=none type=none", .{
-                    @tagName(action),
-                }),
-                .ready => |ready| log.info("background-media: {s} state=ready kind={s} type={s}", .{
-                    @tagName(action),
-                    @tagName(ready.kind),
-                    @tagName(ready.media_type),
-                }),
-                .failed => unreachable,
-            }
-        }
+    pub fn mediaChanged(self: *Self) void {
+        self.as(gtk.Widget).queueDraw();
     }
 
     fn tick(
@@ -217,64 +207,99 @@ pub const MediaView = extern struct {
 
     fn snapshot(self: *Self, snap: *gtk.Snapshot) callconv(.c) void {
         const priv = self.private();
-        if (!priv.enabled) return;
-
         const widget = self.as(gtk.Widget);
-        const frame_time = if (widget.getFrameClock()) |clock|
-            clock.getFrameTime()
-        else
-            priv.start_us;
-        const t_s: f64 = if (widget.getFrameClock() != null)
-            @as(f64, @floatFromInt(frame_time - priv.start_us)) / 1_000_000.0
-        else
-            0;
-        const w: f32 = @floatFromInt(widget.getWidth());
-        const h: f32 = @floatFromInt(widget.getHeight());
-        const off = pattern.scrollOffset(t_s);
+        if (priv.enabled) {
+            const frame_time = if (widget.getFrameClock()) |clock|
+                clock.getFrameTime()
+            else
+                priv.start_us;
+            const t_s: f64 = if (widget.getFrameClock() != null)
+                @as(f64, @floatFromInt(frame_time - priv.start_us)) / 1_000_000.0
+            else
+                0;
+            const w: f32 = @floatFromInt(widget.getWidth());
+            const h: f32 = @floatFromInt(widget.getHeight());
+            const off = pattern.scrollOffset(t_s);
 
-        var row: i32 = -1;
-        var y: f32 = -pattern.tile_px;
-        while (y <= h) : (y += pattern.tile_px) {
-            var col: i32 = -3;
-            while (true) : (col += 1) {
-                const x = @as(f32, @floatFromInt(col)) * pattern.tile_px + off;
-                if (x > w) break;
+            var row: i32 = -1;
+            var y: f32 = -pattern.tile_px;
+            while (y <= h) : (y += pattern.tile_px) {
+                var col: i32 = -3;
+                while (true) : (col += 1) {
+                    const x = @as(f32, @floatFromInt(col)) * pattern.tile_px + off;
+                    if (x > w) break;
 
-                const color = pattern.tileColor(col, row, t_s);
-                const rgba = gdk.RGBA{
-                    .f_red = color.r,
-                    .f_green = color.g,
-                    .f_blue = color.b,
-                    .f_alpha = color.a,
-                };
-                snap.appendColor(&rgba, &.{
-                    .f_origin = .{ .f_x = x, .f_y = y },
-                    .f_size = .{ .f_width = pattern.tile_px, .f_height = pattern.tile_px },
-                });
+                    const color = pattern.tileColor(col, row, t_s);
+                    const rgba = gdk.RGBA{
+                        .f_red = color.r,
+                        .f_green = color.g,
+                        .f_blue = color.b,
+                        .f_alpha = color.a,
+                    };
+                    snap.appendColor(&rgba, &.{
+                        .f_origin = .{ .f_x = x, .f_y = y },
+                        .f_size = .{ .f_width = pattern.tile_px, .f_height = pattern.tile_px },
+                    });
+                }
+                row += 1;
             }
-            row += 1;
+
+            var text_buffer: [96:0]u8 = undefined;
+            const timestamp = std.fmt.bufPrintZ(
+                &text_buffer,
+                "BGM SPIKE t={d:.2}s frame={d}",
+                .{ t_s, priv.frames },
+            ) catch unreachable;
+            const layout = widget.createPangoLayout(timestamp.ptr);
+            const white = gdk.RGBA{
+                .f_red = 1.0,
+                .f_green = 1.0,
+                .f_blue = 1.0,
+                .f_alpha = 1.0,
+            };
+            snap.save();
+            snap.translate(&.{ .f_x = 16, .f_y = 16 });
+            snap.appendLayout(layout, &white);
+            snap.restore();
+            layout.as(gobject.Object).unref();
+
+            priv.frames += 1;
+            return;
         }
 
-        var text_buffer: [96:0]u8 = undefined;
-        const timestamp = std.fmt.bufPrintZ(
-            &text_buffer,
-            "BGM SPIKE t={d:.2}s frame={d}",
-            .{ t_s, priv.frames },
-        ) catch unreachable;
-        const layout = widget.createPangoLayout(timestamp.ptr);
-        const white = gdk.RGBA{
-            .f_red = 1.0,
-            .f_green = 1.0,
-            .f_blue = 1.0,
-            .f_alpha = 1.0,
-        };
-        snap.save();
-        snap.translate(&.{ .f_x = 16, .f_y = 16 });
-        snap.appendLayout(layout, &white);
-        snap.restore();
-        layout.as(gobject.Object).unref();
+        const texture_value = media_loader.texture() orelse return;
+        const width: f32 = @floatFromInt(widget.getWidth());
+        const height: f32 = @floatFromInt(widget.getHeight());
+        const dest = bg.layout.destRect(
+            priv.fit,
+            priv.position,
+            @floatFromInt(texture_value.getWidth()),
+            @floatFromInt(texture_value.getHeight()),
+            width,
+            height,
+        ) orelse return;
 
-        priv.frames += 1;
+        snap.pushClip(&.{
+            .f_origin = .{ .f_x = 0, .f_y = 0 },
+            .f_size = .{ .f_width = width, .f_height = height },
+        });
+        snap.appendTexture(texture_value, &.{
+            .f_origin = .{ .f_x = dest.x, .f_y = dest.y },
+            .f_size = .{ .f_width = dest.width, .f_height = dest.height },
+        });
+        if (priv.dim > 0) {
+            const color = gdk.RGBA{
+                .f_red = @as(f32, @floatFromInt(priv.bg_rgb.r)) / 255.0,
+                .f_green = @as(f32, @floatFromInt(priv.bg_rgb.g)) / 255.0,
+                .f_blue = @as(f32, @floatFromInt(priv.bg_rgb.b)) / 255.0,
+                .f_alpha = priv.dim,
+            };
+            snap.appendColor(&color, &.{
+                .f_origin = .{ .f_x = 0, .f_y = 0 },
+                .f_size = .{ .f_width = width, .f_height = height },
+            });
+        }
+        snap.pop();
     }
 
     pub const Class = extern struct {
