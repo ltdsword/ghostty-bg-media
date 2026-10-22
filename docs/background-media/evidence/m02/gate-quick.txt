@@ -1,0 +1,16 @@
+verify-ghostty.sh mode=quick dir=<workspace>/worktrees/integration-m02-spike base=24fa0219908a
+----- git diff --check (worktree): git diff --check HEAD
+PASS  git diff --check (worktree)
+----- git diff --check (since baseline): git diff --check 24fa0219908a...HEAD
+PASS  git diff --check (since baseline)
+----- isolation: macos/ unchanged since baseline: check_macos_untouched
+PASS  isolation: macos/ unchanged since baseline
+----- isolation: no Apple frameworks in GTK code: check_no_apple_in_linux
+PASS  isolation: no Apple frameworks in GTK code
+zig 0.16.0
+----- zig fmt --check (changed files): ~/.local/opt/zig/0.16.0/zig fmt --check src/apprt/gtk/class/media_view.zig src/apprt/gtk/class/render_surface.zig src/apprt/gtk/class/tab.zig src/apprt/gtk/media_spike_pattern.zig
+PASS  zig fmt --check (changed files)
+----- zig build core (app-runtime=none): ~/.local/opt/zig/0.16.0/zig build -Dapp-runtime=none -Demit-docs=false
+PASS  zig build core (app-runtime=none)
+SKIP  GTK build - host libadwaita 1.5 < required 1.7; build environment pending M01 decision
+verify-ghostty.sh result: PASS (6 checks run)

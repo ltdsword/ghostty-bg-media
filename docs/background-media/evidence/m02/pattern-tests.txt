@@ -1,0 +1,8 @@
+Command: zig test src/apprt/gtk/media_spike_pattern.zig (Zig 0.16.0, host, branch feat/linux-background-media @ b2ed4d4cd, 2026-10-22)
+1/5 media_spike_pattern.test.tile parity alternates...OK
+2/5 media_spike_pattern.test.tile alpha stripe...OK
+3/5 media_spike_pattern.test.scroll offset stays in two-tile range...OK
+4/5 media_spike_pattern.test.HSV primary red...OK
+5/5 media_spike_pattern.test.tile colors stay in range...OK
+All 5 tests passed.
+exit=0

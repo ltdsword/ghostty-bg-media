@@ -63,15 +63,19 @@ proposed module boundary is in [BASELINE.md §9](BASELINE.md#9-proposed-linux-mo
 
 ### Linux
 
-- **Local host:** Ubuntu 24.04.4, GNOME Wayland. The host core test passed in the gate; GTK build
-  was skipped because host libadwaita 1.5 is below the 1.7 source floor. GTK launch is UNVERIFIED.
+- **Local host:** Ubuntu 24.04.4, GNOME Wayland. The core build passed in the quick gate; GTK build
+  was skipped because host libadwaita 1.5 is below the 1.7 source floor. See the host Flatpak visual
+  lane for the M02 GTK result.
 - **Container:** Ubuntu 26.04 GTK build passed after a transient dependency-fetch failure. Both
   container test targets stopped during test-binary compilation with SIGKILL; tests did not start.
   The Wayland launch did not start because Docker Desktop could not resolve `/dev/dri`.
-- **Flatpak:** GNOME 50 SDK/runtime setup completed; the app build stopped at bwrap namespace
-  creation. App build, install, and launch are UNVERIFIED.
-- Evidence: [BUILDING.md](BUILDING.md), [BUILD_ENV_OPTIONS.md](BUILD_ENV_OPTIONS.md), and
-  [M01 evidence](evidence/m01/).
+- **Flatpak M01 lane:** GNOME 50 SDK/runtime setup completed; the M01 build attempt stopped at bwrap
+  namespace creation. See [M01 evidence](evidence/m01/).
+- **Manual host-Flatpak visual lane (M02): PASS.** On Ubuntu 24.04.4 GNOME Wayland, the spike ran
+  through both DMA-BUF and forced-CPU presentation. The user confirmed the animated background,
+  terminal interaction, splits, and tabs; see [M02 evidence](evidence/m02/).
+- Evidence: [BUILDING.md](BUILDING.md), [BUILD_ENV_OPTIONS.md](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/), and
+  [M02 evidence](evidence/m02/).
 
 ### macOS
 
@@ -80,8 +84,8 @@ an independent CI lane is planned for M15. See [MACOS_BASELINE.md §7](MACOS_BAS
 
 | Test ID | Current status | Evidence / reason |
 | --- | --- | --- |
-| ISO-01 — Linux imports macOS frameworks | PASS | host gate (Agent-Kit workspace `notes/m00/gate-full-baseline.log`): no Apple frameworks in GTK code |
-| ISO-02 — macOS links Linux media libraries | UNVERIFIED | No macOS build graph/CI run; no Linux media implementation yet |
-| ISO-03 — protected macOS paths unchanged | PASS | host gate (Agent-Kit workspace `notes/m00/gate-full-baseline.log`): macOS unchanged since baseline |
+| ISO-01 — Linux imports macOS frameworks | PASS | [latest quick gate](evidence/m02/gate-quick.txt): no Apple frameworks in GTK code |
+| ISO-02 — macOS links Linux media libraries | UNVERIFIED | [latest quick gate](evidence/m02/gate-quick.txt) is not a macOS build; macOS build graph/CI remains unverified |
+| ISO-03 — protected macOS paths unchanged | PASS | [latest quick gate](evidence/m02/gate-quick.txt): macOS unchanged since baseline |
 | MAC-01 — inherited macOS config/playback | UNVERIFIED | No macOS build or device smoke; see [MACOS_BASELINE.md §6](MACOS_BASELINE.md#6-baseline-behavior-to-regress-against-mac-01) |
 | MAC-02 — app works without Linux media dependencies | UNVERIFIED | No macOS build/launch evidence; CI lane planned for M15 |

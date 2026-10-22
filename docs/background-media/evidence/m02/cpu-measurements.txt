@@ -1,0 +1,16 @@
+DMA-BUF path, spike on, opacity 0.5, window freshly opened (visible)
+  21671 lap17124  20   0 2253372 152672 102992 R  10.0   1.0   0:01.77 ghostty
+  21671 lap17124  20   0 2255484 152672 102992 S  13.6   1.0   0:02.45 ghostty
+  21671 lap17124  20   0 2159180 149436 102992 S  13.8   0.9   0:03.14 ghostty
+Forced CPU path, spike on, opacity 0.5, window freshly opened (visible)
+  21119 lap17124  20   0 2460476 189644 103344 S  30.0   1.2   0:02.03 ghostty
+  21119 lap17124  20   0 2462140 189684 103344 R  23.6   1.2   0:03.21 ghostty
+  21119 lap17124  20   0 2396496 187804 103344 S  14.2   1.2   0:03.92 ghostty
+baseline: spike OFF, DMA-BUF
+  21981 lap17124  20   0 2322688 152848 103292 S   0.0   1.0   0:00.68 ghostty
+  21981 lap17124  20   0 2322688 152848 103292 S   0.8   1.0   0:00.72 ghostty
+  21981 lap17124  20   0 2248924 150432 103292 R   1.0   1.0   0:00.77 ghostty
+DMA-BUF path, spike on, opacity 0.5, window as left by user
+  20347 lap17124  20   0 2254416 162200 103424 S   0.0   1.0   0:15.62 ghostty
+  20347 lap17124  20   0 2254156 162200 103424 S   0.0   1.0   0:15.62 ghostty
+  20347 lap17124  20   0 2254156 162200 103424 S   0.0   1.0   0:15.62 ghostty

@@ -1,0 +1,14 @@
+M02 compositor spike (Option A, GtkOverlay under split tree) - host evidence, 2026-10-22
+Host: Ubuntu 24.04.4 GNOME Wayland, Intel Arrow Lake/Mesa; Flatpak GNOME 50 (GTK 4.22.5, libadwaita 1.9.4), OpenGL 4.6.
+Build: worker flatpak-builder of agent/m02-spike-t1 worktree: success (bin/ghostty 30,251,640 bytes).
+Note: `flatpak-builder --run` does NOT forward host env (attempt 1 log: no "media view enabled"); vars must be set
+inside the sandbox: `flatpak-builder --run <builddir> <manifest> env GHOSTTY_BGM_SPIKE=1 ghostty ...`.
+Run A (DMA-BUF, GHOSTTY_BGM_SPIKE=1, --background-opacity=0.5): log "media view enabled", no dmabuf import failure.
+  User: animated checkerboard behind text, text readable; typing, scroll, select/copy, split, new tab: "All works".
+Run B (forced CPU, + GHOSTTY_BGM_FORCE_CPU=1): log "forcing CPU presentation". User: "Same, all works".
+CPU (top, 3 samples x 5 s, freshly opened visible window, single tab, idle shell):
+  spike off: 0.0 / 0.8 / 1.0 %   | spike on DMA-BUF: 10.0 / 13.6 / 13.8 %   | spike on forced CPU: 30.0 / 23.6 / 14.2 %
+  spike on, window hidden behind other window: 0.0 % x3, CPU time constant (frame clock paused by compositor).
+Not tested (UNVERIFIED): fractional scale 125%, resize ghosting, application/custom shaders, background-image
+precedence, explicit per-cell bg colors/truecolor app, focus-change visuals, multi-monitor, screen capture/screenshots.
+Known spike costs: tick callback redraws every frame (full refresh rate) while visible; procedural appendColor per tile.

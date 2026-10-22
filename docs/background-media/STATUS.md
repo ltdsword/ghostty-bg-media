@@ -1,14 +1,14 @@
 # Background media project status
 
 Milestone states follow the master plan (Agent-Kit workspace `docs/MASTER_PLAN.md`) §7A. PARTIAL means the
-evidence below exists but the milestone exit gate is not complete. No milestone commit is recorded
-yet.
+evidence below exists but the milestone exit gate is not complete. M02's implementation commit is
+recorded below; M00/M01 have no separate milestone commit recorded.
 
 | Milestone | Owner | State | Commit | Evidence | Blockers | Next task |
 | --- | --- | --- | --- | --- | --- | --- |
 | M00 — Baselines | T2 audit | PARTIAL | — | [BASELINE](BASELINE.md), [macOS baseline](MACOS_BASELINE.md), gate log (Agent-Kit workspace `notes/m00/gate-full-baseline.log`) | Linux app launch and macOS build/runtime unverified | Complete approved Linux and macOS baseline runs |
 | M01 — Build environment | T3–T4 environment | DONE | — | [BUILDING](BUILDING.md), [options](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/), [host Flatpak](evidence/m01/flatpak-host/) | — | M02 compositor spike |
-| M02 — Compositor spike | TBD | NOT_STARTED | — | — | — | Prove terminal-over-media composition |
+| M02 — Compositor spike | m02-spike T1 | DONE | b2ed4d4 | [ADR](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/) | — | M03 config contract (needs user approval) |
 | M03 — Domain/config | TBD | NOT_STARTED | — | — | — | Decide config and source contracts |
 | M04 — Static images | TBD | NOT_STARTED | — | — | — | Implement PNG/JPEG/WebP media behavior |
 | M05 — Local MP4 | TBD | NOT_STARTED | — | — | — | Select and integrate a backend after M02 |
@@ -58,6 +58,7 @@ yet.
   recorded.
 - **Changed files:** `docs/background-media/BUILDING.md`,
   `docs/background-media/BUILD_ENV_OPTIONS.md`, and `docs/background-media/evidence/m01/`.
+- **Developer commands:** [developer commands and test baselines](BUILDING.md#developer-commands).
 - **Decisions:** D-003, D-004, and D-006 are ACCEPTED. Flatpak is the Linux development-run and
   distribution format; the Ubuntu 26.04 container remains a dev-only compile/test lane.
 - **Build commands + results:** Host Flatpak build 1 failed with exit 1 after 603 seconds because
@@ -79,6 +80,23 @@ yet.
 - **Remaining risks:** Container test targets remain open after SIGKILL during compilation; test
   execution did not start. macOS build/runtime validation also remains open. Neither blocks M01.
 - **Next task:** M02 compositor spike.
+
+## M02 — Compositor feasibility spike
+
+- **Milestone:** M02 — Compositor feasibility spike: frame behind terminal
+- **Status:** DONE (exit gate passed)
+- **Branch / commit:** M02 implementation at `b2ed4d4`; this documentation task starts from that commit.
+- **Changed files:** GTK spike files listed in [COMPOSITOR_ADR.md](COMPOSITOR_ADR.md), the ADR, and `docs/background-media/evidence/m02/`.
+- **Decisions:** D-005 and D-007 are ACCEPTED.
+- **Build commands + results:** The Flatpak spike build succeeded (binary size 30,251,640 bytes). The quick gate's core build passed; its host GTK build was skipped because host libadwaita 1.5 is below the required 1.7 source floor.
+- **Automated tests + results:** `gate-quick.txt` reports PASS (6 checks run), including formatting, core build, and isolation checks. Spike-pattern unit tests: 5/5 passed with Zig 0.16.0 on the host ([pattern-tests.txt](evidence/m02/pattern-tests.txt)).
+- **Manual visual/functional tests + environment:** Ubuntu 24.04.4 GNOME Wayland, Flatpak GNOME 50 runtime. User confirmed the animated checkerboard behind readable terminal text through DMA-BUF and forced-CPU paths; typing, scrolling, selection/copy, splits, and new tabs worked.
+- **Performance / resource measurements:** Visible idle shell: DMA-BUF 10.0 / 13.6 / 13.8% CPU; forced CPU 30.0 / 23.6 / 14.2%; spike-off baseline 0.0 / 0.8 / 1.0%. Hidden-window DMA-BUF samples were 0.0% x3. Each set is three 5-second `top` samples.
+- **Platform-isolation check:** PASS; quick gate reports macOS unchanged since baseline and no Apple frameworks in GTK code.
+- **Linux evidence:** [M02 evidence](evidence/m02/), including launch logs, CPU samples, and quick gate.
+- **macOS CI evidence:** UNVERIFIED; no macOS build or runtime result is recorded.
+- **Remaining risks:** Fractional scale, resize ghosting, custom shaders, background-image precedence, truecolor/per-cell backgrounds, focus visuals, multi-monitor behavior, screenshots, and copies per frame remain UNVERIFIED. Visible redraw is every frame; extra copies were not instrumented.
+- **Next task:** M03 config contract (needs user approval).
 
 ## How to resume
 

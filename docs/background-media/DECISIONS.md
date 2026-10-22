@@ -1,7 +1,32 @@
 # Background media decisions
 
-Accepted decisions and proposals are recorded newest first. Evidence links point to the M00/M01
-audit docs and logs.
+Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
+docs and logs.
+
+## D-007 Spike switches are environment variables, not config
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-22
+- **Context:** M02 needs test switches to expose the GTK spike and exercise CPU presentation.
+- **Decision:** `GHOSTTY_BGM_SPIKE` and `GHOSTTY_BGM_FORCE_CPU` are test-only environment variables;
+  exactly `1` enables each switch. They are not public config keys and will be removed or replaced
+  by `background-media*` configuration in M03/M04.
+- **Consequences:** Keep the switches out of public configuration and remove or replace them as
+  media configuration is implemented.
+- **Evidence:** [COMPOSITOR_ADR.md](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/).
+
+## D-005 M02 compositor approach
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-22
+- **Context:** Linux media must appear behind terminal content without changing the inherited macOS
+  path or risking terminal rendering behavior.
+- **Decision:** Option A: a `GtkOverlay` in `tab.blp`, with `GhosttyMediaView` as the base child and
+  the existing split tree as the overlay child. The spike keeps the terminal renderer unchanged.
+  The ranked options and trade-offs are in [BASELINE.md §8](BASELINE.md#8-m02-compositor-options--proposal).
+- **Consequences:** Use GTK composition for Linux media. Pivot to Option B only if later evidence
+  shows an Option A defect that cannot be fixed there.
+- **Evidence:** [COMPOSITOR_ADR.md](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/).
 
 ## D-004 Linux build/dev environment and distribution
 
@@ -33,19 +58,6 @@ audit docs and logs.
   passed its checks and reported the GTK skip.
 - **Evidence:** host gate log (Agent-Kit workspace `notes/m00/gate-full-baseline.log`),
   [BUILDING.md](BUILDING.md).
-
-## D-005 M02 compositor approach
-
-- **Status:** PROPOSED
-- **Date:** 2026-10-21
-- **Context:** Linux media must appear behind terminal content without changing the inherited macOS
-  path or risking terminal rendering behavior.
-- **Decision:** Compare Option A, a GTK snapshot/widget under the split tree, with Option B, a
-  renderer-integrated background pass. The ranked decision table and trade-offs are in
-  [BASELINE.md §8](BASELINE.md#8-m02-compositor-options--proposal). Defer selection to M02 proof.
-- **Consequences:** No compositor implementation is selected. Begin M02 with the GTK-local option;
-  pivot only if the visual proof fails.
-- **Evidence:** [BASELINE.md §8](BASELINE.md#8-m02-compositor-options--proposal).
 
 ## D-003 Zig toolchain
 
