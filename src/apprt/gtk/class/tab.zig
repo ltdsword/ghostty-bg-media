@@ -13,6 +13,7 @@ const gresource = @import("../build/gresource.zig");
 const Common = @import("../class.zig").Common;
 const Config = @import("config.zig").Config;
 const Application = @import("application.zig").Application;
+const MediaView = @import("media_view.zig").MediaView;
 const SplitTree = @import("split_tree.zig").SplitTree;
 const Surface = @import("surface.zig").Surface;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
@@ -170,6 +171,7 @@ pub const Tab = extern struct {
         tooltip: ?[:0]const u8 = null,
 
         // Template bindings
+        media_overlay: *gtk.Overlay,
         split_tree: *SplitTree,
 
         pub var offset: c_int = 0;
@@ -224,6 +226,9 @@ pub const Tab = extern struct {
 
     fn init(self: *Self, _: *Class) callconv(.c) void {
         gtk.Widget.initTemplate(self.as(gtk.Widget));
+
+        const priv = self.private();
+        priv.media_overlay.setMeasureOverlay(priv.split_tree.as(gtk.Widget), 1);
 
         // Init our actions
         self.initActionMap();
@@ -545,6 +550,7 @@ pub const Tab = extern struct {
         fn init(class: *Class) callconv(.c) void {
             gobject.ext.ensureType(SplitTree);
             gobject.ext.ensureType(Surface);
+            gobject.ext.ensureType(MediaView);
             gtk.Widget.Class.setTemplateFromResource(
                 class.as(gtk.Widget.Class),
                 comptime gresource.blueprint(.{
@@ -567,6 +573,7 @@ pub const Tab = extern struct {
 
             // Bindings
             class.bindTemplateChildPrivate("split_tree", .{});
+            class.bindTemplateChildPrivate("media_overlay", .{});
 
             // Template Callbacks
             class.bindTemplateCallback("computed_title", &closureComputedTitle);

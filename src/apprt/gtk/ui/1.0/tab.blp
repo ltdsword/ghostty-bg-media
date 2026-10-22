@@ -18,8 +18,15 @@ template $GhosttyTab: Box {
     ) as <string>;
   tooltip: bind split_tree.active-surface as <$GhosttySurface>.pwd;
 
-  $GhosttySplitTree split_tree {
-    notify::active-surface => $notify_active_surface();
-    notify::tree => $notify_tree();
+  Overlay media_overlay {
+    hexpand: true;
+    vexpand: true;
+    child: $GhosttyMediaView media_view {};
+
+    [overlay]
+    $GhosttySplitTree split_tree {
+      notify::active-surface => $notify_active_surface();
+      notify::tree => $notify_tree();
+    }
   }
 }

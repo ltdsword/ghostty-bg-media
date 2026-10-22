@@ -300,6 +300,14 @@ pub const RenderSurface = extern struct {
     /// render when this is unset.
     pub fn setCoreSurface(self: *Self, core: ?*CoreSurface) void {
         self.private().core_surface = core;
+        if (core) |c| {
+            if (global.environ().getPosix("GHOSTTY_BGM_FORCE_CPU")) |value| {
+                if (std.mem.eql(u8, value, "1")) {
+                    log.info("GHOSTTY_BGM_FORCE_CPU=1: forcing CPU presentation", .{});
+                    c.reportPresentationHealth(.unhealthy);
+                }
+            }
+        }
     }
 
     /// Build a `GdkTexture` from the present and set it as our current
