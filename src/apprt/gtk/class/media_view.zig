@@ -32,6 +32,8 @@ pub const MediaView = extern struct {
         tick_id: c_uint = 0,
         state: bg.state.State = .disabled,
         config_notify_id: c_ulong = 0,
+        active_notify_id: c_ulong = 0,
+        active_window: ?*gtk.Window = null,
         start_us: i64 = 0,
         frames: u64 = 0,
         fit: bg.layout.Fit = .cover,
@@ -81,11 +83,35 @@ pub const MediaView = extern struct {
             .{ .detail = "config" },
         );
         media_loader.register(self);
+        if (self.as(gtk.Widget).getRoot()) |root| {
+            if (gobject.ext.cast(gtk.Window, root)) |window| {
+                priv.active_window = window;
+                priv.active_notify_id = gobject.Object.signals.notify.connect(
+                    window,
+                    *Self,
+                    onWindowActiveNotify,
+                    self,
+                    .{ .detail = "is-active" },
+                );
+                media_loader.setViewActive(self, window.isActive() != 0);
+            }
+        }
         self.applyConfig();
     }
 
     fn unrealize(self: *Self) callconv(.c) void {
         const priv = self.private();
+        if (priv.active_notify_id != 0) {
+            if (priv.active_window) |window| {
+                gobject.signalHandlerDisconnect(
+                    window.as(gobject.Object),
+                    priv.active_notify_id,
+                );
+            }
+            priv.active_notify_id = 0;
+            priv.active_window = null;
+        }
+        media_loader.setViewActive(self, false);
         media_loader.unregister(self);
         if (priv.config_notify_id != 0) {
             gobject.signalHandlerDisconnect(
@@ -114,6 +140,14 @@ pub const MediaView = extern struct {
         self.applyConfig();
     }
 
+    fn onWindowActiveNotify(
+        window: *gtk.Window,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        media_loader.setViewActive(self, window.isActive() != 0);
+    }
+
     fn applyConfig(self: *Self) void {
         const priv = self.private();
         const config_obj = Application.default().getConfig();
@@ -128,6 +162,12 @@ pub const MediaView = extern struct {
             .g = config.background.g,
             .b = config.background.b,
         };
+        media_loader.applySettings(.{
+            .loop = config.@"background-media-loop",
+            .volume = config.@"background-media-volume",
+            .play_in_background = config.@"background-media-play-in-background",
+            .max_fps = config.@"background-media-max-fps",
+        });
 
         if (config.@"background-media") |source| {
             switch (source) {
@@ -267,14 +307,17 @@ pub const MediaView = extern struct {
             return;
         }
 
-        const texture_value = media_loader.texture() orelse return;
+        const paintable = media_loader.paintable() orelse return;
+        const intrinsic_width = paintable.getIntrinsicWidth();
+        const intrinsic_height = paintable.getIntrinsicHeight();
+        if (intrinsic_width <= 0 or intrinsic_height <= 0) return;
         const width: f32 = @floatFromInt(widget.getWidth());
         const height: f32 = @floatFromInt(widget.getHeight());
         const dest = bg.layout.destRect(
             priv.fit,
             priv.position,
-            @floatFromInt(texture_value.getWidth()),
-            @floatFromInt(texture_value.getHeight()),
+            @floatFromInt(intrinsic_width),
+            @floatFromInt(intrinsic_height),
             width,
             height,
         ) orelse return;
@@ -283,10 +326,10 @@ pub const MediaView = extern struct {
             .f_origin = .{ .f_x = 0, .f_y = 0 },
             .f_size = .{ .f_width = width, .f_height = height },
         });
-        snap.appendTexture(texture_value, &.{
-            .f_origin = .{ .f_x = dest.x, .f_y = dest.y },
-            .f_size = .{ .f_width = dest.width, .f_height = dest.height },
-        });
+        snap.save();
+        snap.translate(&.{ .f_x = dest.x, .f_y = dest.y });
+        paintable.snapshot(snap.as(gdk.Snapshot), dest.width, dest.height);
+        snap.restore();
         if (priv.dim > 0) {
             const color = gdk.RGBA{
                 .f_red = @as(f32, @floatFromInt(priv.bg_rgb.r)) / 255.0,
