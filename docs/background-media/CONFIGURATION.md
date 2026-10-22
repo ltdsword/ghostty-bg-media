@@ -2,8 +2,8 @@
 
 The `background-media` settings are Linux GTK settings. macOS ignores them and keeps its existing
 `background-video*` behavior. All eight settings are parsed, validated and reloadable. M04 applies
-fit, position and dim to static images; M05 implements the remaining playback settings for local
-video. No settings remain pending for local media.
+fit, position and dim to static images; M05 implements the playback settings for local video; M06
+adds local GIF playback. No settings remain pending for local media.
 
 ## Keys
 
@@ -34,11 +34,17 @@ The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` 
   serves all tabs. `loop` controls repetition; `volume = 0` mutes; `play-in-background = false`
   pauses playback when no Ghostty window is focused. `max-fps` caps redraws by dropping frames; it
   does not speed up decoding. Video load or playback errors warn and draw nothing.
+- M06 decodes local GIFs with the built-in Zig decoder off the GTK window thread. Animated GIFs use
+  their per-frame delays; delays of 10 ms or less are treated as 100 ms. A one-frame GIF is shown as
+  a still image. `loop = true` repeats forever; `loop = false` follows the GIF's own loop count and
+  then holds the last frame. `max-fps` raises the minimum frame delay to `1/max-fps`. GIF playback
+  follows the same background pause rule as video. The existing image limits apply. Decoder memory
+  is the file bytes plus one canvas, with one additional restore buffer when needed.
 - The current Flatpak has no audio permission, so non-zero volume is silent there until packaging
   adds audio access in M16.
 - Images over 16,384 pixels on either side, over 64 Mi pixels, or files over 256 MiB produce a
   warning and nothing is drawn. Corrupt or unsupported inputs also produce a warning and nothing
-  is drawn. GIF remains unsupported until M06.
+  is drawn.
 - WebP decoding uses GNOME's sandboxed glycin loader and requires the user-installed Flatpak app.
   `flatpak-builder --run` does not provide the installed app context needed by glycin, so WebP
   decoding fails there. See [Testing WebP](BUILDING.md#testing-webp-installed-flatpak).
@@ -72,8 +78,8 @@ keybinding, or `SIGUSR2`. The M03 GTK view probes the source and records one of 
 Reconciliation maps a transition to `start` (disabled/failed to ready), `restart` (a different
 ready source), `stop` (ready to disabled/failed, or failed to disabled), or `none` (no session
 change). A reload with the same ready source does not restart it. These are M03 state actions;
-local image and video sessions are implemented in M04 and M05, with remote playback in later
-milestones.
+local image, video, and GIF sessions are implemented in M04, M05, and M06, with remote playback in
+later milestones.
 
 ## Migrating from macOS `background-video`
 

@@ -3,6 +3,20 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-011 Animated GIF: built-in decoder
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-22
+- **Context:** The M06 spike found that GStreamer preserved GIF timing and pixels but did not
+  provide loop control and showed one-frame GIFs as blank; gdk-pixbuf animation is deprecated.
+- User decision (2026-10-22, verbatim): GIF loop semantics "A: true = forever, false = GIF's own count (Recommended)".
+- **Decision:** Use a built-in pure-Zig decoder for animated GIFs in the Linux GTK media path.
+- **Consequences:** No new dependency; deterministic CRC tests; extra decoder code to maintain.
+- **Evidence:** workspace notes/m06/decoder-probe-mediafile.txt; workspace
+  notes/m06/oneframe-probe.txt; workspace notes/m06/loop-probe.txt; workspace
+  notes/m06/reference-crc.txt; workspace
+  plans/reports/research-261022-1430-m06-gif-spike.md.
+
 ## D-010 Linux media backend: GTK/GStreamer
 
 - **Status:** ACCEPTED

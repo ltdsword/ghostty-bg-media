@@ -9,7 +9,7 @@ macOS runtime item remains UNVERIFIED until a macOS build and smoke test are rec
 | --- | --- | --- | --- |
 | Original video background | Inherited implementation | Not required | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
 | Static background image | Inherited image path | Supported (M04: PNG/JPEG/WebP) | macOS inherited; runtime UNVERIFIED; Linux M04 PARTIAL |
-| Animated GIF | No added parity commitment | Planned | macOS runtime UNVERIFIED; Linux NOT_STARTED |
+| Animated GIF | No added parity commitment | Supported (M06: built-in decoder) | macOS runtime UNVERIFIED; Linux M06 PARTIAL |
 | Local video | Inherited AVFoundation path | Supported (M05: GTK/GStreamer; MP4/H.264, WebM, MKV) | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
 | YouTube recorded/live | Inherited resolver/settings | Planned Linux-only resolver/player | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
 | Settings UI | Existing Swift/AppKit panel | Planned GTK4 UI | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |

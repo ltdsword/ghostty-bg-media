@@ -12,7 +12,7 @@ recorded below; M00/M01 have no separate milestone commit recorded.
 | M03 — Domain/config | M03 config | DONE | 0f263d1 | [CONFIGURATION](CONFIGURATION.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), workspace notes/m03/T1-config-tests.txt, workspace notes/m03/T2-classifier-tests.txt, workspace notes/m03/runtime-log-check.txt, workspace notes/m03/runtime-reload-check.txt, workspace notes/m03/gate-quick.txt | Follow-up gaps below | M04 static images |
 | M04 — Static images | M04 static images | PARTIAL | a63e5cf | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png | JPEG/WebP contain and live resize/splits not verified | M05 local MP4 |
 | M05 — Local video | M05 local video | PARTIAL | — | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt | 30-minute soak shows late RSS/CPU growth; Flatpak audio permission remains for M16 | M06 GIF |
-| M06 — GIF | TBD | NOT_STARTED | — | — | — | Implement animation timing and disposal |
+| M06 — GIF | M06 GIF | PARTIAL | — | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt | Pause/resume, terminal responsiveness, and full RSS release are not verified | M07 HTTP/HLS |
 | M07 — HTTP/HLS | TBD | NOT_STARTED | — | — | — | Add direct streaming and reconnect behavior |
 | M08 — YouTube recorded | TBD | NOT_STARTED | — | — | — | Add Linux-only recorded-video resolution |
 | M09 — YouTube live | TBD | NOT_STARTED | — | — | — | Add live state and recovery behavior |
@@ -167,6 +167,28 @@ recorded below; M00/M01 have no separate milestone commit recorded.
   playback and switch checks. The runtime probe confirms available plugins, but only the H.264 MP4
   playback probe is recorded. Flatpak audio packaging is deferred to M16.
 - **Next task:** M06 GIF.
+
+## M06 — Animated GIF
+
+- **Status:** PARTIAL; timing, decoder CRC, and repeated source-switch evidence exists, but the full
+  exit gate is incomplete.
+- **Decision:** D-011 selects the built-in pure-Zig decoder with no new dependency.
+- **Automated tests + results:** Decoder frame CRCs match the Pillow references; the evidence index
+  records 24/24 tests passing (workspace notes/m06/reference-crc.txt).
+- **Runtime checks:** Variable-delay GIFs measured intervals around 40, 100, 500, and 1,000 ms. A
+  1080p GIF with 30 ms frame delays measured 33 ms median and 36 ms maximum; `max-fps = 5` measured
+  a 200 ms minimum. `loop = false` reached the recorded end state (workspace
+  notes/m06/runtime/cadence-r1.txt).
+- **Visual check:** The GIF rendered behind terminal text in the focused-window capture (workspace
+  notes/m06/visual/gif-pib-false.png).
+- **Memory and lifecycle:** The source-switch run completed 135 switches with the app alive and no
+  panic. Media-off RSS plateaued at 295,748 KiB after rounds two and three, compared with 141,384
+  KiB before the run; this does not demonstrate return to the initial RSS (workspace
+  notes/m06/runtime/memory-release-r1.txt).
+- **Remaining gaps:** Pause/resume when unfocused was not exercised in-app, and terminal
+  responsiveness was not recorded (workspace notes/m06/EVIDENCE.md). Full memory release after a
+  source change is also not established by the RSS measurements.
+- **Next task:** M07 HTTP/HLS.
 
 ## How to resume
 
