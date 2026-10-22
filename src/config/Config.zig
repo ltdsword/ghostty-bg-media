@@ -25,6 +25,7 @@ const cli = @import("../cli.zig");
 
 const conditional = @import("conditional.zig");
 const Conditional = conditional.Conditional;
+const background_media = @import("background_media.zig");
 const file_load = @import("file_load.zig");
 const formatterpkg = @import("formatter.zig");
 const themepkg = @import("theme.zig");
@@ -704,6 +705,80 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 ///
 /// Available since: 1.2.0
 @"background-image-repeat": bool = false,
+
+/// Media to show behind the terminal. Use a local file path, an `http` or
+/// `https` URL for direct media, HLS, or YouTube (supported in later
+/// milestones). `~` and relative paths are resolved from the config file.
+/// Other URL schemes are rejected with a warning, and a missing file never
+/// prevents startup. `background-video` (macOS) is not read on Linux. Media
+/// shows through only where the terminal background is transparent
+/// (`background-opacity` < 1).
+///
+/// The default value is no media.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media": ?background_media.Source = null,
+
+/// How the background media fits the terminal: `contain`, `cover`, `stretch`,
+/// or `none`.
+///
+/// The default value is `cover`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-fit": background_media.Fit = .cover,
+
+/// Position the background media using `center`, `top-left`, `top-center`,
+/// `top-right`, `center-left`, `center-right`, `bottom-left`, `bottom-center`,
+/// or `bottom-right`.
+///
+/// The default value is `center`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-position": background_media.Position = .center,
+
+/// How strongly the theme background color covers the media, from `0` (no
+/// dimming) to `1` (fully covered).
+///
+/// The default value is `0`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-dim": f32 = 0.0,
+
+/// Whether to loop the background media. This is ignored for live streams.
+///
+/// The default value is `true`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-loop": bool = true,
+
+/// Background media volume, from `0` (muted) to `1` (full volume).
+///
+/// The default value is `0`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-volume": f32 = 0.0,
+
+/// Keep background media playing while no window is focused.
+///
+/// The default value is `false`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-play-in-background": bool = false,
+
+/// The maximum background media frame rate, clamped to the range `1` to `240`.
+///
+/// The default value is `30`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-max-fps": u32 = 30,
 
 /// Video to play behind the terminal, looping. Only supported on macOS,
 /// where it can also be set from View > Background Video….
@@ -4685,6 +4760,11 @@ fn expandPaths(self: *Config, base: []const u8) !void {
                     );
                 }
             },
+            ?background_media.Source => if (@field(self, field.name)) |*s| try s.expand(
+                arena_alloc,
+                base,
+                &self._diagnostics,
+            ),
             else => {},
         }
     }
@@ -5014,6 +5094,28 @@ pub fn finalize(self: *Config) !void {
     }
 
     self.@"faint-opacity" = std.math.clamp(self.@"faint-opacity", 0.0, 1.0);
+
+    if (std.math.isNan(self.@"background-media-dim"))
+        self.@"background-media-dim" = 0.0;
+    self.@"background-media-dim" = std.math.clamp(
+        self.@"background-media-dim",
+        0.0,
+        1.0,
+    );
+
+    if (std.math.isNan(self.@"background-media-volume"))
+        self.@"background-media-volume" = 0.0;
+    self.@"background-media-volume" = std.math.clamp(
+        self.@"background-media-volume",
+        0.0,
+        1.0,
+    );
+
+    self.@"background-media-max-fps" = std.math.clamp(
+        self.@"background-media-max-fps",
+        1,
+        240,
+    );
 
     // Finalize key remapping set for efficient lookups
     self.@"key-remap".finalize();
@@ -11444,4 +11546,187 @@ test "compatibility: window new-window" {
             cfg.@"macos-dock-drop-behavior",
         );
     }
+}
+
+test "background-media defaults" {
+    const testing = std.testing;
+    var cfg = try Config.default(testing.allocator);
+    defer cfg.deinit();
+
+    try testing.expect(cfg.@"background-media" == null);
+    try testing.expectEqual(background_media.Fit.cover, cfg.@"background-media-fit");
+    try testing.expectEqual(background_media.Position.center, cfg.@"background-media-position");
+    try testing.expectEqual(@as(f32, 0.0), cfg.@"background-media-dim");
+    try testing.expect(cfg.@"background-media-loop");
+    try testing.expectEqual(@as(f32, 0.0), cfg.@"background-media-volume");
+    try testing.expect(!cfg.@"background-media-play-in-background");
+    try testing.expectEqual(@as(u32, 30), cfg.@"background-media-max-fps");
+}
+
+test "background-media paths expand and URLs do not" {
+    const testing = std.testing;
+    var environ_map = try testing.environ.createMap(testing.allocator);
+    defer environ_map.deinit();
+
+    var cfg = try Config.default(testing.allocator);
+    defer cfg.deinit();
+    var it: TestIterator = .{ .data = &.{"--background-media=~/v.mp4"} };
+    try cfg.loadIter(testing.allocator, &it);
+    try cfg.expandPaths("/tmp");
+
+    var buf: [std.Io.Dir.max_path_bytes]u8 = undefined;
+    const expected = internal_os.expandHome(
+        testing.io,
+        &environ_map,
+        "~/v.mp4",
+        &buf,
+    ) catch "~/v.mp4";
+    switch (cfg.@"background-media".?) {
+        .path => |path| try testing.expectEqualStrings(expected, path.required),
+        .url => return error.TestUnexpectedResult,
+    }
+
+    var url_cfg = try Config.default(testing.allocator);
+    defer url_cfg.deinit();
+    var url_it: TestIterator = .{ .data = &.{"--background-media=HTTPS://example.com/v.mp4"} };
+    try url_cfg.loadIter(testing.allocator, &url_it);
+    try url_cfg.expandPaths("/tmp");
+    switch (url_cfg.@"background-media".?) {
+        .url => |url_value| try testing.expectEqualStrings("HTTPS://example.com/v.mp4", url_value),
+        .path => return error.TestUnexpectedResult,
+    }
+}
+
+test "background-media relative path resolves from base" {
+    const testing = std.testing;
+    var cfg = try Config.default(testing.allocator);
+    defer cfg.deinit();
+    var it: TestIterator = .{ .data = &.{"--background-media=video.mp4"} };
+    try cfg.loadIter(testing.allocator, &it);
+    try cfg.expandPaths("/tmp");
+
+    switch (cfg.@"background-media".?) {
+        .path => |path| try testing.expectEqualStrings("/tmp/video.mp4", path.required),
+        .url => return error.TestUnexpectedResult,
+    }
+}
+
+test "background-media rejects other URL schemes with a diagnostic" {
+    const testing = std.testing;
+    var cfg = try Config.default(testing.allocator);
+    defer cfg.deinit();
+    var it: TestIterator = .{ .data = &.{"--background-media=ftp://x"} };
+    try cfg.loadIter(testing.allocator, &it);
+    try cfg.finalize();
+
+    try testing.expect(cfg.@"background-media" == null);
+    try testing.expectEqual(@as(usize, 1), cfg._diagnostics.items().len);
+}
+
+test "background-media clamps dim, volume, and max-fps" {
+    const testing = std.testing;
+
+    {
+        var cfg = try Config.default(testing.allocator);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--background-media-dim=-0.5",
+            "--background-media-volume=2",
+            "--background-media-max-fps=0",
+        } };
+        try cfg.loadIter(testing.allocator, &it);
+        try cfg.finalize();
+
+        try testing.expectEqual(@as(f32, 0.0), cfg.@"background-media-dim");
+        try testing.expectEqual(@as(f32, 1.0), cfg.@"background-media-volume");
+        try testing.expectEqual(@as(u32, 1), cfg.@"background-media-max-fps");
+    }
+
+    {
+        var cfg = try Config.default(testing.allocator);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--background-media-dim=nan",
+            "--background-media-volume=nan",
+            "--background-media-max-fps=1000",
+        } };
+        try cfg.loadIter(testing.allocator, &it);
+        try cfg.finalize();
+
+        try testing.expectEqual(@as(f32, 0.0), cfg.@"background-media-dim");
+        try testing.expectEqual(@as(f32, 0.0), cfg.@"background-media-volume");
+        try testing.expectEqual(@as(u32, 240), cfg.@"background-media-max-fps");
+    }
+}
+
+test "background-media enum values and diagnostics" {
+    const testing = std.testing;
+
+    {
+        var cfg = try Config.default(testing.allocator);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--background-media-fit=contain",
+            "--background-media-position=top-left",
+        } };
+        try cfg.loadIter(testing.allocator, &it);
+        try testing.expectEqual(background_media.Fit.contain, cfg.@"background-media-fit");
+        try testing.expectEqual(background_media.Position.@"top-left", cfg.@"background-media-position");
+    }
+
+    {
+        var cfg = try Config.default(testing.allocator);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{"--background-media-fit=invalid"} };
+        try cfg.loadIter(testing.allocator, &it);
+        try testing.expectEqual(background_media.Fit.cover, cfg.@"background-media-fit");
+        try testing.expectEqual(@as(usize, 1), cfg._diagnostics.items().len);
+    }
+}
+
+test "background-media leaves background-video round trip unchanged" {
+    const testing = std.testing;
+    var cfg = try Config.default(testing.allocator);
+    defer cfg.deinit();
+    var it: TestIterator = .{ .data = &.{"--background-video=/x.mp4"} };
+    try cfg.loadIter(testing.allocator, &it);
+
+    var serialized: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer serialized.deinit();
+    try formatterpkg.formatEntry(
+        ?[:0]const u8,
+        "background-video",
+        cfg.@"background-video",
+        &serialized.writer,
+    );
+    try testing.expectEqualStrings("background-video = /x.mp4\n", serialized.written());
+
+    var round_trip = try Config.default(testing.allocator);
+    defer round_trip.deinit();
+    var reader: std.Io.Reader = .fixed(serialized.written());
+    try round_trip.loadReader(
+        testing.allocator,
+        &reader,
+        "/tmp/background-video.conf",
+    );
+    try testing.expectEqualStrings("/x.mp4", round_trip.@"background-video".?);
+    try testing.expect(round_trip.@"background-media" == null);
+}
+
+test "background-media clone equal and changed" {
+    const testing = std.testing;
+    var cfg = try Config.default(testing.allocator);
+    defer cfg.deinit();
+    var it: TestIterator = .{ .data = &.{"--background-media=video.mp4"} };
+    try cfg.loadIter(testing.allocator, &it);
+
+    var cloned = try cfg.clone(testing.allocator);
+    defer cloned.deinit();
+    try testing.expect(cfg.@"background-media".?.equal(cloned.@"background-media".?));
+    try testing.expect(!cfg.changed(&cloned, .@"background-media"));
+
+    var changed_it: TestIterator = .{ .data = &.{"--background-media=other.mp4"} };
+    try cloned.loadIter(testing.allocator, &changed_it);
+    try testing.expect(!cfg.@"background-media".?.equal(cloned.@"background-media".?));
+    try testing.expect(cfg.changed(&cloned, .@"background-media"));
 }
