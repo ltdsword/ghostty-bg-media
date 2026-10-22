@@ -23,6 +23,8 @@ pub const Animation = struct {
     pending: ?*gdk.Texture = null,
     pending_delay_ms: u32 = 0,
     pending_state: enum { frame, ended, failed } = .frame,
+    has_pending: bool = false,
+    due: bool = false,
     loop_forever: bool = false,
     on_texture: *const fn (*gdk.Texture) void,
     on_request_next: *const fn (*Self) void,
@@ -73,10 +75,11 @@ pub fn delayForFrame(delay_ms: u32, max_fps: u32) u32 {
 pub fn start(anim: *Animation, delay_ms: u32) void {
     if (anim.decoder.frame_count <= 1 or anim.stopped or anim.cancelled) return;
     anim.timer_id = glib.timeoutAddOnce(delay_ms, onTick, anim);
+    anim.on_request_next(anim);
 }
 
 pub fn requestNext(anim: *Animation, loop: bool, max_fps: u32) void {
-    if (anim.in_flight or anim.stopped or anim.cancelled) return;
+    if (anim.in_flight or anim.has_pending or anim.stopped or anim.cancelled) return;
 
     const loop_count = anim.decoder.loop_count;
     anim.loop_forever = loop or (loop_count != null and loop_count.? == 0);
@@ -103,7 +106,7 @@ pub fn setPaused(anim: *Animation, paused: bool) void {
     anim.paused = paused;
     if (!paused and anim.tick_pending) {
         anim.tick_pending = false;
-        anim.on_request_next(anim);
+        advance(anim);
     }
 }
 
@@ -161,6 +164,17 @@ fn onFrame(ud: ?*anyopaque) callconv(.c) void {
         return;
     }
 
+    anim.has_pending = true;
+    if (anim.due) {
+        anim.due = false;
+        present(anim);
+    }
+}
+
+fn present(anim: *Animation) void {
+    if (!anim.has_pending) return;
+    anim.has_pending = false;
+
     switch (anim.pending_state) {
         .frame => {
             const texture = anim.pending orelse {
@@ -169,7 +183,8 @@ fn onFrame(ud: ?*anyopaque) callconv(.c) void {
             };
             anim.pending = null;
             anim.on_texture(texture);
-            start(anim, anim.pending_delay_ms);
+            anim.timer_id = glib.timeoutAddOnce(anim.pending_delay_ms, onTick, anim);
+            anim.on_request_next(anim);
         },
         .ended => {
             anim.stopped = true;
@@ -186,7 +201,15 @@ fn onTick(ud: ?*anyopaque) callconv(.c) void {
     if (anim.paused) {
         anim.tick_pending = true;
     } else {
-        anim.on_request_next(anim);
+        advance(anim);
+    }
+}
+
+fn advance(anim: *Animation) void {
+    if (anim.has_pending) {
+        present(anim);
+    } else {
+        anim.due = true;
     }
 }
 
