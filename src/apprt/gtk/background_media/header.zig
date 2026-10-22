@@ -17,8 +17,19 @@ pub fn dimensions(media_type: source.MediaType, bytes: []const u8) ?Dimensions {
         .image_png => pngDimensions(bytes),
         .image_jpeg => jpegDimensions(bytes),
         .image_webp => webpDimensions(bytes),
+        .image_gif => gifDimensions(bytes),
         else => null,
     };
+}
+
+fn gifDimensions(bytes: []const u8) ?Dimensions {
+    if (bytes.len < 10 or (!std.mem.eql(u8, bytes[0..6], "GIF87a") and
+        !std.mem.eql(u8, bytes[0..6], "GIF89a"))) return null;
+
+    const width = readLe16(bytes, 6);
+    const height = readLe16(bytes, 8);
+    if (width == 0 or height == 0) return null;
+    return .{ .width = width, .height = height };
 }
 
 fn pngDimensions(bytes: []const u8) ?Dimensions {
@@ -193,6 +204,24 @@ test "truncated PNG headers and JPEG scans before SOF have no dimensions" {
         0xFF, 0xD8, 0xFF, 0xDA, 0x00, 0x02, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x28, 0x00, 0x40,
     };
     try std.testing.expectEqual(@as(?Dimensions, null), dimensions(.image_jpeg, &jpeg_before_sof));
+}
+
+test "GIF dimensions use the logical screen descriptor" {
+    const fixture = @embedFile("testdata/vardelay.gif");
+    try std.testing.expectEqual(
+        @as(?Dimensions, .{ .width = 320, .height = 180 }),
+        dimensions(.image_gif, fixture),
+    );
+
+    const header_only = "GIF89a\x40\x01\xb4\x00\x00\x00";
+    try std.testing.expectEqual(
+        @as(?Dimensions, .{ .width = 320, .height = 180 }),
+        dimensions(.image_gif, header_only),
+    );
+    try std.testing.expectEqual(@as(?Dimensions, null), dimensions(.image_gif, header_only[0..5]));
+
+    const zero_width = "GIF89a\x00\x00\xb4\x00";
+    try std.testing.expectEqual(@as(?Dimensions, null), dimensions(.image_gif, zero_width));
 }
 
 fn makePngHeader(width: u32, height: u32) [24]u8 {
