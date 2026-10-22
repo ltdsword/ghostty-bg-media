@@ -71,4 +71,3 @@ Linux ignores every `background-video*` key. Rename the settings you use as foll
 | `background-video-volume` | `background-media-volume` |
 | `background-video-opacity` | No direct media tint equivalent yet; use `background-opacity` to let media show through the terminal background. |
 | `background-video-blur` | No Linux equivalent yet; media blur is planned for M12. |
-
