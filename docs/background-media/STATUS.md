@@ -9,7 +9,7 @@ recorded below; M00/M01 have no separate milestone commit recorded.
 | M00 — Baselines | T2 audit | PARTIAL | — | [BASELINE](BASELINE.md), [macOS baseline](MACOS_BASELINE.md), gate log (Agent-Kit workspace `notes/m00/gate-full-baseline.log`) | Linux app launch and macOS build/runtime unverified | Complete approved Linux and macOS baseline runs |
 | M01 — Build environment | T3–T4 environment | DONE | — | [BUILDING](BUILDING.md), [options](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/), [host Flatpak](evidence/m01/flatpak-host/) | — | M02 compositor spike |
 | M02 — Compositor spike | m02-spike T1 | DONE | b2ed4d4 | [ADR](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/) | — | M03 config contract (needs user approval) |
-| M03 — Domain/config | TBD | NOT_STARTED | — | — | — | Decide config and source contracts |
+| M03 — Domain/config | M03 config | DONE | 0f263d1 | [CONFIGURATION](CONFIGURATION.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), workspace notes/m03/T1-config-tests.txt, workspace notes/m03/T2-classifier-tests.txt, workspace notes/m03/runtime-log-check.txt, workspace notes/m03/runtime-reload-check.txt, workspace notes/m03/gate-quick.txt | Follow-up gaps below | M04 static images |
 | M04 — Static images | TBD | NOT_STARTED | — | — | — | Implement PNG/JPEG/WebP media behavior |
 | M05 — Local MP4 | TBD | NOT_STARTED | — | — | — | Select and integrate a backend after M02 |
 | M06 — GIF | TBD | NOT_STARTED | — | — | — | Implement animation timing and disposal |
@@ -97,6 +97,32 @@ recorded below; M00/M01 have no separate milestone commit recorded.
 - **macOS CI evidence:** UNVERIFIED; no macOS build or runtime result is recorded.
 - **Remaining risks:** Fractional scale, resize ghosting, custom shaders, background-image precedence, truecolor/per-cell backgrounds, focus visuals, multi-monitor behavior, screenshots, and copies per frame remain UNVERIFIED. Visible redraw is every frame; extra copies were not instrumented.
 - **Next task:** M03 config contract (needs user approval).
+
+## M03 — Media domain model, configuration, settings migration
+
+- **Status:** DONE; the config tests, classifier tests, and runtime log check passed.
+- **Branch / commit:** M03 implementation at `0f263d1d6b2e992b4d083f5bcd12756ad657bbcc`.
+- **Configuration contract:** Eight Linux GTK `background-media*` keys; `background-video*` is
+  ignored on Linux and unchanged on macOS. See [CONFIGURATION.md](CONFIGURATION.md) and
+  [PLATFORM_COMPATIBILITY.md](PLATFORM_COMPATIBILITY.md).
+- **Automated tests + results:** Config tests 84/84 passed (workspace
+  `notes/m03/T1-config-tests.txt`); classifier tests 7/7 passed (workspace
+  `notes/m03/T2-classifier-tests.txt`).
+- **Runtime checks:** Eight source startup cases passed in the Flatpak build (workspace
+  `notes/m03/runtime-log-check.txt`). Live configuration reload via `SIGUSR2` with a
+  `--config-file` passed (workspace `notes/m03/runtime-reload-check.txt`).
+- **Build/gate:** The quick gate passed (6 checks), including the core build; the GTK build was
+  skipped because host libadwaita 1.5 is below the 1.7 source floor (workspace
+  `notes/m03/gate-quick.txt`). The GTK app itself was built in the Flatpak lane (GNOME 50) and
+  used for the runtime checks above.
+- **Completion generation:** The eight new keys exceeded the prior 50,000 comptime branch quota.
+  Fish, Zsh, Bash completions and Vim syntax generation now use 100,000 in
+  `src/extra/{fish,zsh,bash,vim}.zig`. This affects every platform's generation and has no runtime
+  effect.
+- **Known gaps:** GTK config-errors UI for rejected schemes was not checked; each tab view probes
+  and logs independently (shared session planned in M04); local header reads are synchronous on
+  the GTK thread (async work planned in M04); macOS build remains UNVERIFIED.
+- **Next task:** M04 static images.
 
 ## How to resume
 

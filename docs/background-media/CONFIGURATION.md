@@ -1,0 +1,74 @@
+# Background media configuration
+
+The `background-media` settings are Linux GTK settings. macOS ignores them and keeps its existing
+`background-video*` behavior. All eight settings are parsed, validated and reloadable now. In M03
+only `background-media` is consumed (source validation and state tracking); the other seven are
+applied when playback lands (M04 onward).
+
+## Keys
+
+| Key | Type | Default | Range / values | Reload | Platform |
+| --- | --- | --- | --- | --- | --- |
+| `background-media` | Path or URL | unset | Local path or `http://` / `https://` URL | Config reload | Linux GTK; ignored on macOS |
+| `background-media-fit` | Enum | `cover` | `contain`, `cover`, `stretch`, `none` | Config reload | Linux GTK; ignored on macOS |
+| `background-media-position` | Enum | `center` | `center`, `top-left`, `top-center`, `top-right`, `center-left`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right` | Config reload | Linux GTK; ignored on macOS |
+| `background-media-dim` | `f32` | `0` | `0..1`; theme background tint | Config reload | Linux GTK; ignored on macOS |
+| `background-media-loop` | Boolean | `true` | `true` / `false`; ignored for live streams | Config reload | Linux GTK; ignored on macOS |
+| `background-media-volume` | `f32` | `0` | `0..1` | Config reload | Linux GTK; ignored on macOS |
+| `background-media-play-in-background` | Boolean | `false` | `true` / `false` | Config reload | Linux GTK; ignored on macOS |
+| `background-media-max-fps` | `u32` | `30` | `1..240` | Config reload | Linux GTK; ignored on macOS |
+
+The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` is clamped to
+`1..240`. The default source is unset, so no media is selected.
+
+## Sources and visibility
+
+- A local path may start with `~/` or be relative to the configuration file. A leading `?` makes
+  the path optional: if it is missing, the media state is disabled without a missing-file warning.
+- A required path that is missing or unreadable, or a path with an unsupported media type, enters a
+  failed state. These runtime source failures do not prevent Ghostty from starting.
+- URLs must use HTTP or HTTPS. Other schemes, including `ftp://` and `file://`, are rejected by
+  config parsing and reported through Ghostty's normal config diagnostics, not the media log.
+- Direct HTTP(S), HLS (`.m3u8`), and YouTube URLs are recognized by the M03 classifier. M03 adds
+  source validation and state tracking, not playback: image playback is M04, MP4 is M05, GIF is
+  M06, HTTP/HLS is M07, and YouTube is M08/M09.
+- The media layer is visible through terminal background transparency only when
+  `background-opacity` is less than `1`.
+
+Examples (use one `background-media` value at a time):
+
+```conf
+background-media = "~/Videos/ambient.mp4"
+# background-media = "~/Pictures/ambient.gif"
+# background-media = "~/Pictures/ambient.webp"
+# background-media = "https://www.youtube.com/watch?v=VIDEO_ID"
+# background-media = "https://media.example/live.m3u8"
+```
+
+## State and reload
+
+Reloading configuration applies changes to `background-media*`. Use Ghostty's reload command,
+keybinding, or `SIGUSR2`. The M03 GTK view probes the source and records one of three states:
+
+- `disabled`: no source is configured, or an optional path is missing.
+- `ready`: the local file type or URL source kind was recognized.
+- `failed`: the path is missing/unreadable, its type is unsupported, or the URL is invalid.
+
+Reconciliation maps a transition to `start` (disabled/failed to ready), `restart` (a different
+ready source), `stop` (ready to disabled/failed, or failed to disabled), or `none` (no session
+change). A reload with the same ready source does not restart it. These are M03 state actions;
+decoder and playback sessions arrive in later milestones.
+
+## Migrating from macOS `background-video`
+
+Linux ignores every `background-video*` key. Rename the settings you use as follows:
+
+| macOS key | Linux setting |
+| --- | --- |
+| `background-video` | `background-media` |
+| `background-video-play-in-background` | `background-media-play-in-background` |
+| `background-video-max-fps` | `background-media-max-fps` |
+| `background-video-volume` | `background-media-volume` |
+| `background-video-opacity` | No direct media tint equivalent yet; use `background-opacity` to let media show through the terminal background. |
+| `background-video-blur` | No Linux equivalent yet; media blur is planned for M12. |
+

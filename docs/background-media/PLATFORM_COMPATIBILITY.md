@@ -33,17 +33,28 @@ inherited paths.
 
 ### Linux
 
-The master plan §3.5 policy is PROPOSED for M03, not implemented: use explicit `background-media`,
-otherwise a documented compatibility interpretation of `background-video` if reasonable,
-otherwise `background-image`, then the theme background. Existing Linux image/color composition
-must remain intact. See MASTER_PLAN.md §3.5 (Agent-Kit workspace `docs/MASTER_PLAN.md#35-configuration-design`)
-and [BASELINE.md §§6–7](BASELINE.md#7-configuration-and-reload).
+The M03 config contract is:
+
+| Config values | macOS | Linux / GTK |
+| --- | --- | --- |
+| Only `background-media` | Ignore `background-media*`; inherited `background-video*` behavior is unchanged | Use `background-media*` |
+| Only `background-video` | Existing `background-video*` behavior is unchanged | Ignore `background-video*` |
+| Both `background-media` and `background-video` | Ignore `background-media*`; existing `background-video*` behavior is unchanged | Use `background-media*`; ignore `background-video*` |
+| `background-image` plus `background-media` | Ignore `background-media*`; preserve existing image behavior | Use `background-media` as the media layer; the terminal renderer draws `background-image` above it |
+
+Linux does not fall back from `background-media` to `background-video`. The terminal renderer's
+existing image and color composition remains intact. See [BASELINE.md §§6–7](BASELINE.md#7-configuration-and-reload).
 
 ## Recognized but unsupported keys
 
-Behavior is TBD in M03. A recognized key unsupported on the current platform must produce a clear
-diagnostic or a documented intentional no-op. It must never select a backend that is absent on that
-platform.
+- The shared config parser recognizes `background-media*` on macOS, but the macOS app ignores
+  those keys. Its existing `background-video*` settings remain unchanged.
+- Linux recognizes the legacy `background-video*` keys in shared config but ignores them; they are
+  not aliases for `background-media*`.
+- HTTP(S) YouTube and HLS URLs are recognized by the M03 source classifier, but playback is
+  deferred to M07–M09. Recognition does not select a playback backend.
+- A rejected URL scheme such as `ftp://` is reported by Ghostty's normal config diagnostics, not
+  the media log. The GTK config-errors UI for this case has not been checked.
 
 ## Ownership and dependency isolation
 

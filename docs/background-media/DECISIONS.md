@@ -3,6 +3,27 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-008 background-media config contract
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-22
+- **Context:** M03 adds Linux GTK media configuration while preserving the inherited macOS video
+  behavior.
+- **User decisions (2026-10-22, verbatim labels):** key set "A: 8 core keys now (Recommended)";
+  source type "A: Path or http(s) URL (Recommended)"; old key "A: Ignore it (Recommended)";
+  enums "A: Separate media enums (Recommended)".
+- **Decision:** Define eight reloadable `background-media*` keys for Linux GTK. Accept local paths
+  and HTTP(S) URLs, keep separate fit and position enums, and ignore `background-video*` on Linux.
+  macOS continues using its existing `background-video*` settings.
+- **Consequences:** YouTube and HLS sources are classified now; playback is deferred to later
+  milestones. The eight added keys exceeded the completion and Vim syntax generators' former
+  `@setEvalBranchQuota(50000)`; their quota is now `100000` in
+  `src/extra/{fish,zsh,bash,vim}.zig`. This affects completion/syntax generation on every platform
+  and has no runtime effect.
+- **Evidence:** workspace notes/m03/T1-config-tests.txt; workspace
+  notes/m03/T2-classifier-tests.txt; workspace notes/m03/runtime-log-check.txt; workspace
+  notes/m03/runtime-reload-check.txt; workspace notes/m03/gate-quick.txt.
+
 ## D-007 Spike switches are environment variables, not config
 
 - **Status:** ACCEPTED
