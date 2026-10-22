@@ -8,6 +8,7 @@ const gtk = @import("gtk");
 const global = @import("../../global.zig");
 const bg = @import("background_media/main.zig");
 const MediaView = @import("class/media_view.zig").MediaView;
+const gif_player = @import("gif_player.zig");
 
 const log = std.log.scoped(.gtk_media_loader);
 const alloc = std.heap.c_allocator;
@@ -38,6 +39,7 @@ const Loader = struct {
     status: Status = .idle,
     texture: ?*gdk.Texture = null,
     stream: ?*gtk.MediaFile = null,
+    anim: ?*gif_player.Animation = null,
     invalidate_handler_id: c_ulong = 0,
     error_handler_id: c_ulong = 0,
     ended_handler_id: c_ulong = 0,
@@ -53,6 +55,12 @@ const Result = union(enum) {
     ready: struct {
         texture: *gdk.Texture,
         media_type: bg.source.MediaType,
+        dimensions: bg.header.Dimensions,
+    },
+    animation: struct {
+        anim: *gif_player.Animation,
+        texture: *gdk.Texture,
+        delay_ms: u32,
         dimensions: bg.header.Dimensions,
     },
     video: struct {
@@ -165,16 +173,21 @@ fn applyStreamSettings(stream: *gtk.MediaFile) void {
 }
 
 fn updatePlayState() void {
-    const stream = loader.stream orelse return;
-    const media_stream = stream.as(gtk.MediaStream);
-    if (loader.settings.play_in_background or loader.active_views > 0) {
-        media_stream.play();
-    } else {
-        media_stream.pause();
+    const play = loader.settings.play_in_background or loader.active_views > 0;
+    if (loader.stream) |stream| {
+        const media_stream = stream.as(gtk.MediaStream);
+        if (play) {
+            media_stream.play();
+        } else {
+            media_stream.pause();
+        }
     }
+    if (loader.anim) |anim| gif_player.setPaused(anim, !play);
 }
 
 fn release() void {
+    if (loader.anim) |anim| gif_player.destroy(anim);
+    loader.anim = null;
     if (loader.texture) |texture_value| texture_value.unref();
     loader.texture = null;
     if (loader.stream) |stream| {
@@ -235,7 +248,7 @@ fn load(job: *Job) Result {
     const media_type = if (sniffed == .unknown) bg.source.fromExtension(job.path) else sniffed;
     switch (media_type) {
         .video_mp4, .video_webm_mkv => return .{ .video = .{ .media_type = media_type } },
-        .image_png, .image_jpeg, .image_webp => {},
+        .image_png, .image_jpeg, .image_webp, .image_gif => {},
         else => return .{ .failed = .unsupported_type },
     }
 
@@ -247,6 +260,36 @@ fn load(job: *Job) Result {
     };
     if (bg.header.check(dimensions, stat.size, limits)) |failure| {
         return .{ .failed = failure };
+    }
+
+    if (media_type == .image_gif) {
+        const byte_count: usize = @intCast(stat.size);
+        if (read_len > byte_count) return .{ .failed = .unreadable };
+        const bytes = alloc.alloc(u8, byte_count) catch return .{ .failed = .unreadable };
+        @memcpy(bytes[0..read_len], head[0..read_len]);
+        var offset = read_len;
+        while (offset < bytes.len) {
+            const count = file_reader.interface.readSliceShort(bytes[offset..]) catch {
+                alloc.free(bytes);
+                return .{ .failed = .unreadable };
+            };
+            if (count == 0) {
+                alloc.free(bytes);
+                return .{ .failed = .unreadable };
+            }
+            offset += count;
+        }
+
+        const created = gif_player.create(bytes, job.path, onAnimationTexture, onAnimationRequest) catch {
+            alloc.free(bytes);
+            return .{ .failed = .decode_failed };
+        };
+        return .{ .animation = .{
+            .anim = created.anim,
+            .texture = created.first_texture,
+            .delay_ms = created.first_delay_ms,
+            .dimensions = dimensions,
+        } };
     }
 
     var g_error: ?*glib.Error = null;
@@ -267,7 +310,14 @@ fn onDone(ud: ?*anyopaque) callconv(.c) void {
     defer freeJob(job);
 
     if (job.generation != loader.generation) {
-        if (job.result == .ready) job.result.ready.texture.unref();
+        switch (job.result) {
+            .ready => |ready| ready.texture.unref(),
+            .animation => |animation| {
+                gif_player.destroy(animation.anim);
+                animation.texture.unref();
+            },
+            else => {},
+        }
         return;
     }
 
@@ -295,6 +345,25 @@ fn onDone(ud: ?*anyopaque) callconv(.c) void {
                 ready.dimensions.width,
                 ready.dimensions.height,
             });
+        },
+        .animation => |animation| {
+            loader.texture = animation.texture;
+            loader.anim = animation.anim;
+            loader.current_id = job.id;
+            loader.status = .ready;
+            log.info("background-media: loaded type={s} {d}x{d} frames={d}", .{
+                @tagName(bg.source.MediaType.image_gif),
+                animation.dimensions.width,
+                animation.dimensions.height,
+                animation.anim.decoder.frame_count,
+            });
+            if (animation.anim.decoder.frame_count > 1) {
+                gif_player.start(
+                    animation.anim,
+                    gif_player.delayForFrame(animation.delay_ms, loader.settings.max_fps),
+                );
+            }
+            updatePlayState();
         },
         .video => |video| {
             const stream = gtk.MediaFile.newForFilename(job.path);
@@ -329,6 +398,17 @@ fn onDone(ud: ?*anyopaque) callconv(.c) void {
     }
 
     notifyViews();
+}
+
+fn onAnimationTexture(texture: *gdk.Texture) void {
+    if (loader.texture) |old_texture| old_texture.unref();
+    loader.texture = texture;
+    notifyViews();
+}
+
+fn onAnimationRequest(anim: *gif_player.Animation) void {
+    if (loader.anim != anim) return;
+    gif_player.requestNext(anim, loader.settings.loop, loader.settings.max_fps);
 }
 
 fn onInvalidateContents(_: *gdk.Paintable, _: ?*anyopaque) callconv(.c) void {
