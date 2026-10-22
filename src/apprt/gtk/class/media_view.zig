@@ -7,6 +7,8 @@ const gtk = @import("gtk");
 const global = @import("../../../global.zig");
 const Common = @import("../class.zig").Common;
 const pattern = @import("../media_spike_pattern.zig");
+const bg = @import("../background_media/main.zig");
+const Application = @import("application.zig").Application;
 
 const log = std.log.scoped(.gtk_media_view);
 
@@ -27,6 +29,8 @@ pub const MediaView = extern struct {
     pub const Private = struct {
         enabled: bool = false,
         tick_id: c_uint = 0,
+        state: bg.state.State = .disabled,
+        config_notify_id: c_ulong = 0,
         start_us: i64 = 0,
         frames: u64 = 0,
 
@@ -62,10 +66,28 @@ pub const MediaView = extern struct {
         if (priv.enabled) {
             priv.tick_id = self.as(gtk.Widget).addTickCallback(tick, null, null);
         }
+
+        const app = Application.default();
+        priv.config_notify_id = gobject.Object.signals.notify.connect(
+            app,
+            *Self,
+            onConfigNotify,
+            self,
+            .{ .detail = "config" },
+        );
+        self.applyConfig();
     }
 
     fn unrealize(self: *Self) callconv(.c) void {
         const priv = self.private();
+        if (priv.config_notify_id != 0) {
+            gobject.signalHandlerDisconnect(
+                Application.default().as(gobject.Object),
+                priv.config_notify_id,
+            );
+            priv.config_notify_id = 0;
+        }
+
         if (priv.tick_id != 0) {
             self.as(gtk.Widget).removeTickCallback(priv.tick_id);
             priv.tick_id = 0;
@@ -75,6 +97,110 @@ pub const MediaView = extern struct {
             Class.parent,
             self.as(gtk.Widget),
         );
+    }
+
+    fn onConfigNotify(
+        _: *Application,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        self.applyConfig();
+    }
+
+    fn applyConfig(self: *Self) void {
+        const priv = self.private();
+        const config_obj = Application.default().getConfig();
+        defer config_obj.unref();
+        const config = config_obj.get();
+
+        var next_state: bg.state.State = .disabled;
+        var source_value: ?[]const u8 = null;
+        if (config.@"background-media") |source| {
+            switch (source) {
+                .url => |url| {
+                    source_value = url;
+                    if (bg.source.classifyUrl(url)) |kind| {
+                        next_state = .{ .ready = .{
+                            .kind = kind,
+                            .media_type = .unknown,
+                            .source_id = bg.state.sourceId(url),
+                        } };
+                    } else {
+                        next_state = .{ .failed = .invalid_url };
+                    }
+                },
+                .path => |path| path_block: {
+                    const path_value, const optional = switch (path) {
+                        .optional => |value| .{ value, true },
+                        .required => |value| .{ value, false },
+                    };
+                    source_value = path_value;
+
+                    const file = std.Io.Dir.openFileAbsolute(
+                        global.io(),
+                        path_value,
+                        .{ .mode = .read_only },
+                    ) catch |err| {
+                        if (err == error.FileNotFound and optional) {
+                            next_state = .disabled;
+                        } else {
+                            next_state = .{ .failed = if (err == error.FileNotFound)
+                                .not_found
+                            else
+                                .unreadable };
+                        }
+                        break :path_block;
+                    };
+                    defer file.close(global.io());
+
+                    var reader_buffer: [bg.source.sniff_len]u8 = undefined;
+                    var file_reader = file.reader(global.io(), &reader_buffer);
+                    var header: [bg.source.sniff_len]u8 = undefined;
+                    const read_len = file_reader.interface.readSliceShort(&header) catch {
+                        next_state = .{ .failed = .unreadable };
+                        break :path_block;
+                    };
+                    const header_type = bg.source.sniff(header[0..read_len]);
+                    const media_type = if (header_type == .unknown)
+                        bg.source.fromExtension(path_value)
+                    else
+                        header_type;
+                    if (media_type == .unknown) {
+                        next_state = .{ .failed = .unsupported_type };
+                    } else {
+                        next_state = .{ .ready = .{
+                            .kind = .local_file,
+                            .media_type = media_type,
+                            .source_id = bg.state.sourceId(path_value),
+                        } };
+                    }
+                },
+            }
+        }
+
+        const changed = !std.meta.eql(priv.state, next_state);
+        const action = bg.state.reconcile(priv.state, next_state);
+        priv.state = next_state;
+
+        if (next_state == .failed and changed) {
+            log.warn("background-media: {s} state=failed reason={s} source={s}", .{
+                @tagName(action),
+                @tagName(next_state.failed),
+                source_value orelse "",
+            });
+        } else if (action != .none) {
+            switch (next_state) {
+                .disabled => log.info("background-media: {s} state=disabled kind=none type=none", .{
+                    @tagName(action),
+                }),
+                .ready => |ready| log.info("background-media: {s} state=ready kind={s} type={s}", .{
+                    @tagName(action),
+                    @tagName(ready.kind),
+                    @tagName(ready.media_type),
+                }),
+                .failed => unreachable,
+            }
+        }
     }
 
     fn tick(
