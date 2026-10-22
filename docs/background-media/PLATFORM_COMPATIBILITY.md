@@ -10,10 +10,10 @@ macOS runtime item remains UNVERIFIED until a macOS build and smoke test are rec
 | Original video background | Inherited implementation | Not required | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
 | Static background image | Inherited image path | Supported (M04: PNG/JPEG/WebP) | macOS inherited; runtime UNVERIFIED; Linux M04 PARTIAL |
 | Animated GIF | No added parity commitment | Planned | macOS runtime UNVERIFIED; Linux NOT_STARTED |
-| Local MP4 | Inherited AVFoundation path | Planned independent backend | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
+| Local video | Inherited AVFoundation path | Supported (M05: GTK/GStreamer; MP4/H.264, WebM, MKV) | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
 | YouTube recorded/live | Inherited resolver/settings | Planned Linux-only resolver/player | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
 | Settings UI | Existing Swift/AppKit panel | Planned GTK4 UI | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
-| Media dependencies | Existing native stack | Linux-only backend dependencies | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
+| Media dependencies | Existing native stack | GTK/GStreamer from the GNOME runtime plus `org.freedesktop.Platform.codecs-extra` | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
 | Build and test | Separate macOS lane | Separate Linux lane | macOS UNVERIFIED; Linux baseline partial |
 
 Source-level macOS capability notes, including image-format gaps and the protected implementation,

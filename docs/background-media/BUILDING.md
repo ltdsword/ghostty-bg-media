@@ -107,11 +107,18 @@ Use Zig 0.16.0 and install Xcode 26 with the macOS 26 SDK and Metal Toolchain. S
 
 - Linux GTK dependencies are provided by the GNOME 50 Flatpak SDK/runtime ([manifest](../../flatpak/com.mitchellh.ghostty.yml)). Source checks require blueprint-compiler >= 0.20.0 ([check](../../src/apprt/gtk/build/blueprint.zig)) and libadwaita >= 1.7.0 ([check](../../src/apprt/gtk/build/gresource.zig)). HACKING.md's older blueprint-compiler 0.16.0 minimum is superseded by the source check.
 - GTK runtime selection is compile-time gated on `app_runtime == .gtk` ([runtime selection](../../src/apprt.zig)); GTK libraries are added only for that runtime ([shared dependencies](../../src/build/SharedDeps.zig)). The architecture contract keeps Linux GTK/media dependencies out of the macOS graph (rule 15 in `<workspace>/docs/MASTER_PLAN.md`).
-- The Linux media backend is not selected yet. `libmpv` and GStreamer remain candidates, and yt-dlp is not integrated (M05 and M08 in `<workspace>/docs/MASTER_PLAN.md`). Add installation instructions with those milestones. M01 task 3 and architecture rule 15 require optional media dependencies not to prevent normal startup, including when media is disabled.
+- Linux local video uses GTK's GStreamer media backend (D-010); it adds no build dependency. The
+  GNOME runtime provides GStreamer, with additional codecs from
+  `org.freedesktop.Platform.codecs-extra`. `libmpv` is not used. YouTube still needs a resolver in
+  M08. M01 task 3 and architecture rule 15 require optional media features not to prevent normal
+  startup, including when media is disabled.
 
 ## Media fixtures
 
-PLANNED for M04: create `test/background-media/fixtures/` with the first generated or redistributable fixture, plus a `LICENSE` or `README` recording provenance. No fixtures exist yet. Never commit copyrighted media. See M04 in `<workspace>/docs/MASTER_PLAN.md`.
+The 1280x720, 30 fps, 10-second H.264 MP4 fixture was generated in the sandbox with GStreamer's
+`gst-launch-1.0`, using `videotestsrc`, `x264enc` and `mp4mux`. The output is the workspace fixture
+`notes/m05/fixtures/test-720p30.mp4`; no fixture binary is committed. See workspace
+`notes/m05/runtime-gst-probe.txt` and `plans/reports/research-261022-1227-m05-backend-spike.md`.
 
 ## CI job design (staged; implementation in M15)
 

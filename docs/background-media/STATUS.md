@@ -11,7 +11,7 @@ recorded below; M00/M01 have no separate milestone commit recorded.
 | M02 — Compositor spike | m02-spike T1 | DONE | b2ed4d4 | [ADR](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/) | — | M03 config contract (needs user approval) |
 | M03 — Domain/config | M03 config | DONE | 0f263d1 | [CONFIGURATION](CONFIGURATION.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), workspace notes/m03/T1-config-tests.txt, workspace notes/m03/T2-classifier-tests.txt, workspace notes/m03/runtime-log-check.txt, workspace notes/m03/runtime-reload-check.txt, workspace notes/m03/gate-quick.txt | Follow-up gaps below | M04 static images |
 | M04 — Static images | M04 static images | PARTIAL | a63e5cf | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png | JPEG/WebP contain and live resize/splits not verified | M05 local MP4 |
-| M05 — Local MP4 | TBD | NOT_STARTED | — | — | — | Select and integrate a backend after M02 |
+| M05 — Local video | M05 local video | PARTIAL | — | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt | 30-minute soak shows late RSS/CPU growth; Flatpak audio permission remains for M16 | M06 GIF |
 | M06 — GIF | TBD | NOT_STARTED | — | — | — | Implement animation timing and disposal |
 | M07 — HTTP/HLS | TBD | NOT_STARTED | — | — | — | Add direct streaming and reconnect behavior |
 | M08 — YouTube recorded | TBD | NOT_STARTED | — | — | — | Add Linux-only recorded-video resolution |
@@ -141,7 +141,32 @@ recorded below; M00/M01 have no separate milestone commit recorded.
   M04 row above. The no-media screenshot records the empty-media fallback.
 - **Remaining gaps:** JPEG and WebP contain, live resize, and split behavior are not verified, so
   the M04 exit gate is incomplete.
-- **Next task:** M05 local MP4.
+- **Next task:** M05 local video.
+
+## M05 — Local video
+
+- **Status:** PARTIAL.
+- **Backend:** D-010 accepts GTK/GStreamer. GTK's GStreamer-backed media file plays local MP4
+  (H.264), WebM and MKV using the GNOME runtime and `org.freedesktop.Platform.codecs-extra`.
+- **Playback behavior:** One shared player serves all tabs. Loop, volume, background playback and
+  the redraw cap are configurable. A zero volume mutes; with background playback disabled, playback
+  pauses when no Ghostty window is focused. `max-fps` drops redraw frames and does not speed up
+  decoding. Load and playback errors warn and draw nothing.
+- **Runtime checks:** The H.264 MP4 probe played and looped without errors, with about 30 content
+  invalidations per second (workspace notes/m05/gtk-mediafile-probe.txt). The runtime probe found
+  GStreamer 1.26.11, its MP4/WebM/MKV demuxers and video decoders, and the codecs-extra extension
+  (workspace notes/m05/runtime-gst-probe.txt). Source switching kept the app alive after 40
+  switches with no panic or critical messages (workspace notes/m05/stress-switch.txt).
+- **Soak:** The 30-minute loop run ended with zero recorded errors and no crash. RSS rose from
+  215,260 KiB at 30 seconds to 225,200 KiB at 30 minutes (about 9.7 MiB); CPU samples rose into
+  30–36% late in the run from mostly low-to-mid 20% readings earlier (workspace
+  notes/m05/soak-30min.txt). This does not meet the exit gate's no-growth requirement.
+- **Audio:** The current Flatpak has no audio permission. Non-zero volume remains silent there
+  until packaging adds audio access in M16.
+- **Remaining gaps:** The soak shows an RSS/CPU growth trend, so M05 remains PARTIAL despite the
+  playback and switch checks. The runtime probe confirms available plugins, but only the H.264 MP4
+  playback probe is recorded. Flatpak audio packaging is deferred to M16.
+- **Next task:** M06 GIF.
 
 ## How to resume
 

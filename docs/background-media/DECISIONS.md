@@ -3,6 +3,23 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-010 Linux media backend: GTK/GStreamer
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-22
+- **Context:** The M05 backend spike confirmed local H.264 MP4 playback through GTK's GStreamer
+  media backend in the GNOME runtime. The spike compared this with libmpv and recorded playback,
+  runtime plugin, and resource evidence.
+- User decision (2026-10-22, verbatim): backend "A: GTK/GStreamer, no new deps (Recommended)".
+- **Decision:** Use GTK/GStreamer's `GtkMediaFile` backend for Linux local video.
+- **Consequences:** This adds no build dependency. GStreamer and codecs come from the GNOME runtime
+  and `org.freedesktop.Platform.codecs-extra`; libmpv is not used despite the plan's earlier
+  preference. If finer control is needed, escalate in M12 to a custom GStreamer pipeline with
+  `gtk4paintablesink`. YouTube still needs a resolver in M08.
+- **Evidence:** workspace notes/m05/gtk-mediafile-probe.txt; workspace
+  notes/m05/runtime-gst-probe.txt; workspace notes/m05/soak-30min.txt; workspace
+  plans/reports/research-261022-1227-m05-backend-spike.md.
+
 ## D-009 static image decoding and limits
 
 - **Status:** ACCEPTED
