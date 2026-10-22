@@ -10,7 +10,7 @@ pub fn sourceId(value: []const u8) u64 {
     return std.hash.Wyhash.hash(0, value);
 }
 
-pub const Failure = enum { not_found, unreadable, unsupported_type, invalid_url };
+pub const Failure = enum { not_found, unreadable, unsupported_type, invalid_url, too_large, decode_failed };
 
 pub const State = union(enum) { disabled, ready: Ready, failed: Failure };
 
