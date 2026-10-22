@@ -3,6 +3,25 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-009 static image decoding and limits
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-22
+- **Context:** M04 adds bounded static-image decoding to the Linux GTK media view.
+- **User decisions (2026-10-22, verbatim):** decoder "A: GTK/glycin, no new deps (Recommended)";
+  install "A: Yes, user install for testing (Recommended)"; limits "A: 16384 px per side, 64 MP,
+  256 MiB file (Recommended)".
+- **Decision:** Use GTK image loading with GNOME's sandboxed glycin loader for WebP without new
+  dependencies. Limit images to 16,384 pixels per side, 64 Mi pixels, and 256 MiB per file; failed
+  or unsupported images warn and draw nothing.
+- **Consequences:** Glycin's sandboxed WebP loader needs the app installed for the current user;
+  WebP decoding fails under `flatpak-builder --run`. Install a test build with
+  `flatpak-builder --user --install` and remove it with
+  `flatpak uninstall --user com.mitchellh.ghostty`. This uses the upstream app ID until M16.
+- **Evidence:** workspace notes/m04/runtime-log-check.txt; workspace
+  notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace
+  plans/reports/scout-261022-1138-m04-static-images.md.
+
 ## D-008 background-media config contract
 
 - **Status:** ACCEPTED

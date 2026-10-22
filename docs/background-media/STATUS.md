@@ -10,7 +10,7 @@ recorded below; M00/M01 have no separate milestone commit recorded.
 | M01 — Build environment | T3–T4 environment | DONE | — | [BUILDING](BUILDING.md), [options](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/), [host Flatpak](evidence/m01/flatpak-host/) | — | M02 compositor spike |
 | M02 — Compositor spike | m02-spike T1 | DONE | b2ed4d4 | [ADR](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/) | — | M03 config contract (needs user approval) |
 | M03 — Domain/config | M03 config | DONE | 0f263d1 | [CONFIGURATION](CONFIGURATION.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), workspace notes/m03/T1-config-tests.txt, workspace notes/m03/T2-classifier-tests.txt, workspace notes/m03/runtime-log-check.txt, workspace notes/m03/runtime-reload-check.txt, workspace notes/m03/gate-quick.txt | Follow-up gaps below | M04 static images |
-| M04 — Static images | TBD | NOT_STARTED | — | — | — | Implement PNG/JPEG/WebP media behavior |
+| M04 — Static images | M04 static images | PARTIAL | a63e5cf | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png | JPEG/WebP contain and live resize/splits not verified | M05 local MP4 |
 | M05 — Local MP4 | TBD | NOT_STARTED | — | — | — | Select and integrate a backend after M02 |
 | M06 — GIF | TBD | NOT_STARTED | — | — | — | Implement animation timing and disposal |
 | M07 — HTTP/HLS | TBD | NOT_STARTED | — | — | — | Add direct streaming and reconnect behavior |
@@ -123,6 +123,25 @@ recorded below; M00/M01 have no separate milestone commit recorded.
   and logs independently (shared session planned in M04); local header reads are synchronous on
   the GTK thread (async work planned in M04); macOS build remains UNVERIFIED.
 - **Next task:** M04 static images.
+
+## M04 — Static images
+
+- **Status:** PARTIAL.
+- **Static image behavior:** Local PNG, JPEG and WebP load in the GTK media view. Fit, position and
+  dim apply; decoding runs off the GTK thread and a shared texture serves all tabs. Limits are
+  16,384 pixels per side, 64 Mi pixels and 256 MiB per file.
+- **Automated tests + results:** T2 reports 13/13 tests passed (workspace notes/m04/T2-tests.txt).
+- **Runtime checks:** PNG and JPEG loaded. The installed-app visual run loaded WebP; its earlier
+  `flatpak-builder --run` check failed with `decode_failed`, consistent with glycin requiring an
+  installed Flatpak. Corrupt, oversized, GIF, and required-missing inputs warned with no media
+  drawn; an optional missing path stayed silent (workspace notes/m04/runtime-log-check.txt;
+  workspace notes/m04/visual/visual-log.txt).
+- **Visual checks:** PNG contain and cover, JPEG cover, WebP cover, and PNG dim/position are
+  recorded in workspace notes/m04/visual/visual-log.txt and the matching screenshots listed in the
+  M04 row above. The no-media screenshot records the empty-media fallback.
+- **Remaining gaps:** JPEG and WebP contain, live resize, and split behavior are not verified, so
+  the M04 exit gate is incomplete.
+- **Next task:** M05 local MP4.
 
 ## How to resume
 

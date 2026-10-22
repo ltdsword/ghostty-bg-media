@@ -1,6 +1,6 @@
 # Background media build environment
 
-Contents: [Host baseline](#host-baseline) · [Primary lane: host Flatpak](#primary-lane-host-flatpak-d-004) · [Developer commands](#developer-commands) · [Test baselines](#test-baselines) · [Manual smoke test](#manual-smoke-test-linux-wayland) · [macOS build](#macos-build-unverified) · [Dependencies and guards](#dependencies-and-guards) · [Media fixtures](#media-fixtures) · [CI job design](#ci-job-design-staged-implementation-in-m15) · [Container recipe](#container-recipe) · [Results](#results) · [Open risks](#what-works-failures-and-open-risks)
+Contents: [Host baseline](#host-baseline) · [Primary lane: host Flatpak](#primary-lane-host-flatpak-d-004) · [Testing WebP](#testing-webp-installed-flatpak) · [Developer commands](#developer-commands) · [Test baselines](#test-baselines) · [Manual smoke test](#manual-smoke-test-linux-wayland) · [macOS build](#macos-build-unverified) · [Dependencies and guards](#dependencies-and-guards) · [Media fixtures](#media-fixtures) · [CI job design](#ci-job-design-staged-implementation-in-m15) · [Container recipe](#container-recipe) · [Results](#results) · [Open risks](#what-works-failures-and-open-risks)
 
 ## Host baseline
 
@@ -37,6 +37,24 @@ flatpak-builder --run <builddir> flatpak/com.mitchellh.ghostty.yml ghostty
 The `gtk4-layer-shell` Meson module defaults to `lib64` on this host, while the Flatpak build's pkg-config lookup did not find its `.pc` file there. The `config-opts` entry `--libdir=lib` installs the library and pkg-config metadata under `/app/lib`, allowing `translate-c` to find the header. The manual smoke showed the expected default gray window; background media is not implemented yet.
 
 Evidence: [manual smoke test](evidence/m01/flatpak-host/smoke-test.txt), [first build failure](evidence/m01/flatpak-host/build-failure.txt), and [launch log](evidence/m01/flatpak-host/launch.txt).
+
+## Testing WebP (installed Flatpak)
+
+WebP uses GNOME's sandboxed glycin loader, which needs the app installed under its Flatpak ID.
+`flatpak-builder --run` does not provide that installed-app context, so WebP decoding fails.
+Build and install a user-scoped test app:
+
+```sh
+flatpak-builder --user --install --install-deps-from=flathub --force-clean --state-dir=<state> <builddir> flatpak/com.mitchellh.ghostty.yml
+```
+
+Remove the test install with:
+
+```sh
+flatpak uninstall --user com.mitchellh.ghostty
+```
+
+The test install uses the upstream app ID `com.mitchellh.ghostty` until M16.
 
 ## Developer commands
 

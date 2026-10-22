@@ -1,9 +1,9 @@
 # Background media configuration
 
 The `background-media` settings are Linux GTK settings. macOS ignores them and keeps its existing
-`background-video*` behavior. All eight settings are parsed, validated and reloadable now. In M03
-only `background-media` is consumed (source validation and state tracking); the other seven are
-applied when playback lands (M04 onward).
+`background-video*` behavior. All eight settings are parsed, validated and reloadable. M04 applies
+fit, position and dim to static images; loop, volume, play-in-background and max-fps remain pending
+for M05+.
 
 ## Keys
 
@@ -27,11 +27,19 @@ The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` 
   the path optional: if it is missing, the media state is disabled without a missing-file warning.
 - A required path that is missing or unreadable, or a path with an unsupported media type, enters a
   failed state. These runtime source failures do not prevent Ghostty from starting.
+- M04 loads local PNG, JPEG and WebP images. Fit, position and dim apply; one decode runs off the
+  GTK thread and its texture is shared by all tabs.
+- Images over 16,384 pixels on either side, over 64 Mi pixels, or files over 256 MiB produce a
+  warning and nothing is drawn. Corrupt or unsupported inputs also produce a warning and nothing
+  is drawn. GIF remains unsupported until M06; video remains unsupported until M05.
+- WebP decoding uses GNOME's sandboxed glycin loader and requires the user-installed Flatpak app.
+  `flatpak-builder --run` does not provide the installed app context needed by glycin, so WebP
+  decoding fails there. See [Testing WebP](BUILDING.md#testing-webp-installed-flatpak).
 - URLs must use HTTP or HTTPS. Other schemes, including `ftp://` and `file://`, are rejected by
   config parsing and reported through Ghostty's normal config diagnostics, not the media log.
 - Direct HTTP(S), HLS (`.m3u8`), and YouTube URLs are recognized by the M03 classifier. M03 adds
-  source validation and state tracking, not playback: image playback is M04, MP4 is M05, GIF is
-  M06, HTTP/HLS is M07, and YouTube is M08/M09.
+  source validation and state tracking, not playback: local static images are M04, MP4 is M05, GIF
+  is M06, HTTP/HLS is M07, and YouTube is M08/M09.
 - The media layer is visible through terminal background transparency only when
   `background-opacity` is less than `1`.
 
