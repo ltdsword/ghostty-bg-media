@@ -25,6 +25,10 @@ const MapInfo = extern struct {
 
 const Api = struct {
     init_check: *const fn (?*c_int, ?*anyopaque, ?*?*glib.Error) callconv(.c) c_int,
+    registry_get: *const fn () callconv(.c) ?*anyopaque,
+    registry_get_feature_list_by_plugin: *const fn (*anyopaque, [*:0]const u8) callconv(.c) ?*glib.List,
+    plugin_feature_set_rank: *const fn (*anyopaque, c_uint) callconv(.c) void,
+    plugin_feature_list_free: *const fn (?*glib.List) callconv(.c) void,
     element_factory_make: *const fn ([*:0]const u8, ?[*:0]const u8) callconv(.c) ?*anyopaque,
     parse_bin_from_description: *const fn ([*:0]const u8, c_int, ?*?*glib.Error) callconv(.c) ?*anyopaque,
     bin_get_by_name: *const fn (*anyopaque, [*:0]const u8) callconv(.c) ?*anyopaque,
@@ -213,6 +217,10 @@ fn getApi() ?*const Api {
     const app = gst_app_handle.?;
     const api = Api{
         .init_check = symbol(@TypeOf(@as(Api, undefined).init_check), gst, "gst_init_check") orelse return unavailableApi(),
+        .registry_get = symbol(@TypeOf(@as(Api, undefined).registry_get), gst, "gst_registry_get") orelse return unavailableApi(),
+        .registry_get_feature_list_by_plugin = symbol(@TypeOf(@as(Api, undefined).registry_get_feature_list_by_plugin), gst, "gst_registry_get_feature_list_by_plugin") orelse return unavailableApi(),
+        .plugin_feature_set_rank = symbol(@TypeOf(@as(Api, undefined).plugin_feature_set_rank), gst, "gst_plugin_feature_set_rank") orelse return unavailableApi(),
+        .plugin_feature_list_free = symbol(@TypeOf(@as(Api, undefined).plugin_feature_list_free), gst, "gst_plugin_feature_list_free") orelse return unavailableApi(),
         .element_factory_make = symbol(@TypeOf(@as(Api, undefined).element_factory_make), gst, "gst_element_factory_make") orelse return unavailableApi(),
         .parse_bin_from_description = symbol(@TypeOf(@as(Api, undefined).parse_bin_from_description), gst, "gst_parse_bin_from_description") orelse return unavailableApi(),
         .bin_get_by_name = symbol(@TypeOf(@as(Api, undefined).bin_get_by_name), gst, "gst_bin_get_by_name") orelse return unavailableApi(),
@@ -235,6 +243,23 @@ fn getApi() ?*const Api {
     };
 
     if (api.init_check(null, null, null) == 0) return unavailableApi();
+
+    var feature_count: usize = 0;
+    if (api.registry_get()) |registry| {
+        const plugin_names = [_][:0]const u8{ "va", "vaapi" };
+        for (plugin_names) |plugin_name| {
+            const features = api.registry_get_feature_list_by_plugin(registry, plugin_name) orelse continue;
+            var feature: ?*glib.List = features;
+            while (feature) |node| : (feature = node.f_next) {
+                if (node.f_data) |value| {
+                    api.plugin_feature_set_rank(value, 0);
+                    feature_count += 1;
+                }
+            }
+            api.plugin_feature_list_free(features);
+        }
+    }
+    log.info("background-media: hardware video decoders disabled for URL playback (features={d})", .{feature_count});
 
     loaded_api = api;
     api_state = .loaded;
