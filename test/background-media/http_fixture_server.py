@@ -303,9 +303,46 @@ class FixtureHandler(BaseHTTPRequestHandler):
                 body,
             )
 
+        live_end_match = re.fullmatch(r"/live-end/(\d+)/live\.m3u8", path)
+        if live_end_match:
+            seconds = int(live_end_match.group(1))
+            if not 1 <= seconds <= 86400:
+                return Response(404, {"Content-Type": "text/plain"}, b"not found\n")
+            elapsed = time.monotonic() - self.server.fixture_state.started
+            sequence = int(min(elapsed, seconds) // SEGMENT_SECONDS)
+            lines = [
+                "#EXTM3U",
+                "#EXT-X-VERSION:3",
+                "#EXT-X-TARGETDURATION:2",
+                f"#EXT-X-MEDIA-SEQUENCE:{sequence}",
+            ]
+            for number in range(sequence, sequence + LIVE_WINDOW):
+                if number > 0 and number % SEGMENT_COUNT == 0:
+                    lines.append("#EXT-X-DISCONTINUITY")
+                lines.extend(("#EXTINF:2.000,", f"seg-{number}.ts"))
+            if elapsed >= seconds:
+                lines.append("#EXT-X-ENDLIST")
+            body = ("\n".join(lines) + "\n").encode()
+            return Response(
+                200,
+                {
+                    "Content-Type": "application/vnd.apple.mpegurl",
+                    "Cache-Control": "no-cache",
+                },
+                body,
+            )
+
         live_match = re.fullmatch(r"/live/seg-(\d+)\.ts", path)
         if live_match:
             number = int(live_match.group(1)) % SEGMENT_COUNT
+            return self._file_response(media_dir / f"live{number:03d}.ts", "video/mp2t")
+
+        live_end_segment_match = re.fullmatch(r"/live-end/(\d+)/seg-(\d+)\.ts", path)
+        if live_end_segment_match:
+            seconds = int(live_end_segment_match.group(1))
+            if not 1 <= seconds <= 86400:
+                return Response(404, {"Content-Type": "text/plain"}, b"not found\n")
+            number = int(live_end_segment_match.group(2)) % SEGMENT_COUNT
             return self._file_response(media_dir / f"live{number:03d}.ts", "video/mp2t")
 
         status_match = re.fullmatch(r"/status/(\d+)/(.*)", path)
@@ -460,6 +497,22 @@ def self_test() -> None:
             first_sequence = int(sequence_match.group(1))
             first_entries = [line for line in body.decode().splitlines() if line and not line.startswith("#")]
             assert len(first_entries) == LIVE_WINDOW, "live playlist has five entries"
+
+            status, _headers, body = fetch(f"{base}/live-end/3/live.m3u8")
+            assert status == 200 and b"#EXT-X-ENDLIST" not in body, "live-end starts without ENDLIST"
+            time.sleep(3.5)
+            status, _headers, body = fetch(f"{base}/live-end/3/live.m3u8")
+            assert status == 200 and b"#EXT-X-ENDLIST" in body, "live-end ends after its deadline"
+            ended_playlist = body
+            status, _headers, body = fetch(f"{base}/live-end/3/live.m3u8")
+            assert status == 200 and body == ended_playlist, "live-end playlist freezes"
+            status, _headers, body = fetch(f"{base}/live-end/3/seg-13.ts")
+            assert status == 200 and body == (media_dir / "live003.ts").read_bytes(), "live-end segment pool wraps"
+            status, _headers, _body = fetch(f"{base}/live-end/0/live.m3u8")
+            assert status == 404, "live-end rejects zero seconds"
+            status, _headers, _body = fetch(f"{base}/live-end/86401/seg-0.ts")
+            assert status == 404, "live-end rejects excessive seconds"
+
             time.sleep(2.2)
             status, _headers, body = fetch(f"{base}/live/live.m3u8")
             sequence_match = re.search(rb"#EXT-X-MEDIA-SEQUENCE:(\d+)", body)

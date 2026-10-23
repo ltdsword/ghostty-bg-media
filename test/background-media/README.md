@@ -20,12 +20,14 @@ Use these values with the `background-media=` setting:
 | VOD HLS playlist and segments: `/hls/vod.m3u8` | `background-media=http://127.0.0.1:8731/hls/vod.m3u8` |
 | VOD HLS segment: `/hls/<seg>.ts` | `background-media=http://127.0.0.1:8731/hls/vod000.ts` |
 | Endless sliding live playlist: `/live/live.m3u8` | `background-media=http://127.0.0.1:8731/live/live.m3u8` |
+| Live HLS playlist that ends after N seconds: `/live-end/<seconds>/live.m3u8` | `background-media=http://127.0.0.1:8731/live-end/40/live.m3u8` |
 | Status faults: `/status/<code>/<rest>` (`404`, `403`, `500`, `503`) | `background-media=http://127.0.0.1:8731/status/403/test` |
 | Redirect: `/redirect/<rest>` | `background-media=http://127.0.0.1:8731/redirect/hls/vod.m3u8` |
 | Throttled response: `/slow/<bytes-per-second>/<rest>` | `background-media=http://127.0.0.1:8731/slow/200000/vod/v.mp4` |
 | Mid-body disconnect: `/drop/<bytes>/<rest>` | `background-media=http://127.0.0.1:8731/drop/1000/vod/v.mp4` |
 | Timed outage control: `/control/outage?seconds=N` | `background-media=http://127.0.0.1:8731/control/outage?seconds=2` |
 | Live segment pool: `/live/seg-<n>.ts` | `background-media=http://127.0.0.1:8731/live/seg-13.ts` |
+| Live-ending segment pool: `/live-end/<seconds>/seg-<n>.ts` | `background-media=http://127.0.0.1:8731/live-end/40/seg-13.ts` |
 
 For soak tests, start the fixture server with periodic outages. The first outage begins after 60 seconds and lasts 5 seconds:
 
@@ -58,6 +60,8 @@ Pass a YouTube watch URL with the usual yt-dlp arguments to exercise a scenario.
 | `vodhls00001` | Recorded video with HLS 720p, progressive 360p, video-only 1080p, and AV1 480p formats. |
 | `vodmp4only1` | Recorded video with progressive 360p and video-only 720p formats. |
 | `liveedge001` | Live HLS stream. |
+| `upcomingthen` | First two calls report an upcoming event; later calls return a live HLS stream. |
+| `liveended001` | First call returns live HLS; later calls report an ended live event with no formats. |
 | `upcoming001` | Upcoming live event with no formats and an error message. |
 | `private0001` | Private video error. |
 | `agegate0001` | Age confirmation error. |
@@ -69,5 +73,5 @@ Pass a YouTube watch URL with the usual yt-dlp arguments to exercise a scenario.
 | `playlist001` | Empty playlist response. |
 | Any other ID | Unavailable video error. |
 
-Set `FAKE_YTDLP_STATE` to choose the flaky scenario's call counter file. By default it uses
+Set `FAKE_YTDLP_STATE` to choose the scenario call counter file. The file keeps separate counters per scenario. By default it uses
 `/tmp/fake-yt-dlp-<uid>-flaky`.

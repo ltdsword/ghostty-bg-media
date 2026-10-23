@@ -139,13 +139,13 @@ def vod_mp4_result(video_id: str) -> dict[str, object]:
     )
 
 
-def live_result(video_id: str) -> dict[str, object]:
+def live_result(video_id: str, playlist_url: str | None = None) -> dict[str, object]:
     return video_result(
         video_id,
         [
             format_entry(
                 "hls-720",
-                f"{BASE_URL}/live/live.m3u8",
+                playlist_url or f"{BASE_URL}/live/live.m3u8",
                 "m3u8_native",
                 "mp4",
                 "avc1.64001f",
@@ -191,7 +191,7 @@ def extract_video_id(url: str) -> str:
     return ""
 
 
-def next_flaky_call() -> int:
+def next_scenario_call(scenario: str) -> int:
     state_path = Path(
         os.environ.get("FAKE_YTDLP_STATE", f"/tmp/fake-yt-dlp-{os.getuid()}-flaky")
     )
@@ -199,13 +199,21 @@ def next_flaky_call() -> int:
         fcntl.flock(state_file, fcntl.LOCK_EX)
         state_file.seek(0)
         try:
-            calls = int(state_file.read().strip() or "0")
+            state = json.loads(state_file.read() or "{}")
         except ValueError:
-            calls = 0
-        calls += 1
+            state = {}
+        if isinstance(state, int):
+            state = {"flaky000001": state}
+        if not isinstance(state, dict):
+            state = {}
+        try:
+            calls = int(state.get(scenario, 0)) + 1
+        except (TypeError, ValueError):
+            calls = 1
+        state[scenario] = calls
         state_file.seek(0)
         state_file.truncate()
-        state_file.write(str(calls))
+        json.dump(state, state_file, separators=(",", ":"))
         state_file.flush()
         return calls
 
@@ -229,6 +237,40 @@ def run_query(url: str) -> int:
             file=sys.stderr,
         )
         return 1
+    if video_id == "upcomingthen":
+        try:
+            calls = next_scenario_call(video_id)
+        except OSError:
+            print("ERROR: fake: could not update upcomingthen state", file=sys.stderr)
+            return 1
+        if calls <= 2:
+            print(
+                "ERROR: [youtube] upcomingthen: This live event will begin in 1 minute.",
+                file=sys.stderr,
+            )
+            return 1
+        print_json(live_result(video_id))
+        return 0
+    if video_id == "liveended001":
+        try:
+            calls = next_scenario_call(video_id)
+        except OSError:
+            print("ERROR: fake: could not update liveended001 state", file=sys.stderr)
+            return 1
+        if calls == 1:
+            print_json(live_result(video_id, f"{BASE_URL}/live-end/40/live.m3u8"))
+        else:
+            print_json(
+                video_result(
+                    video_id,
+                    [],
+                    live_status="was_live",
+                    is_live=False,
+                    duration=None,
+                    was_live=True,
+                )
+            )
+        return 0
     if video_id == "private0001":
         print(
             "ERROR: [youtube] private0001: Private video. Sign in if you've been granted access",
@@ -249,7 +291,7 @@ def run_query(url: str) -> int:
         return 1
     if video_id == "flaky000001":
         try:
-            calls = next_flaky_call()
+            calls = next_scenario_call(video_id)
         except OSError:
             print("ERROR: fake: could not update flaky state", file=sys.stderr)
             return 1
@@ -342,6 +384,36 @@ def self_test() -> None:
             assert "ERROR: HTTP Error 503: Service Unavailable" in result.stderr, f"flaky call {index} stderr"
         assert third_flaky.returncode == 0, "flaky recovery exit code"
         assert json.loads(third_flaky.stdout)["_type"] == "video", "flaky recovery JSON"
+
+        first_upcomingthen = invoke(*query_args("upcomingthen"))
+        second_upcomingthen = invoke(*query_args("upcomingthen"))
+        third_upcomingthen = invoke(*query_args("upcomingthen"))
+        for index, result in enumerate((first_upcomingthen, second_upcomingthen), start=1):
+            assert result.returncode == 1, f"upcomingthen call {index} exit code"
+            assert result.stdout == "", f"upcomingthen call {index} has no JSON"
+            assert result.stderr == (
+                "ERROR: [youtube] upcomingthen: This live event will begin in 1 minute.\n"
+            ), f"upcomingthen call {index} stderr"
+        assert third_upcomingthen.returncode == 0, "upcomingthen live exit code"
+        upcomingthen_result = json.loads(third_upcomingthen.stdout)
+        assert upcomingthen_result["live_status"] == "is_live", "upcomingthen live status"
+        assert upcomingthen_result["formats"][0]["url"] == (
+            f"{BASE_URL}/live/live.m3u8"
+        ), "upcomingthen live HLS URL"
+
+        first_liveended = invoke(*query_args("liveended001"))
+        second_liveended = invoke(*query_args("liveended001"))
+        assert first_liveended.returncode == 0, "liveended first call exit code"
+        first_liveended_result = json.loads(first_liveended.stdout)
+        assert first_liveended_result["live_status"] == "is_live", "liveended initial status"
+        assert first_liveended_result["formats"][0]["url"] == (
+            f"{BASE_URL}/live-end/40/live.m3u8"
+        ), "liveended initial HLS URL"
+        assert second_liveended.returncode == 0, "liveended ended call exit code"
+        second_liveended_result = json.loads(second_liveended.stdout)
+        assert second_liveended_result["live_status"] == "was_live", "liveended status"
+        assert second_liveended_result["is_live"] is False, "liveended is_live"
+        assert second_liveended_result["formats"] == [], "liveended has no formats"
 
         bad_json = invoke(*query_args("badjson0001"))
         assert bad_json.returncode == 0, "bad JSON exit code"
