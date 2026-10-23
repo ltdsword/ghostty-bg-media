@@ -10,6 +10,7 @@ const bg = @import("background_media/main.zig");
 const MediaView = @import("class/media_view.zig").MediaView;
 const gif_player = @import("gif_player.zig");
 const gst_url_player = @import("gst_url_player.zig");
+const youtube_resolver = @import("youtube_resolver.zig");
 
 const log = std.log.scoped(.gtk_media_loader);
 const alloc = std.heap.c_allocator;
@@ -49,6 +50,9 @@ const Loader = struct {
     url_player: ?*gst_url_player.Player = null,
     url: ?[:0]u8 = null,
     url_kind: bg.source.Kind = .local_file,
+    resolved: ?youtube_resolver.Resolved = null,
+    resolving: bool = false,
+    resolved_live: bool = false,
     failed_attempts: u32 = 0,
     retry_timer: c_uint = 0,
     watchdog_timer: c_uint = 0,
@@ -93,6 +97,7 @@ const Job = struct {
 };
 
 var loader: Loader = .{};
+var ytdlp_missing_warned = false;
 
 pub fn register(view: *MediaView) void {
     for (loader.views.items) |entry| {
@@ -251,6 +256,10 @@ fn release() void {
     loader.texture = null;
     if (loader.url) |url| alloc.free(url);
     loader.url = null;
+    if (loader.resolved) |resolved| freeResolved(resolved);
+    loader.resolved = null;
+    loader.resolving = false;
+    loader.resolved_live = false;
     if (loader.retry_timer != 0) {
         _ = glib.Source.remove(loader.retry_timer);
         loader.retry_timer = 0;
@@ -299,8 +308,18 @@ fn dropStream() void {
 }
 
 fn connectUrl() void {
-    const url = loader.url orelse return;
-    const player = gst_url_player.create(url, loader.settings.volume, .{
+    const source_url = loader.url orelse return;
+    if (loader.url_kind == .youtube and loader.resolved == null) {
+        if (loader.resolving) return;
+        loader.resolving = true;
+        if (!youtube_resolver.start(source_url, loader.settings.max_fps, loader.generation, onYoutubeResolved)) {
+            loader.resolving = false;
+            urlFailed("resolve_thread_start");
+        }
+        return;
+    }
+    const media_url = if (loader.url_kind == .youtube) loader.resolved.?.url else source_url;
+    const player = gst_url_player.create(media_url, loader.settings.volume, .{
         .frame = onUrlFrame,
         .failed = onUrlFailed,
         .ended = onUrlEnded,
@@ -322,7 +341,7 @@ fn connectUrl() void {
     var redacted_buf: [512]u8 = undefined;
     log.info("background-media: connecting kind={s} source={s} attempt={d}", .{
         @tagName(loader.url_kind),
-        bg.source.redactUrl(&redacted_buf, url),
+        bg.source.redactUrl(&redacted_buf, source_url),
         loader.failed_attempts + 1,
     });
 }
@@ -355,14 +374,23 @@ fn attachStream(stream: *gtk.MediaFile) void {
 
 fn urlFailed(reason: []const u8) void {
     const kind = loader.url_kind;
+    const retry_kind: bg.source.Kind = if (kind == .youtube)
+        (if (loader.resolved_live) .http_hls else .http_direct)
+    else
+        kind;
     const id = loader.current_id;
-    const url = loader.url orelse return;
     dropStream();
+    if (kind == .youtube) {
+        if (loader.resolved) |resolved| freeResolved(resolved);
+        loader.resolved = null;
+        loader.resolving = false;
+    }
+    const url = loader.url orelse return;
     loader.failed_attempts += 1;
 
     var redacted_buf: [512]u8 = undefined;
     const redacted_url = bg.source.redactUrl(&redacted_buf, url);
-    if (!bg.retry.shouldRetry(kind, loader.failed_attempts)) {
+    if (!bg.retry.shouldRetry(retry_kind, loader.failed_attempts)) {
         log.warn("background-media: failed reason=network_gave_up attempts={d} source={s}", .{
             loader.failed_attempts,
             redacted_url,
@@ -384,6 +412,54 @@ fn urlFailed(reason: []const u8) void {
     const play = loader.settings.play_in_background or loader.active_views > 0;
     if (play) loader.retry_timer = glib.timeoutAddOnce(delay, onRetry, null);
     notifyViews();
+}
+
+fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
+    if (generation != loader.generation) return;
+    loader.resolving = false;
+
+    switch (result.*) {
+        .ok => |resolved| {
+            loader.resolved = resolved;
+            result.* = .missing;
+            loader.resolved_live = resolved.live == .live;
+            const title = resolved.title[0..@min(resolved.title.len, 80)];
+            log.info("background-media: resolved youtube id={s} title=\"{s}\" format={s} {d}p kind={s} live={s}", .{
+                resolved.id,
+                title,
+                resolved.format_id,
+                resolved.height,
+                @tagName(resolved.url_kind),
+                @tagName(resolved.live),
+            });
+            connectUrl();
+        },
+        .fatal => |fatal| {
+            loader.status = .failed;
+            log.warn("background-media: failed reason={s} source=youtube", .{@tagName(fatal)});
+            notifyViews();
+        },
+        .retriable => |reason| {
+            var reason_buf: [128]u8 = undefined;
+            const retry_reason = std.fmt.bufPrint(&reason_buf, "resolve_{s}", .{reason}) catch "resolve_failed";
+            urlFailed(retry_reason);
+        },
+        .missing => {
+            if (!ytdlp_missing_warned) {
+                ytdlp_missing_warned = true;
+                log.warn("background-media: failed reason=ytdlp_missing hint=\"install yt-dlp or set GHOSTTY_YTDLP\"", .{});
+            }
+            loader.status = .failed;
+            notifyViews();
+        },
+    }
+}
+
+fn freeResolved(resolved: youtube_resolver.Resolved) void {
+    alloc.free(resolved.url);
+    alloc.free(resolved.id);
+    alloc.free(resolved.title);
+    alloc.free(resolved.format_id);
 }
 
 fn onRetry(_: ?*anyopaque) callconv(.c) void {

@@ -174,7 +174,7 @@ pub const MediaView = extern struct {
                 .url => |url| {
                     const url_kind = bg.source.classifyUrl(url);
                     if (url_kind) |kind| {
-                        if (kind == .http_direct or kind == .http_hls) {
+                        if (kind == .http_direct or kind == .http_hls or kind == .youtube) {
                             media_loader.requestUrl(.{
                                 .id = bg.state.sourceId(url),
                                 .url = url,
