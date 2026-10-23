@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const gdk = @import("gdk");
-const gio = @import("gio");
 const glib = @import("glib");
 const gobject = @import("gobject");
 const gtk = @import("gtk");
@@ -10,6 +9,7 @@ const global = @import("../../global.zig");
 const bg = @import("background_media/main.zig");
 const MediaView = @import("class/media_view.zig").MediaView;
 const gif_player = @import("gif_player.zig");
+const gst_url_player = @import("gst_url_player.zig");
 
 const log = std.log.scoped(.gtk_media_loader);
 const alloc = std.heap.c_allocator;
@@ -46,6 +46,7 @@ const Loader = struct {
     status: Status = .idle,
     texture: ?*gdk.Texture = null,
     stream: ?*gtk.MediaFile = null,
+    url_player: ?*gst_url_player.Player = null,
     url: ?[:0]u8 = null,
     url_kind: bg.source.Kind = .local_file,
     failed_attempts: u32 = 0,
@@ -53,6 +54,7 @@ const Loader = struct {
     watchdog_timer: c_uint = 0,
     last_frame_us: i64 = 0,
     awaiting_first_frame: bool = false,
+    url_ended: bool = false,
     anim: ?*gif_player.Animation = null,
     invalidate_handler_id: c_ulong = 0,
     error_handler_id: c_ulong = 0,
@@ -186,6 +188,7 @@ pub fn paintable() ?*gdk.Paintable {
 pub fn applySettings(settings: Settings) void {
     loader.settings = settings;
     if (loader.stream) |stream| applyStreamSettings(stream);
+    if (loader.url_player) |player| gst_url_player.setVolume(player, settings.volume);
     updatePlayState();
 }
 
@@ -218,18 +221,17 @@ fn updatePlayState() void {
                 _ = glib.Source.remove(loader.retry_timer);
                 loader.retry_timer = 0;
             }
-            if (loader.stream) |stream| {
-                if (loader.url_kind == .http_hls and
-                    stream.as(gtk.MediaStream).getDuration() == 0)
-                {
+            if (loader.url_player) |player| {
+                if (gst_url_player.isLive(player)) {
                     dropStream();
                     log.info("background-media: live paused (stream released)", .{});
                 }
             }
-        } else if (loader.stream == null and loader.retry_timer == 0 and loader.status != .failed) {
+        } else if (loader.url_player == null and loader.retry_timer == 0 and loader.status != .failed) {
             connectUrl();
         }
     }
+    if (loader.url_player) |player| gst_url_player.setPlaying(player, play);
     if (loader.stream) |stream| {
         const media_stream = stream.as(gtk.MediaStream);
         if (play) {
@@ -244,9 +246,9 @@ fn updatePlayState() void {
 fn release() void {
     if (loader.anim) |anim| gif_player.destroy(anim);
     loader.anim = null;
+    dropStream();
     if (loader.texture) |texture_value| texture_value.unref();
     loader.texture = null;
-    dropStream();
     if (loader.url) |url| alloc.free(url);
     loader.url = null;
     if (loader.retry_timer != 0) {
@@ -259,6 +261,7 @@ fn release() void {
     }
     loader.failed_attempts = 0;
     loader.awaiting_first_frame = false;
+    loader.url_ended = false;
     loader.last_frame_us = 0;
     loader.url_kind = .local_file;
     loader.current_id = 0;
@@ -285,15 +288,28 @@ fn dropStream() void {
     loader.invalidate_handler_id = 0;
     loader.error_handler_id = 0;
     loader.ended_handler_id = 0;
+    const url_source = loader.url != null or loader.url_player != null;
+    if (loader.url_player) |player| gst_url_player.destroy(player);
+    loader.url_player = null;
+    if (url_source) {
+        if (loader.texture) |texture_value| texture_value.unref();
+        loader.texture = null;
+    }
     loader.last_redraw_us = null;
 }
 
 fn connectUrl() void {
     const url = loader.url orelse return;
-    const file = gio.File.newForUri(url);
-    const stream = gtk.MediaFile.newForFile(file);
-    file.unref();
-    attachStream(stream);
+    const player = gst_url_player.create(url, loader.settings.volume, .{
+        .frame = onUrlFrame,
+        .failed = onUrlFailed,
+        .ended = onUrlEnded,
+    }) orelse {
+        urlFailed("player_create");
+        return;
+    };
+    loader.url_player = player;
+    loader.url_ended = false;
 
     const now_us = glib.getMonotonicTime();
     loader.last_frame_us = now_us;
@@ -385,7 +401,7 @@ fn onWatchdog(_: ?*anyopaque) callconv(.c) c_int {
 
     const now_us = glib.getMonotonicTime();
     const play = loader.settings.play_in_background or loader.active_views > 0;
-    if (!play or loader.stream == null) {
+    if (!play or loader.url_player == null or loader.url_ended) {
         loader.last_frame_us = now_us;
         return 1;
     }
@@ -569,6 +585,32 @@ fn onAnimationRequest(anim: *gif_player.Animation) void {
 }
 
 fn onInvalidateContents(_: *gdk.Paintable, _: ?*anyopaque) callconv(.c) void {
+    recordFrame();
+}
+
+fn onUrlFrame(texture: *gdk.Texture) void {
+    if (loader.texture) |old_texture| old_texture.unref();
+    loader.texture = texture;
+    recordFrame();
+}
+
+fn onUrlFailed() void {
+    urlFailed("playback_error");
+}
+
+fn onUrlEnded() void {
+    const player = loader.url_player orelse return;
+    if (gst_url_player.isLive(player)) {
+        urlFailed("ended");
+    } else if (loader.settings.loop) {
+        gst_url_player.rewind(player);
+    } else if (!loader.url_ended) {
+        loader.url_ended = true;
+        log.info("background-media: ended", .{});
+    }
+}
+
+fn recordFrame() void {
     const now_us = glib.getMonotonicTime();
     loader.last_frame_us = now_us;
     if (loader.awaiting_first_frame) {
@@ -585,17 +627,6 @@ fn onInvalidateContents(_: *gdk.Paintable, _: ?*anyopaque) callconv(.c) void {
 
 fn onMediaError(media_file: *gtk.MediaFile, _: *gobject.ParamSpec, _: ?*anyopaque) callconv(.c) void {
     if (loader.stream != media_file) return;
-
-    if (loader.url != null) {
-        const err = media_file.as(gtk.MediaStream).getError();
-        const detail = if (err) |error_value| error_value.f_message orelse "(no detail)" else "(no detail)";
-        const detail_slice = std.mem.span(detail);
-        if (std.mem.indexOf(u8, detail_slice, "://") == null) {
-            log.debug("background-media: playback error detail={s}", .{detail});
-        }
-        urlFailed("playback_error");
-        return;
-    }
 
     const media_stream = media_file.as(gtk.MediaStream);
     const err = media_stream.getError();
