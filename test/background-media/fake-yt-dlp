@@ -1,0 +1,383 @@
+#!/usr/bin/env python3
+"""Deterministic yt-dlp substitute for offline background-media tests."""
+
+from __future__ import annotations
+
+import fcntl
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.parse
+from pathlib import Path
+
+
+VERSION = "2026.10.21"
+BASE_URL = os.environ.get("FAKE_YTDLP_BASE", "http://127.0.0.1:8731").rstrip("/")
+QUERY_ARGS = ["--ignore-config", "--no-playlist", "--no-warnings", "--no-progress", "-J", "--"]
+
+
+def format_entry(
+    format_id: str,
+    url: str,
+    protocol: str,
+    ext: str,
+    vcodec: str,
+    acodec: str,
+    height: int,
+    width: int,
+) -> dict[str, object]:
+    return {
+        "format_id": format_id,
+        "url": url,
+        "protocol": protocol,
+        "ext": ext,
+        "vcodec": vcodec,
+        "acodec": acodec,
+        "height": height,
+        "width": width,
+        "fps": 30,
+    }
+
+
+def video_result(
+    video_id: str,
+    formats: list[dict[str, object]],
+    *,
+    live_status: str = "not_live",
+    is_live: bool = False,
+    duration: int | None = 20,
+    was_live: bool = False,
+) -> dict[str, object]:
+    return {
+        "_type": "video",
+        "id": video_id,
+        "title": f"Fake fixture {video_id}",
+        "live_status": live_status,
+        "is_live": is_live,
+        "duration": duration,
+        "was_live": was_live,
+        "formats": formats,
+    }
+
+
+def vod_hls_result(video_id: str) -> dict[str, object]:
+    return video_result(
+        video_id,
+        [
+            format_entry(
+                "hls-720",
+                f"{BASE_URL}/hls/vod.m3u8",
+                "m3u8_native",
+                "mp4",
+                "avc1.64001f",
+                "mp4a.40.2",
+                720,
+                1280,
+            ),
+            format_entry(
+                "18",
+                f"{BASE_URL}/vod/v.mp4",
+                "https",
+                "mp4",
+                "avc1.64001f",
+                "mp4a.40.2",
+                360,
+                640,
+            ),
+            format_entry(
+                "https-1080",
+                f"{BASE_URL}/vod/v.mp4?vo=1",
+                "https",
+                "mp4",
+                "avc1.640028",
+                "none",
+                1080,
+                1920,
+            ),
+            format_entry(
+                "av01-480",
+                f"{BASE_URL}/vod/v.mp4?av01=1",
+                "https",
+                "mp4",
+                "av01.0.08M.08",
+                "none",
+                480,
+                854,
+            ),
+        ],
+    )
+
+
+def vod_mp4_result(video_id: str) -> dict[str, object]:
+    return video_result(
+        video_id,
+        [
+            format_entry(
+                "18",
+                f"{BASE_URL}/vod/v.mp4",
+                "https",
+                "mp4",
+                "avc1.64001f",
+                "mp4a.40.2",
+                360,
+                640,
+            ),
+            format_entry(
+                "https-720",
+                f"{BASE_URL}/vod/v.mp4?vo=1",
+                "https",
+                "mp4",
+                "avc1.64001f",
+                "none",
+                720,
+                1280,
+            ),
+        ],
+    )
+
+
+def live_result(video_id: str) -> dict[str, object]:
+    return video_result(
+        video_id,
+        [
+            format_entry(
+                "hls-720",
+                f"{BASE_URL}/live/live.m3u8",
+                "m3u8_native",
+                "mp4",
+                "avc1.64001f",
+                "mp4a.40.2",
+                720,
+                1280,
+            )
+        ],
+        live_status="is_live",
+        is_live=True,
+        duration=None,
+    )
+
+
+def upcoming_result(video_id: str) -> dict[str, object]:
+    return video_result(
+        video_id,
+        [],
+        live_status="is_upcoming",
+        duration=None,
+    )
+
+
+def print_json(value: object) -> None:
+    print(json.dumps(value, separators=(",", ":")))
+
+
+def extract_video_id(url: str) -> str:
+    try:
+        parsed = urllib.parse.urlsplit(url)
+    except ValueError:
+        return ""
+
+    query_values = urllib.parse.parse_qs(parsed.query).get("v", [])
+    if query_values and query_values[0]:
+        return query_values[0]
+
+    path_parts = [urllib.parse.unquote(part) for part in parsed.path.split("/") if part]
+    if parsed.hostname == "youtu.be" and path_parts:
+        return path_parts[0]
+    if len(path_parts) >= 2 and path_parts[0] in ("live", "shorts"):
+        return path_parts[1]
+    return ""
+
+
+def next_flaky_call() -> int:
+    state_path = Path(
+        os.environ.get("FAKE_YTDLP_STATE", f"/tmp/fake-yt-dlp-{os.getuid()}-flaky")
+    )
+    with state_path.open("a+", encoding="ascii") as state_file:
+        fcntl.flock(state_file, fcntl.LOCK_EX)
+        state_file.seek(0)
+        try:
+            calls = int(state_file.read().strip() or "0")
+        except ValueError:
+            calls = 0
+        calls += 1
+        state_file.seek(0)
+        state_file.truncate()
+        state_file.write(str(calls))
+        state_file.flush()
+        return calls
+
+
+def run_query(url: str) -> int:
+    video_id = extract_video_id(url)
+
+    if video_id == "vodhls00001":
+        print_json(vod_hls_result(video_id))
+        return 0
+    if video_id == "vodmp4only1":
+        print_json(vod_mp4_result(video_id))
+        return 0
+    if video_id == "liveedge001":
+        print_json(live_result(video_id))
+        return 0
+    if video_id == "upcoming001":
+        print_json(upcoming_result(video_id))
+        print(
+            "ERROR: [youtube] upcoming001: This live event will begin in 2 hours.",
+            file=sys.stderr,
+        )
+        return 1
+    if video_id == "private0001":
+        print(
+            "ERROR: [youtube] private0001: Private video. Sign in if you've been granted access",
+            file=sys.stderr,
+        )
+        return 1
+    if video_id == "agegate0001":
+        print("ERROR: [youtube] agegate0001: Sign in to confirm your age.", file=sys.stderr)
+        return 1
+    if video_id == "members0001":
+        print(
+            "ERROR: [youtube] members0001: Join this channel to get access to members-only content",
+            file=sys.stderr,
+        )
+        return 1
+    if video_id == "gone0000001":
+        print("ERROR: [youtube] gone0000001: Video unavailable", file=sys.stderr)
+        return 1
+    if video_id == "flaky000001":
+        try:
+            calls = next_flaky_call()
+        except OSError:
+            print("ERROR: fake: could not update flaky state", file=sys.stderr)
+            return 1
+        if calls <= 2:
+            print("ERROR: HTTP Error 503: Service Unavailable", file=sys.stderr)
+            return 1
+        print_json(vod_hls_result(video_id))
+        return 0
+    if video_id == "slow0000001":
+        time.sleep(60)
+        print_json(vod_hls_result(video_id))
+        return 0
+    if video_id == "badjson0001":
+        print('{"_type": "video", "formats": [')
+        return 0
+    if video_id == "playlist001":
+        print_json({"_type": "playlist", "id": "playlist001", "entries": []})
+        return 0
+
+    print(f"ERROR: [youtube] {video_id}: Video unavailable", file=sys.stderr)
+    return 1
+
+
+def self_test() -> None:
+    executable = str(Path(__file__).resolve())
+    with tempfile.TemporaryDirectory(prefix="fake-yt-dlp-selftest-") as temp_dir:
+        environment = os.environ.copy()
+        environment["FAKE_YTDLP_STATE"] = str(Path(temp_dir) / "flaky-state")
+
+        def invoke(*arguments: str, timeout: float = 5) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [executable, *arguments],
+                capture_output=True,
+                check=False,
+                env=environment,
+                text=True,
+                timeout=timeout,
+            )
+
+        version = invoke("--version")
+        assert version.returncode == 0 and version.stdout == f"{VERSION}\n", "version output"
+
+        unexpected = invoke("--not-a-real-option")
+        assert unexpected.returncode == 2, "unexpected arguments exit code"
+        assert unexpected.stderr == "ERROR: fake: unexpected args\n", "unexpected arguments stderr"
+
+        def query_args(video_id: str, url: str | None = None) -> list[str]:
+            target = url or f"https://www.youtube.com/watch?v={video_id}"
+            return [*QUERY_ARGS, target]
+
+        parse_cases = [
+            ("vodhls00001", None),
+            ("vodmp4only1", "https://youtu.be/vodmp4only1"),
+            ("liveedge001", "https://www.youtube.com/live/liveedge001"),
+            ("upcoming001", "https://www.youtube.com/shorts/upcoming001"),
+            ("playlist001", None),
+        ]
+        for video_id, url in parse_cases:
+            result = invoke(*query_args(video_id, url))
+            expected_code = 1 if video_id == "upcoming001" else 0
+            assert result.returncode == expected_code, f"{video_id} exit code"
+            parsed_result = json.loads(result.stdout)
+            assert isinstance(parsed_result, dict), f"{video_id} JSON object"
+            if video_id == "upcoming001":
+                assert parsed_result["live_status"] == "is_upcoming", "upcoming status"
+                assert parsed_result["formats"] == [], "upcoming has no formats"
+                assert "This live event will begin in 2 hours." in result.stderr, "upcoming stderr"
+            elif video_id == "playlist001":
+                assert parsed_result["_type"] == "playlist", "playlist type"
+            else:
+                assert parsed_result["_type"] == "video", f"{video_id} type"
+
+        expected_errors = {
+            "private0001": "Private video. Sign in if you've been granted access",
+            "agegate0001": "Sign in to confirm your age.",
+            "members0001": "Join this channel to get access to members-only content",
+            "gone0000001": "Video unavailable",
+            "unlisted0001": "Video unavailable",
+        }
+        for video_id, expected_stderr in expected_errors.items():
+            result = invoke(*query_args(video_id))
+            assert result.returncode == 1, f"{video_id} exit code"
+            assert expected_stderr in result.stderr, f"{video_id} stderr"
+
+        first_flaky = invoke(*query_args("flaky000001"))
+        second_flaky = invoke(*query_args("flaky000001"))
+        third_flaky = invoke(*query_args("flaky000001"))
+        for index, result in enumerate((first_flaky, second_flaky), start=1):
+            assert result.returncode == 1, f"flaky call {index} exit code"
+            assert "ERROR: HTTP Error 503: Service Unavailable" in result.stderr, f"flaky call {index} stderr"
+        assert third_flaky.returncode == 0, "flaky recovery exit code"
+        assert json.loads(third_flaky.stdout)["_type"] == "video", "flaky recovery JSON"
+
+        bad_json = invoke(*query_args("badjson0001"))
+        assert bad_json.returncode == 0, "bad JSON exit code"
+        try:
+            json.loads(bad_json.stdout)
+        except json.JSONDecodeError:
+            pass
+        else:
+            raise AssertionError("badjson scenario unexpectedly parsed")
+
+        try:
+            invoke(*query_args("slow0000001"), timeout=1)
+        except subprocess.TimeoutExpired:
+            pass
+        else:
+            raise AssertionError("slow scenario did not time out")
+
+
+def main(argv: list[str]) -> int:
+    if argv == ["--version"]:
+        print(VERSION)
+        return 0
+    if argv == ["--self-test"]:
+        try:
+            self_test()
+        except Exception as error:
+            print(f"FAKE SELFTEST FAIL: {error}", file=sys.stderr)
+            return 1
+        print("FAKE SELFTEST PASS")
+        return 0
+    if len(argv) == len(QUERY_ARGS) + 1 and argv[: len(QUERY_ARGS)] == QUERY_ARGS:
+        return run_query(argv[-1])
+
+    print("ERROR: fake: unexpected args", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

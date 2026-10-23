@@ -34,3 +34,40 @@ python3 test/background-media/http_fixture_server.py --outage-every 60 --outage-
 ```
 
 This server is test-only and adds no runtime dependency to Ghostty.
+
+## Fake yt-dlp
+
+`fake-yt-dlp` is an offline substitute for YouTube metadata tests. Set `GHOSTTY_YTDLP` to its absolute path and
+`FAKE_YTDLP_BASE` to the fixture server base URL. The base defaults to `http://127.0.0.1:8731`.
+
+```sh
+export GHOSTTY_YTDLP="$(pwd)/test/background-media/fake-yt-dlp"
+export FAKE_YTDLP_BASE=http://127.0.0.1:8731
+"$GHOSTTY_YTDLP" --self-test
+```
+
+Pass a YouTube watch URL with the usual yt-dlp arguments to exercise a scenario. For example:
+
+```sh
+"$GHOSTTY_YTDLP" --ignore-config --no-playlist --no-warnings --no-progress -J -- \
+  'https://www.youtube.com/watch?v=vodhls00001'
+```
+
+| Video ID | Scenario |
+| --- | --- |
+| `vodhls00001` | Recorded video with HLS 720p, progressive 360p, video-only 1080p, and AV1 480p formats. |
+| `vodmp4only1` | Recorded video with progressive 360p and video-only 720p formats. |
+| `liveedge001` | Live HLS stream. |
+| `upcoming001` | Upcoming live event with no formats and an error message. |
+| `private0001` | Private video error. |
+| `agegate0001` | Age confirmation error. |
+| `members0001` | Members-only video error. |
+| `gone0000001` | Unavailable video error. |
+| `flaky000001` | HTTP 503 for the first two calls, then the recorded HLS response. |
+| `slow0000001` | Waits 60 seconds before the recorded HLS response. |
+| `badjson0001` | Successful process exit with malformed JSON. |
+| `playlist001` | Empty playlist response. |
+| Any other ID | Unavailable video error. |
+
+Set `FAKE_YTDLP_STATE` to choose the flaky scenario's call counter file. By default it uses
+`/tmp/fake-yt-dlp-<uid>-flaky`.
