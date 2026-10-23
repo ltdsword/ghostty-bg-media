@@ -14,6 +14,17 @@ pub const MediaType = enum {
 
 pub const sniff_len = 16;
 
+pub fn redactUrl(buf: []u8, url: []const u8) []const u8 {
+    const uri = std.Uri.parse(url) catch return "(invalid url)";
+    const host = if (uri.host) |component| component.percent_encoded else "";
+    const path = uri.path.percent_encoded;
+    const formatted = if (uri.port) |port|
+        std.fmt.bufPrint(buf, "{s}://{s}:{d}{s}", .{ uri.scheme, host, port, path })
+    else
+        std.fmt.bufPrint(buf, "{s}://{s}{s}", .{ uri.scheme, host, path });
+    return formatted catch "(long url)";
+}
+
 pub fn classifyUrl(url: []const u8) ?Kind {
     const uri = std.Uri.parse(url) catch return null;
     if (!std.ascii.eqlIgnoreCase(uri.scheme, "http") and
@@ -90,6 +101,19 @@ test "URL classification covers source kinds and media URLs" {
     try std.testing.expectEqual(@as(?Kind, .http_direct), classifyUrl("https://youtube.com.evil.example/watch"));
     try std.testing.expectEqual(@as(?Kind, null), classifyUrl("not a url"));
     try std.testing.expectEqual(@as(?Kind, null), classifyUrl("file:///tmp/video.mp4"));
+}
+
+test "URL redaction strips credentials, query, and fragment" {
+    var buf: [128]u8 = undefined;
+    try std.testing.expectEqualStrings(
+        "https://example.com/video.mp4",
+        redactUrl(&buf, "https://user:password@example.com/video.mp4?token=secret#fragment"),
+    );
+    try std.testing.expectEqualStrings(
+        "http://example.com:8080/path",
+        redactUrl(&buf, "http://user@example.com:8080/path?secret#fragment"),
+    );
+    try std.testing.expectEqualStrings("(invalid url)", redactUrl(&buf, "not a url"));
 }
 
 test "sniff recognizes supported media signatures" {

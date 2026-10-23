@@ -172,9 +172,22 @@ pub const MediaView = extern struct {
         if (config.@"background-media") |source| {
             switch (source) {
                 .url => |url| {
-                    media_loader.request(null);
+                    const url_kind = bg.source.classifyUrl(url);
+                    if (url_kind) |kind| {
+                        if (kind == .http_direct or kind == .http_hls) {
+                            media_loader.requestUrl(.{
+                                .id = bg.state.sourceId(url),
+                                .url = url,
+                                .kind = kind,
+                            });
+                        } else {
+                            media_loader.request(null);
+                        }
+                    } else {
+                        media_loader.request(null);
+                    }
                     var next_state: bg.state.State = undefined;
-                    if (bg.source.classifyUrl(url)) |kind| {
+                    if (url_kind) |kind| {
                         next_state = .{ .ready = .{
                             .kind = kind,
                             .media_type = .unknown,
@@ -189,10 +202,11 @@ pub const MediaView = extern struct {
                     priv.state = next_state;
 
                     if (next_state == .failed and changed) {
+                        var redacted_buf: [512]u8 = undefined;
                         log.warn("background-media: {s} state=failed reason={s} source={s}", .{
                             @tagName(action),
                             @tagName(next_state.failed),
-                            url,
+                            bg.source.redactUrl(&redacted_buf, url),
                         });
                     } else if (action != .none) {
                         switch (next_state) {

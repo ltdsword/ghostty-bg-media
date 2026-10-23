@@ -11,6 +11,8 @@ finish-args:
   - --device=all
   # Windowing
   - --share=ipc
+  # Network background media (background-media URL sources)
+  - --share=network
   - --socket=fallback-x11
   - --socket=wayland
   # Allow user to specify additional config files in home by default
