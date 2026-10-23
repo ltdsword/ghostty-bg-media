@@ -3,6 +3,30 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-012 Native development on Ubuntu 26.04; Flatpak stays the distribution lane
+
+- **Status:** ACCEPTED (native lane UNVERIFIED until checked on the upgraded host)
+- **Date:** 2026-10-24
+- **Context:** The developer host moves from Ubuntu 24.04 to 26.04, which ships GNOME 50
+  (expected GTK ~4.22, libadwaita ~1.9: at or above the 1.7 source floor). On 24.04 the app could
+  only be built in Flatpak (D-004). The `flatpak-builder --run` lane also stopped mapping windows
+  mid-M04 (cause unknown), which forced testing through a user-installed Flatpak.
+- User decision (2026-10-24, verbatim): "ok update the document to adapt to this change".
+- **Decision:** Two lanes built from the same source, with no lane-specific code:
+  1. **Development (primary):** native `zig build` on the Ubuntu 26.04 host against system GTK,
+     libadwaita and GStreamer. Used for edit/build/run/debug and the quality gate's GTK build.
+  2. **Distribution and compatibility:** Flatpak on the GNOME 50 runtime
+     (`flatpak/com.mitchellh.ghostty.yml`). It serves users whose distro is too old for a native
+     build (e.g. Ubuntu 24.04), and is built before every milestone merge so it never silently
+     breaks. M15 CI builds it on every push; M16 ships it.
+- **Consequences:** Partly supersedes D-004 (Flatpak is no longer the dev-run lane; it remains the
+  distribution format). Native runtime media deps (GStreamer plugins, `gstreamer1.0-libav`, GTK's
+  GStreamer media module) come from apt and need user approval to install. Evidence from M02–M06
+  was gathered in the Flatpak lane and stays valid for it; native-lane results must be recorded
+  separately. M16 still needs an own app ID so a Flatpak install and a native build can coexist.
+- **Evidence:** pending; record native `pkg-config` versions, build and smoke results in
+  [BUILDING.md](BUILDING.md#native-lane-ubuntu-2604-d-012) after the upgrade.
+
 ## D-011 Animated GIF: built-in decoder
 
 - **Status:** ACCEPTED
@@ -101,7 +125,7 @@ docs and logs.
 
 ## D-004 Linux build/dev environment and distribution
 
-- **Status:** ACCEPTED
+- **Status:** ACCEPTED; dev-run part superseded by D-012 (2026-10-24)
 - **Date:** 2026-10-22
 - **Context:** Noble's GTK 4.14.5 and libadwaita 1.5 are below the required floors, and the host
   lacks Blueprint compiler. A 26.04-built binary requires GLIBC 2.43 and is not runnable on Noble;

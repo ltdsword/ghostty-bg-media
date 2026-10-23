@@ -4,6 +4,10 @@ Milestone states follow the master plan (Agent-Kit workspace `docs/MASTER_PLAN.m
 evidence below exists but the milestone exit gate is not complete. M02's implementation commit is
 recorded below; M00/M01 have no separate milestone commit recorded.
 
+**Environment change (2026-10-24, D-012):** development moves to a native build on Ubuntu 26.04;
+Flatpak stays the distribution lane. M02–M06 runtime evidence was gathered in the Flatpak lane on
+Ubuntu 24.04. Next step before M07: verify the native lane (BUILDING.md).
+
 | Milestone | Owner | State | Commit | Evidence | Blockers | Next task |
 | --- | --- | --- | --- | --- | --- | --- |
 | M00 — Baselines | T2 audit | PARTIAL | — | [BASELINE](BASELINE.md), [macOS baseline](MACOS_BASELINE.md), gate log (Agent-Kit workspace `notes/m00/gate-full-baseline.log`) | Linux app launch and macOS build/runtime unverified | Complete approved Linux and macOS baseline runs |

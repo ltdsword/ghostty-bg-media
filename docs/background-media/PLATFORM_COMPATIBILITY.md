@@ -100,3 +100,11 @@ an independent CI lane is planned for M15. See [MACOS_BASELINE.md §7](MACOS_BAS
 | ISO-03 — protected macOS paths unchanged | PASS | [latest quick gate](evidence/m02/gate-quick.txt): macOS unchanged since baseline |
 | MAC-01 — inherited macOS config/playback | UNVERIFIED | No macOS build or device smoke; see [MACOS_BASELINE.md §6](MACOS_BASELINE.md#6-baseline-behavior-to-regress-against-mac-01) |
 | MAC-02 — app works without Linux media dependencies | UNVERIFIED | No macOS build/launch evidence; CI lane planned for M15 |
+
+## Linux build lanes (D-012, 2026-10-24)
+
+- **Native (Ubuntu 26.04 dev host): UNVERIFIED.** Planned primary development lane; requires
+  libadwaita >= 1.7 from the distro. Not yet built or run.
+- **Flatpak (GNOME 50 runtime): verified M01–M06.** Distribution lane and the supported path for
+  distros too old for a native build, including Ubuntu 24.04.
+- Both lanes build the same source; no lane-specific code.

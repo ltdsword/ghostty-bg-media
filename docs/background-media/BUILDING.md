@@ -1,12 +1,52 @@
 # Background media build environment
 
-Contents: [Host baseline](#host-baseline) · [Primary lane: host Flatpak](#primary-lane-host-flatpak-d-004) · [Testing WebP](#testing-webp-installed-flatpak) · [Developer commands](#developer-commands) · [Test baselines](#test-baselines) · [Manual smoke test](#manual-smoke-test-linux-wayland) · [macOS build](#macos-build-unverified) · [Dependencies and guards](#dependencies-and-guards) · [Media fixtures](#media-fixtures) · [CI job design](#ci-job-design-staged-implementation-in-m15) · [Container recipe](#container-recipe) · [Results](#results) · [Open risks](#what-works-failures-and-open-risks)
+Contents: [Host baseline](#host-baseline) · [Native lane: Ubuntu 26.04](#native-lane-ubuntu-2604-d-012) · [Flatpak lane](#flatpak-lane-distribution-and-compatibility-d-004-d-012) · [Testing WebP](#testing-webp-installed-flatpak) · [Developer commands](#developer-commands) · [Test baselines](#test-baselines) · [Manual smoke test](#manual-smoke-test-linux-wayland) · [macOS build](#macos-build-unverified) · [Dependencies and guards](#dependencies-and-guards) · [Media fixtures](#media-fixtures) · [CI job design](#ci-job-design-staged-implementation-in-m15) · [Container recipe](#container-recipe) · [Results](#results) · [Open risks](#what-works-failures-and-open-risks)
 
 ## Host baseline
 
 The host is Ubuntu 24.04.4 with GNOME Wayland, per the supplied host context. Measured host versions are GTK 4.14.5 and libadwaita 1.5.0 (`pkg-config --modversion gtk4 libadwaita-1`; [host-dependencies.txt](evidence/m01/docker/host-dependencies.txt)). The source checks require blueprint-compiler >= 0.20.0 ([blueprint.zig](../../src/apprt/gtk/build/blueprint.zig)) and libadwaita >= 1.7.0 ([gresource.zig](../../src/apprt/gtk/build/gresource.zig)). The host libadwaita is below its source floor. The host blueprint-compiler version was not measured. Zig 0.16.0 is mounted read-only from `~/.local/opt/zig/0.16.0` rather than installed in the image.
 
-## Primary lane: host Flatpak (D-004)
+## Native lane: Ubuntu 26.04 (D-012)
+
+**Status: PLANNED / UNVERIFIED.** The developer host is being upgraded from Ubuntu 24.04 to 26.04.
+Nothing below has been run on 26.04 yet; versions are expectations until measured.
+
+After the upgrade, measure and record here:
+
+```sh
+pkg-config --modversion gtk4 libadwaita-1 gtk4-layer-shell-0
+blueprint-compiler --version          # source floor: >= 0.20.0
+gst-inspect-1.0 --version
+~/.local/opt/zig/0.16.0/zig version   # keep the user-local Zig 0.16.0 (D-003)
+```
+
+Candidate packages (to confirm against the 26.04 archive; installing needs user approval):
+
+| Purpose | Packages |
+| --- | --- |
+| GTK app build | `libgtk-4-dev`, `libadwaita-1-dev`, `blueprint-compiler`, `libgtk4-layer-shell-dev`, `gettext` |
+| Local video / streaming (M05, M07) | `libgtk-4-media-gstreamer`, `gstreamer1.0-plugins-base`, `gstreamer1.0-plugins-good`, `gstreamer1.0-plugins-bad`, `gstreamer1.0-libav` |
+
+Commands (from the repository root):
+
+```sh
+zig build                              # add -fno-sys=gtk4-layer-shell only if the package is missing
+zig build run -- --background-media=<file>
+zig build -Dapp-runtime=none -Demit-docs=false test
+```
+
+The quality gate's GTK build becomes runnable by setting
+`GHOSTTY_GTK_BUILD_CMD="zig build"` for `<workspace>/scripts/verify-ghostty.sh`.
+
+Open points to settle when verifying: whether the packaged blueprint-compiler meets 0.20.0, whether
+`gtk4-layer-shell` is packaged, and whether H.264 playback needs anything beyond
+`gstreamer1.0-libav`. Record results and evidence paths in this section.
+
+## Flatpak lane: distribution and compatibility (D-004, D-012)
+
+Since D-012 this lane is for distribution and for users whose distro is too old for a native build
+(e.g. Ubuntu 24.04); it is no longer the day-to-day dev-run lane. Build it before every milestone
+merge so it keeps working. The history below is from the 24.04 host, where it was the only lane.
 
 The user manually installed Flatpak and flatpak-builder once on the Ubuntu 24.04.4 host, then added Flathub for the user:
 
