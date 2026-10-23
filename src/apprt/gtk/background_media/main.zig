@@ -5,6 +5,7 @@ pub const gif = @import("gif.zig");
 pub const layout = @import("layout.zig");
 pub const cadence = @import("cadence.zig");
 pub const retry = @import("retry.zig");
+pub const youtube = @import("youtube.zig");
 
 test {
     @import("std").testing.refAllDecls(@This());
