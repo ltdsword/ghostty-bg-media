@@ -53,11 +53,16 @@ const Loader = struct {
     resolved: ?youtube_resolver.Resolved = null,
     resolving: bool = false,
     resolved_live: bool = false,
+    live_state: bg.live.State = .idle,
+    stream_was_live: bool = false,
+    upcoming_polls: u32 = 0,
     failed_attempts: u32 = 0,
     retry_timer: c_uint = 0,
+    poll_timer: c_uint = 0,
     watchdog_timer: c_uint = 0,
     last_frame_us: i64 = 0,
     awaiting_first_frame: bool = false,
+    paused_since_connect: bool = false,
     url_ended: bool = false,
     anim: ?*gif_player.Animation = null,
     invalidate_handler_id: c_ulong = 0,
@@ -162,7 +167,7 @@ pub fn request(req: ?Request) void {
 
 pub fn requestUrl(req: UrlRequest) void {
     if (loader.current_id == req.id and
-        (loader.status == .loading or loader.status == .ready)) return;
+        (loader.status == .loading or loader.status == .ready or loader.live_state == .ended)) return;
 
     release();
     loader.generation += 1;
@@ -188,6 +193,32 @@ pub fn paintable() ?*gdk.Paintable {
     if (loader.stream) |stream| return stream.as(gdk.Paintable);
     if (loader.texture) |texture_value| return texture_value.as(gdk.Paintable);
     return null;
+}
+
+pub const LiveInfo = struct {
+    state: bg.live.State,
+    is_live: bool,
+    at_live_edge: bool,
+    reconnect_attempts: u32,
+};
+
+pub fn liveInfo() LiveInfo {
+    const is_live = loader.stream_was_live or loader.resolved_live;
+    return .{
+        .state = loader.live_state,
+        .is_live = is_live,
+        .at_live_edge = loader.live_state == .playing and is_live and !loader.paused_since_connect,
+        .reconnect_attempts = loader.failed_attempts,
+    };
+}
+
+pub fn goLive() void {
+    const player = loader.url_player orelse return;
+    if (!loader.stream_was_live and !loader.resolved_live and !gst_url_player.isLive(player)) return;
+
+    dropStream();
+    loader.live_state = .reconnecting;
+    connectUrl();
 }
 
 pub fn applySettings(settings: Settings) void {
@@ -226,13 +257,22 @@ fn updatePlayState() void {
                 _ = glib.Source.remove(loader.retry_timer);
                 loader.retry_timer = 0;
             }
+            if (loader.poll_timer != 0) {
+                _ = glib.Source.remove(loader.poll_timer);
+                loader.poll_timer = 0;
+            }
             if (loader.url_player) |player| {
-                if (gst_url_player.isLive(player)) {
+                loader.paused_since_connect = true;
+                if (loader.stream_was_live or loader.resolved_live or gst_url_player.isLive(player)) {
+                    loader.live_state = .reconnecting;
                     dropStream();
                     log.info("background-media: live paused (stream released)", .{});
                 }
             }
-        } else if (loader.url_player == null and loader.retry_timer == 0 and loader.status != .failed) {
+        } else if (loader.url_player == null and loader.retry_timer == 0 and
+            loader.poll_timer == 0 and loader.status != .failed and loader.live_state != .ended)
+        {
+            // A pending poll owns the next resolve; with no timer, resume polls immediately once.
             connectUrl();
         }
     }
@@ -260,9 +300,16 @@ fn release() void {
     loader.resolved = null;
     loader.resolving = false;
     loader.resolved_live = false;
+    loader.live_state = .idle;
+    loader.stream_was_live = false;
+    loader.upcoming_polls = 0;
     if (loader.retry_timer != 0) {
         _ = glib.Source.remove(loader.retry_timer);
         loader.retry_timer = 0;
+    }
+    if (loader.poll_timer != 0) {
+        _ = glib.Source.remove(loader.poll_timer);
+        loader.poll_timer = 0;
     }
     if (loader.watchdog_timer != 0) {
         _ = glib.Source.remove(loader.watchdog_timer);
@@ -270,6 +317,7 @@ fn release() void {
     }
     loader.failed_attempts = 0;
     loader.awaiting_first_frame = false;
+    loader.paused_since_connect = false;
     loader.url_ended = false;
     loader.last_frame_us = 0;
     loader.url_kind = .local_file;
@@ -308,12 +356,26 @@ fn dropStream() void {
 }
 
 fn connectUrl() void {
+    // Keep callbacks from replacing an already-running player with a duplicate.
+    if (loader.url_player != null) return;
     const source_url = loader.url orelse return;
+    // Let the in-flight resolver finish instead of starting a duplicate resolve.
+    if (loader.url_kind == .youtube and loader.resolving) return;
+    if (loader.live_state == .waiting_upcoming) {
+        loader.upcoming_polls +|= 1;
+        loader.live_state = bg.live.next(loader.live_state, .poll_due);
+    } else if (loader.live_state == .idle) {
+        loader.live_state = .resolving;
+    }
     if (loader.url_kind == .youtube and loader.resolved == null) {
-        if (loader.resolving) return;
+        loader.live_state = .resolving;
         loader.resolving = true;
         if (!youtube_resolver.start(source_url, loader.settings.max_fps, loader.generation, onYoutubeResolved)) {
             loader.resolving = false;
+            if (loader.url_ended and loader.stream_was_live) {
+                finishLiveEnded();
+                return;
+            }
             urlFailed("resolve_thread_start");
         }
         return;
@@ -329,6 +391,8 @@ fn connectUrl() void {
     };
     loader.url_player = player;
     loader.url_ended = false;
+    loader.stream_was_live = false;
+    loader.paused_since_connect = false;
 
     const now_us = glib.getMonotonicTime();
     loader.last_frame_us = now_us;
@@ -373,6 +437,7 @@ fn attachStream(stream: *gtk.MediaFile) void {
 }
 
 fn urlFailed(reason: []const u8) void {
+    loader.live_state = bg.live.next(loader.live_state, .failure);
     const kind = loader.url_kind;
     const retry_kind: bg.source.Kind = if (kind == .youtube)
         (if (loader.resolved_live) .http_hls else .http_direct)
@@ -398,6 +463,7 @@ fn urlFailed(reason: []const u8) void {
         release();
         loader.status = .failed;
         loader.current_id = id;
+        loader.live_state = bg.live.next(loader.live_state, .fatal);
         notifyViews();
         return;
     }
@@ -417,9 +483,21 @@ fn urlFailed(reason: []const u8) void {
 fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
     if (generation != loader.generation) return;
     loader.resolving = false;
+    const rechecking_live = loader.url_ended and loader.stream_was_live;
 
     switch (result.*) {
         .ok => |resolved| {
+            if (rechecking_live) {
+                loader.live_state = bg.live.next(loader.live_state, .{ .recheck_result = resolved.live });
+                if (resolved.live != .live) {
+                    freeResolved(resolved);
+                    result.* = .missing;
+                    finishLiveEnded();
+                    return;
+                }
+            } else {
+                loader.live_state = bg.live.next(loader.live_state, .{ .resolved = resolved.live });
+            }
             loader.resolved = resolved;
             result.* = .missing;
             loader.resolved_live = resolved.live == .live;
@@ -435,20 +513,41 @@ fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
             connectUrl();
         },
         .fatal => |fatal| {
+            if (rechecking_live) {
+                finishLiveEnded();
+                return;
+            }
+            if (fatal == .upcoming) {
+                loader.live_state = bg.live.next(loader.live_state, .fatal_upcoming);
+                loader.status = .loading;
+                scheduleUpcomingPoll();
+                notifyViews();
+                return;
+            }
+            loader.live_state = bg.live.next(loader.live_state, .fatal);
             loader.status = .failed;
             log.warn("background-media: failed reason={s} source=youtube", .{@tagName(fatal)});
             notifyViews();
         },
         .retriable => |reason| {
+            if (rechecking_live) {
+                finishLiveEnded();
+                return;
+            }
             var reason_buf: [128]u8 = undefined;
             const retry_reason = std.fmt.bufPrint(&reason_buf, "resolve_{s}", .{reason}) catch "resolve_failed";
             urlFailed(retry_reason);
         },
         .missing => {
+            if (rechecking_live) {
+                finishLiveEnded();
+                return;
+            }
             if (!ytdlp_missing_warned) {
                 ytdlp_missing_warned = true;
                 log.warn("background-media: failed reason=ytdlp_missing hint=\"install yt-dlp or set GHOSTTY_YTDLP\"", .{});
             }
+            loader.live_state = bg.live.next(loader.live_state, .fatal);
             loader.status = .failed;
             notifyViews();
         },
@@ -466,6 +565,57 @@ fn onRetry(_: ?*anyopaque) callconv(.c) void {
     loader.retry_timer = 0;
     if (loader.url == null) return;
     connectUrl();
+}
+
+fn scheduleUpcomingPoll() void {
+    const play = loader.settings.play_in_background or loader.active_views > 0;
+    if (!play) return;
+
+    const delay = bg.live.upcomingDelayMs(loader.upcoming_polls, @bitCast(glib.getMonotonicTime()));
+    if (loader.poll_timer != 0) {
+        // Replace a pending timer so only one upcoming poll can fire.
+        _ = glib.Source.remove(loader.poll_timer);
+        loader.poll_timer = 0;
+    }
+    loader.poll_timer = glib.timeoutAddOnce(delay, onUpcomingPoll, null);
+    log.info("background-media: upcoming, next check in {d} s", .{@divTrunc(delay + 999, 1000)});
+}
+
+fn onUpcomingPoll(_: ?*anyopaque) callconv(.c) void {
+    loader.poll_timer = 0;
+    if (loader.url == null) return;
+    const play = loader.settings.play_in_background or loader.active_views > 0;
+    if (!play) return;
+    connectUrl();
+}
+
+fn finishLiveEnded() void {
+    if (loader.live_state == .ended and loader.status == .idle) return;
+
+    loader.live_state = .ended;
+    loader.url_ended = true;
+    loader.resolving = false;
+    loader.resolved_live = false;
+    if (loader.resolved) |resolved| freeResolved(resolved);
+    loader.resolved = null;
+    if (loader.retry_timer != 0) {
+        _ = glib.Source.remove(loader.retry_timer);
+        loader.retry_timer = 0;
+    }
+    if (loader.poll_timer != 0) {
+        _ = glib.Source.remove(loader.poll_timer);
+        loader.poll_timer = 0;
+    }
+    if (loader.watchdog_timer != 0) {
+        _ = glib.Source.remove(loader.watchdog_timer);
+        loader.watchdog_timer = 0;
+    }
+    loader.awaiting_first_frame = false;
+    loader.last_frame_us = 0;
+    dropStream();
+    loader.status = .idle;
+    log.info("background-media: live ended", .{});
+    notifyViews();
 }
 
 fn onWatchdog(_: ?*anyopaque) callconv(.c) c_int {
@@ -676,13 +826,28 @@ fn onUrlFailed() void {
 
 fn onUrlEnded() void {
     const player = loader.url_player orelse return;
-    if (gst_url_player.isLive(player)) {
-        urlFailed("ended");
-    } else if (loader.settings.loop) {
-        gst_url_player.rewind(player);
-    } else if (!loader.url_ended) {
+    _ = player;
+    const was_live = loader.stream_was_live;
+    loader.live_state = bg.live.next(loader.live_state, .{ .eos = .{
+        .was_live = was_live,
+        .youtube = loader.url_kind == .youtube,
+    } });
+    if (!was_live and loader.settings.loop) {
+        const active_player = loader.url_player orelse return;
+        gst_url_player.rewind(active_player);
+    } else if (!was_live and !loader.settings.loop) {
+        if (!loader.url_ended) {
+            loader.url_ended = true;
+            log.info("background-media: ended", .{});
+        }
+    } else if (loader.url_kind == .youtube) {
         loader.url_ended = true;
-        log.info("background-media: ended", .{});
+        dropStream();
+        if (loader.resolved) |resolved| freeResolved(resolved);
+        loader.resolved = null;
+        connectUrl();
+    } else {
+        finishLiveEnded();
     }
 }
 
@@ -691,6 +856,11 @@ fn recordFrame() void {
     loader.last_frame_us = now_us;
     if (loader.awaiting_first_frame) {
         loader.awaiting_first_frame = false;
+        if (loader.url_player) |player| {
+            loader.stream_was_live = gst_url_player.isLive(player) or
+                (loader.url_kind == .youtube and loader.resolved_live);
+            loader.live_state = bg.live.next(loader.live_state, .first_frame);
+        }
         if (loader.failed_attempts > 0) {
             log.info("background-media: recovered after attempts={d}", .{loader.failed_attempts});
             loader.failed_attempts = 0;
