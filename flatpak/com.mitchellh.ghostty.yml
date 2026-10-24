@@ -15,6 +15,8 @@ finish-args:
   - --share=network
   - --socket=fallback-x11
   - --socket=wayland
+  # Sound for web video when background-media-volume > 0
+  - --socket=pulseaudio
   # Allow user to specify additional config files in home by default
   - --filesystem=home:ro
   # So we can escape the sandbox

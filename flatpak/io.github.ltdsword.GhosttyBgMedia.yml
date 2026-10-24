@@ -1,0 +1,72 @@
+# Ghostty Background Media release bundle (side by side with com.mitchellh.ghostty).
+app-id: io.github.ltdsword.GhosttyBgMedia
+runtime: org.gnome.Platform
+runtime-version: "50"
+sdk: org.gnome.Sdk
+default-branch: stable
+command: ghostty-bg-media
+finish-args:
+  # 3D rendering
+  - --device=dri
+  # use host PTS namespace
+  - --device=all
+  # Windowing
+  - --share=ipc
+  # Network background media (background-media URL sources)
+  - --share=network
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Sound for web video when background-media-volume > 0
+  - --socket=pulseaudio
+  # Allow user to specify additional config files in home by default
+  - --filesystem=home:ro
+  # So we can escape the sandbox
+  - --talk-name=org.freedesktop.Flatpak
+cleanup:
+  - /include
+  - /lib/girepository-1.0
+  - /lib/pkgconfig
+  - /share/gir-1.0
+  - /share/pkgconfig
+  - /share/vala
+  - "*.la"
+  - "*.a"
+  - "*.so"
+
+modules:
+  - dependencies.yml
+
+  - name: ghostty
+    buildsystem: simple
+    build-options:
+      append-path: /app/zig
+    build-commands:
+      - zig build
+        -Doptimize=ReleaseFast
+        -Dcpu=baseline
+        -Dflatpak=true
+        -Dstrip=false
+        -fno-sys=oniguruma
+        --prefix /app
+        --search-prefix /app
+        --system $PWD/vendor/p
+      - install -Dm755 dist/linux/bg-media/ghostty-bg-media /app/bin/ghostty-bg-media
+      - install -Dm644 dist/linux/bg-media/io.github.ltdsword.GhosttyBgMedia.desktop
+        /app/share/applications/io.github.ltdsword.GhosttyBgMedia.desktop
+      - >-
+        for f in /app/share/icons/hicolor/*/apps/com.mitchellh.ghostty.png; do
+          install -Dm644 "$f" "${f%com.mitchellh.ghostty.png}io.github.ltdsword.GhosttyBgMedia.png"; done
+      - >-
+        rm -rf /app/share/applications/com.mitchellh.ghostty.desktop /app/share/dbus-1 /app/share/systemd
+        /app/share/metainfo /app/share/kio /app/share/nautilus-python
+    sources:
+      - type: dir
+        path: ..
+        skip:
+          - flatpak/.flatpak-builder
+          - flatpak/builddir
+          - flatpak/repo
+          - zig-cache
+          - zig-out
+
+      - zig-packages.json
