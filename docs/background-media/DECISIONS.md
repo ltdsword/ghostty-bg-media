@@ -3,6 +3,18 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-021 Keep and reuse local video players; loop in Ghostty
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** Freeing a `GtkMediaFile` player leaks threads, file descriptors, and memory; GTK's
+  built-in loop reopens the file on every pass.
+- **Decision:** Keep the last local-video player paused and reuse it by source ID. Loop video in
+  Ghostty by seeking to the start when playback ends.
+- **Consequences:** Switching to a different local file still leaks inside GTK, and one paused
+  player remains in memory until replaced or app exit. No config or API changes; this stays within
+  the D-010 `GtkMediaFile` backend.
+
 ## D-020 YouTube backgrounds are video-only
 
 - **Status:** ACCEPTED

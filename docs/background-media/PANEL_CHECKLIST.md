@@ -38,6 +38,12 @@ Linux GTK only. Run with an isolated `XDG_CONFIG_HOME` to protect your config.
 - [ ] Change **Position**. Expected: the chosen position is applied.
 - [ ] Change **Dim**. Expected: the chosen dim level is applied.
 
+## Splits and windows
+
+- [ ] Create 2–3 splits in one tab. Expected: media spans all panes behind them.
+- [ ] Open two windows with the same video source. Expected: both windows show the same video.
+- [ ] Close all windows while keeping the app running, then open a new window. Expected: media returns.
+
 ## Persistence
 
 - [ ] Change settings and choose **Save to Configuration**. Expected: `background-media.ghostty` is written and the include line is added to the main config once.

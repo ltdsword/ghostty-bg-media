@@ -20,7 +20,7 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M08 — YouTube recorded | TBD | DONE | — | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/` | YouTube is video-only (D-020) | — |
 | M09 — YouTube live | TBD | DONE | — | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios; workspace `notes/m09/real-soak/` | RSS trend watched in M12 | — |
 | M10 — GTK controls | TBD | DONE | — | workspace `notes/m10/runtime/`, `notes/m10/runtime3/`, `notes/m10/classes/`; [PANEL_CHECKLIST](PANEL_CHECKLIST.md) | keystroke-leak check remains manual | M11 lifecycle |
-| M11 — Lifecycle | TBD | NOT_STARTED | — | — | — | Verify tabs, splits, windows, and sessions |
+| M11 — Lifecycle | TBD | DONE | — | workspace `notes/m11/`; [LIFECYCLE](LIFECYCLE.md) | Split rendering and multi-monitor checks are manual | M12 performance |
 | M12 — Effects/performance | TBD | NOT_STARTED | — | — | — | Measure quality and resource use |
 | M13 — Security/regression | TBD | NOT_STARTED | — | — | — | Run robustness and compatibility suite |
 | M14 — Docs/release candidate | TBD | NOT_STARTED | — | — | — | Prepare package and handoff documentation |
@@ -263,6 +263,22 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   manual. There is no default keybinding by choice. The blur slider is deferred to M12. The UI is
   Linux-only; macOS is unaffected.
 - **Next task:** M11 lifecycle.
+
+## M11 — Lifecycle
+
+- **Status:** DONE (exit gate: no duplicate subscriptions, no dangling sessions after the last
+  window, and no crash on rapid close/reopen).
+- **Decision:** D-021 keeps and reuses the last local-video player and loops in Ghostty.
+- **Runtime checks:** The live fixture used one HTTP client across one-window/one-tab, three-tab,
+  and two-window/three-tab setups. Closing all windows left zero connections and requests after
+  8–10 seconds; a new window resumed playback. Forty rapid window cycles and 25 rapid source
+  switches completed without a crash or GStreamer criticals. Local-video reuse and looping checks
+  passed; the background image remained above media.
+- **Remaining gaps:** A different local file still triggers GTK's per-switch leak; one paused
+  player remains in memory, and one idle socket may survive release. Split rendering, multi-monitor
+  movement and hotplug, and Wayland occlusion were not verified by the agent; they are manual
+  checklist items.
+- **Platform:** Linux only; macOS deferred by user decision.
 
 ## How to resume
 
