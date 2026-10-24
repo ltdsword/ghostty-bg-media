@@ -50,9 +50,17 @@ The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` 
   decoding fails there. See [Testing WebP](BUILDING.md#testing-webp-installed-flatpak).
 - URLs must use HTTP or HTTPS. Other schemes, including `ftp://` and `file://`, are rejected by
   config parsing and reported through Ghostty's normal config diagnostics, not the media log.
-- Direct HTTP(S), HLS (`.m3u8`), and YouTube URLs are recognized by the M03 classifier. Playback is
-  staged by source: local static images are M04, local video is M05, GIF is M06, HTTP/HLS is M07,
-  and YouTube is M08/M09.
+- M07 plays direct HTTP(S) video and HLS VOD/live with the GStreamer URL player. Direct URLs stop
+  after 6 failed attempts; HLS retries forever, with a 20 s stall watchdog and exponential backoff
+  capped at 60 s (±20% jitter). When unfocused with play-in-background disabled, live streams are
+  released and reconnect on resume.
+- M08 resolves YouTube recorded URLs with user-installed yt-dlp; `GHOSTTY_YTDLP` overrides lookup.
+  The default is a maximum of 720p, and signed URLs are re-resolved on reconnect. yt-dlp is not
+  bundled; without it playback fails with `ytdlp_missing` (hint: install yt-dlp or set
+  `GHOSTTY_YTDLP`). Private, age-gated, members-only, removed, and playlist-only results stop
+  without retry.
+- M09 upcoming YouTube streams wait and poll again (30 s, x2, max 120 s, ±20% jitter). Ended
+  streams stop cleanly; Go Live from the panel reconnects at the live edge.
 - The media layer is visible through terminal background transparency only when
   `background-opacity` is less than `1`.
 
@@ -79,7 +87,19 @@ Reconciliation maps a transition to `start` (disabled/failed to ready), `restart
 ready source), `stop` (ready to disabled/failed, or failed to disabled), or `none` (no session
 change). A reload with the same ready source does not restart it. These are M03 state actions;
 local image, video, and GIF sessions are implemented in M04, M05, and M06, with remote playback in
-later milestones.
+M07–M09.
+
+## Control panel
+
+The GTK panel opens from **Background Media…** in the main menu. It exposes Source, status with
+Retry / Go Live, Appearance, Playback, Diagnostics, Save, and Reset controls. Source, appearance,
+and playback changes apply immediately as runtime overrides; they are lost on quit unless saved.
+Pause is runtime-only. **Save to Configuration** writes the managed `background-media.ghostty`
+file next to the main config, with a comment header and the eight `background-media*` keys. It appends
+`config-file = ?background-media.ghostty` (with a comment) to the main config once, then reloads
+configuration and clears the overrides. The managed include loads after the main config, so its
+values take precedence. Other main-config lines are not changed; writes use a temporary file and
+rename.
 
 ## Migrating from macOS `background-video`
 

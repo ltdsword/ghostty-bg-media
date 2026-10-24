@@ -3,9 +3,74 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-019 GTK panel changes save through a managed include file
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** Panel changes apply immediately and need an explicit persistence action.
+- **Decision:** Keep edits as runtime overrides until Save writes `background-media.ghostty` and
+  adds `config-file = ?background-media.ghostty` to the main config.
+- **Consequences:** The managed file contains the eight media keys, loads after the main file, and
+  therefore takes precedence; saving reloads config and clears overrides.
+
+## D-018 YouTube livestream state and upcoming polling
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** Livestreams can be upcoming, reconnecting, playing, ended, or failed.
+- **Decision:** Use the live state machine; poll upcoming streams after 30 s, then double the delay
+  up to 120 s, with ±20% jitter. Go Live reconnects at the live edge.
+- **Consequences:** YouTube end gets one re-check; HLS ends on ENDLIST/EOS; the same config does
+  not restart after ending.
+
+## D-017 YouTube resolution uses user-installed yt-dlp
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** YouTube playback requires resolving a signed media URL, which expires.
+- **Decision:** Do not bundle yt-dlp; allow `GHOSTTY_YTDLP`, use `flatpak-spawn --host` in Flatpak,
+  default to 720p, and resolve again on every reconnect.
+- **Consequences:** Users need host yt-dlp; missing yt-dlp logs `ytdlp_missing` and playback fails.
+
+## D-016 URL reconnect policy
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** HTTP and HLS streams can fail or stall during playback.
+- **Decision:** Retry after `min(1000*2^attempt, 60000)` ms with ±20% jitter; direct URLs stop
+  after 6 failures, HLS retries forever, and a 20 s stall watchdog triggers recovery.
+- **Consequences:** When unfocused with play-in-background disabled, live streams are released and
+  reconnect on resume.
+
+## D-015 Software decoding for URL playback
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** Intel's iHD VA driver crashed in-process after about 60 s of live HLS.
+- **Decision:** After GStreamer initialization, demote VA/VAAPI features to rank 0 for URL playback.
+- **Consequences:** Revisit hardware decoding in M12; URL playback uses software decoding meanwhile.
+
+## D-014 Linux URL playback uses a GStreamer player
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** `GtkMediaFile` reads non-file GFiles through GIO/gvfs, which breaks HLS with
+  “Upstream URI query failed”.
+- **Decision:** Use a Linux-only dlopen'ed GStreamer URL player with playbin3 and appsink.
+- **Consequences:** URL playback uses the custom player; local files continue using GtkMediaFile.
+
+## D-013 User-local blueprint-compiler 0.20 on Ubuntu 26.04
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** Ubuntu 26.04 ships blueprint-compiler 0.19; Ghostty needs version 0.20 or newer.
+- **Decision:** Use the upstream v0.20.0 release installed user-locally at
+  `~/.local/bin/blueprint-compiler` on PATH, without sudo.
+- **Consequences:** The native build uses the user-local compiler instead of Ubuntu's 0.19 package.
+
 ## D-012 Native development on Ubuntu 26.04; Flatpak stays the distribution lane
 
-- **Status:** ACCEPTED (native lane UNVERIFIED until checked on the upgraded host)
+- **Status:** ACCEPTED (native lane VERIFIED 2026-10-24)
 - **Date:** 2026-10-24
 - **Context:** The developer host moves from Ubuntu 24.04 to 26.04, which ships GNOME 50
   (expected GTK ~4.22, libadwaita ~1.9: at or above the 1.7 source floor). On 24.04 the app could
@@ -20,12 +85,12 @@ docs and logs.
      build (e.g. Ubuntu 24.04), and is built before every milestone merge so it never silently
      breaks. M15 CI builds it on every push; M16 ships it.
 - **Consequences:** Partly supersedes D-004 (Flatpak is no longer the dev-run lane; it remains the
-  distribution format). Native runtime media deps (GStreamer plugins, `gstreamer1.0-libav`, GTK's
-  GStreamer media module) come from apt and need user approval to install. Evidence from M02–M06
+  distribution format). Native runtime media deps (GStreamer plugins and `gstreamer1.0-libav`)
+  come from apt and need user approval to install. Evidence from M02–M06
   was gathered in the Flatpak lane and stays valid for it; native-lane results must be recorded
   separately. M16 still needs an own app ID so a Flatpak install and a native build can coexist.
-- **Evidence:** pending; record native `pkg-config` versions, build and smoke results in
-  [BUILDING.md](BUILDING.md#native-lane-ubuntu-2604-d-012) after the upgrade.
+- **Evidence:** native versions, build and gate results are recorded in
+  [BUILDING.md](BUILDING.md#native-lane-ubuntu-2604-d-012).
 
 ## D-011 Animated GIF: built-in decoder
 

@@ -4,9 +4,8 @@ Milestone states follow the master plan (Agent-Kit workspace `docs/MASTER_PLAN.m
 evidence below exists but the milestone exit gate is not complete. M02's implementation commit is
 recorded below; M00/M01 have no separate milestone commit recorded.
 
-**Environment change (2026-10-24, D-012):** development moves to a native build on Ubuntu 26.04;
-Flatpak stays the distribution lane. M02–M06 runtime evidence was gathered in the Flatpak lane on
-Ubuntu 24.04. Next step before M07: verify the native lane (BUILDING.md).
+**Environment change (2026-10-24, D-012/D-013):** the native lane is verified on Ubuntu 26.04.1;
+Flatpak remains the distribution lane. M07 and later evidence is from the native lane (BUILDING.md).
 
 | Milestone | Owner | State | Commit | Evidence | Blockers | Next task |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -17,10 +16,10 @@ Ubuntu 24.04. Next step before M07: verify the native lane (BUILDING.md).
 | M04 — Static images | M04 static images | PARTIAL | a63e5cf | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png | JPEG/WebP contain and live resize/splits not verified | M05 local MP4 |
 | M05 — Local video | M05 local video | PARTIAL | — | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt | 30-minute soak shows late RSS/CPU growth; Flatpak audio permission remains for M16 | M06 GIF |
 | M06 — GIF | M06 GIF | PARTIAL | — | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt | Pause/resume, terminal responsiveness, and full RSS release are not verified | M07 HTTP/HLS |
-| M07 — HTTP/HLS | TBD | NOT_STARTED | — | — | — | Add direct streaming and reconnect behavior |
-| M08 — YouTube recorded | TBD | NOT_STARTED | — | — | — | Add Linux-only recorded-video resolution |
-| M09 — YouTube live | TBD | NOT_STARTED | — | — | — | Add live state and recovery behavior |
-| M10 — GTK controls | TBD | NOT_STARTED | — | — | — | Add GTK controls and keyboard UX |
+| M07 — HTTP/HLS | TBD | DONE | — | `test/background-media/http_fixture_server.py`; workspace `plans/reports/soak-261024-0715-m07-live.md` | — | M08 real-YouTube smoke |
+| M08 — YouTube recorded | TBD | PARTIAL | — | `test/background-media/fake-yt-dlp` | Real-YouTube smoke blocked; yt-dlp could not be run by the agent | Real-YouTube smoke |
+| M09 — YouTube live | TBD | PARTIAL | — | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios | Real YouTube live untested; RSS slow rise to watch in M12 | M10 GTK controls |
+| M10 — GTK controls | TBD | PARTIAL | — | workspace `notes/m10/runtime/` | finite-video seek not provided; no keyboard shortcut | M11 lifecycle |
 | M11 — Lifecycle | TBD | NOT_STARTED | — | — | — | Verify tabs, splits, windows, and sessions |
 | M12 — Effects/performance | TBD | NOT_STARTED | — | — | — | Measure quality and resource use |
 | M13 — Security/regression | TBD | NOT_STARTED | — | — | — | Run robustness and compatibility suite |
@@ -193,6 +192,62 @@ Ubuntu 24.04. Next step before M07: verify the native lane (BUILDING.md).
   responsiveness was not recorded (workspace notes/m06/EVIDENCE.md). Full memory release after a
   source change is also not established by the RSS measurements.
 - **Next task:** M07 HTTP/HLS.
+
+## M07 — HTTP/HLS
+
+- **Status:** DONE; the exit gate passed.
+- **Decision:** D-014 uses a Linux-only GStreamer URL player; D-015 disables hardware decoding for
+  URL playback; D-016 defines reconnect behavior.
+- **Automated tests + results:** Fixture server: `test/background-media/http_fixture_server.py`.
+- **Runtime checks:** Direct, redirect, HLS VOD, and live paths were exercised. A 60-minute live
+  soak had no crash, recovered all 5/5 outages, averaged 21.5%
+  CPU, and reached 367 MB RSS before flattening (workspace
+  `plans/reports/soak-261024-0715-m07-live.md`). A 404 gave up after 6 attempts; a 25-second
+  outage recovered after 5 attempts; unfocus released a live stream. After the soak, an appsink
+  floating-reference bug (two GStreamer CRITICALs per connect) was fixed; short live and reconnect
+  runs then logged 0 CRITICALs.
+- **Remaining gaps:** Reconnecting leaves a blank frame until recovery (M13); CPU use is about 21%
+  (watch in M12).
+- **Next task:** M08 real-YouTube smoke.
+
+## M08 — YouTube recorded
+
+- **Status:** PARTIAL; fixture scenarios pass, but the real-YouTube exit gate remains open.
+- **Decision:** D-017 uses user-installed yt-dlp, with `GHOSTTY_YTDLP` override; Flatpak runs it on
+  the host, defaults to 720p, and re-resolves on reconnect.
+- **Automated tests + results:** Fake yt-dlp scenarios behave as expected for HLS 720p, MP4-only
+  360p, live, fatal results, flaky recovery, timeout/reconnect, and a missing executable.
+- **Runtime checks:** Real-YouTube smoke was blocked because the agent environment refused to
+  download/run yt-dlp.
+- **Remaining gaps:** Real-YouTube smoke is unverified; yt-dlp is not bundled and must be installed
+  by the user.
+- **Next task:** Real-YouTube smoke when yt-dlp can be run.
+
+## M09 — Livestreams
+
+- **Status:** PARTIAL; fixture/runtime behavior is exercised, but real YouTube live is untested.
+- **Decision:** D-018 uses a live state machine with upcoming polling and explicit Go Live behavior.
+- **Automated tests + results:** The `/live-end/<s>/` fixture route and fake yt-dlp scenarios
+  `upcomingthen` and `liveended001` were exercised.
+- **Runtime checks:** Upcoming-to-live used one player; YouTube and HLS ended cleanly. A 2-hour
+  fake-yt-dlp live soak had no crash and recovered 7/7 outages; CPU was 20.8% and RSS rose from
+  313 MB to about 385 MB.
+- **Remaining gaps:** Real YouTube live is untested; the soak's RSS rise was not fully flat and is
+  watched in M12.
+- **Next task:** M10 GTK controls.
+
+## M10 — GTK controls
+
+- **Status:** PARTIAL; the GTK panel and runtime override/save flow have runtime evidence.
+- **Decision:** D-019 keeps panel edits as runtime overrides until the user explicitly saves them
+  to the managed include file.
+- **Automated tests + results:** AT-SPI GUI checks covered opening and populating the panel,
+  pause/play, dim, and save output (workspace `notes/m10/runtime/`).
+- **Runtime checks:** URL apply with LIVE and Go Live, and Use Configuration were also exercised
+  (workspace `notes/m10/runtime/`).
+- **Remaining gaps:** finite-video seek
+  is not provided (P5); there is no keyboard shortcut. The UI is Linux-only; macOS is unaffected.
+- **Next task:** M11 lifecycle.
 
 ## How to resume
 

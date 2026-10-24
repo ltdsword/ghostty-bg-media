@@ -8,39 +8,25 @@ The host is Ubuntu 24.04.4 with GNOME Wayland, per the supplied host context. Me
 
 ## Native lane: Ubuntu 26.04 (D-012)
 
-**Status: PLANNED / UNVERIFIED.** The developer host is being upgraded from Ubuntu 24.04 to 26.04.
-Nothing below has been run on 26.04 yet; versions are expectations until measured.
+**Status: VERIFIED (2026-10-24).** On Ubuntu 26.04.1, measured versions are GTK 4.22.4,
+libadwaita 1.9.1, gtk4-layer-shell 1.3.0, GStreamer 1.28.2, and user-local Zig 0.16.0.
+Ubuntu's blueprint-compiler is 0.19; D-013 records the user-local upstream v0.20.0 workaround.
 
-After the upgrade, measure and record here:
+User-installed apt packages: `libgtk-4-dev`, `libadwaita-1-dev`, `blueprint-compiler`,
+`libgtk4-layer-shell-dev`, `libxml2-utils`, `gstreamer1.0-plugins-bad`, and `gstreamer1.0-libav`.
+`libgtk-4-media-gstreamer` is no longer available on Ubuntu 26.04 because `libgtk-4-1` links
+GStreamer directly.
 
-```sh
-pkg-config --modversion gtk4 libadwaita-1 gtk4-layer-shell-0
-blueprint-compiler --version          # source floor: >= 0.20.0
-gst-inspect-1.0 --version
-~/.local/opt/zig/0.16.0/zig version   # keep the user-local Zig 0.16.0 (D-003)
-```
-
-Candidate packages (to confirm against the 26.04 archive; installing needs user approval):
-
-| Purpose | Packages |
-| --- | --- |
-| GTK app build | `libgtk-4-dev`, `libadwaita-1-dev`, `blueprint-compiler`, `libgtk4-layer-shell-dev`, `gettext` |
-| Local video / streaming (M05, M07) | `libgtk-4-media-gstreamer`, `gstreamer1.0-plugins-base`, `gstreamer1.0-plugins-good`, `gstreamer1.0-plugins-bad`, `gstreamer1.0-libav` |
-
-Commands (from the repository root):
+Working commands (from the repository root):
 
 ```sh
-zig build                              # add -fno-sys=gtk4-layer-shell only if the package is missing
-zig build run -- --background-media=<file>
-zig build -Dapp-runtime=none -Demit-docs=false test
+zig build
+GHOSTTY_GTK_BUILD_CMD="zig build" scripts/verify-ghostty.sh --quick
 ```
 
-The quality gate's GTK build becomes runnable by setting
-`GHOSTTY_GTK_BUILD_CMD="zig build"` for `<workspace>/scripts/verify-ghostty.sh`.
-
-Open points to settle when verifying: whether the packaged blueprint-compiler meets 0.20.0, whether
-`gtk4-layer-shell` is packaged, and whether H.264 playback needs anything beyond
-`gstreamer1.0-libav`. Record results and evidence paths in this section.
+URL / YouTube fixtures are documented in [test/background-media/README.md](../../test/background-media/README.md).
+The fixture server and fake yt-dlp support URL playback checks; set `GHOSTTY_YTDLP` to select a
+yt-dlp executable.
 
 ## Flatpak lane: distribution and compatibility (D-004, D-012)
 

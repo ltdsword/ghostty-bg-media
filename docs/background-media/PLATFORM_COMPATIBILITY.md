@@ -5,14 +5,15 @@ macOS runtime item remains UNVERIFIED until a macOS build and smoke test are rec
 
 ## Support matrix
 
-| Capability | macOS | Linux / Ubuntu 24.04 | Status |
+| Capability | macOS | Linux / Ubuntu 26.04 | Status |
 | --- | --- | --- | --- |
 | Original video background | Inherited implementation | Not required | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
 | Static background image | Inherited image path | Supported (M04: PNG/JPEG/WebP) | macOS inherited; runtime UNVERIFIED; Linux M04 PARTIAL |
 | Animated GIF | No added parity commitment | Supported (M06: built-in decoder) | macOS runtime UNVERIFIED; Linux M06 PARTIAL |
 | Local video | Inherited AVFoundation path | Supported (M05: GTK/GStreamer; MP4/H.264, WebM, MKV) | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
-| YouTube recorded/live | Inherited resolver/settings | Planned Linux-only resolver/player | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
-| Settings UI | Existing Swift/AppKit panel | Planned GTK4 UI | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
+| Direct HTTP(S) / HLS | No added parity commitment | Supported (M07: GStreamer URL player) | macOS inherited; runtime UNVERIFIED; Linux M07 DONE |
+| YouTube recorded/live | Inherited resolver/settings | Supported via user-installed yt-dlp (M08/M09) | macOS inherited; runtime UNVERIFIED; Linux M08/M09 PARTIAL (real YouTube unverified) |
+| Settings UI | Existing Swift/AppKit panel | GTK4/libadwaita panel (M10) | macOS inherited; runtime UNVERIFIED; Linux M10 PARTIAL |
 | Media dependencies | Existing native stack | GTK/GStreamer from the GNOME runtime plus `org.freedesktop.Platform.codecs-extra` | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
 | Build and test | Separate macOS lane | Separate Linux lane | macOS UNVERIFIED; Linux baseline partial |
 
@@ -103,8 +104,8 @@ an independent CI lane is planned for M15. See [MACOS_BASELINE.md §7](MACOS_BAS
 
 ## Linux build lanes (D-012, 2026-10-24)
 
-- **Native (Ubuntu 26.04 dev host): UNVERIFIED.** Planned primary development lane; requires
-  libadwaita >= 1.7 from the distro. Not yet built or run.
+- **Native (Ubuntu 26.04 dev host): VERIFIED (2026-10-24).** Native build and GTK gate passed;
+  M07 and later evidence is from this lane. See [BUILDING.md](BUILDING.md#native-lane-ubuntu-2604-d-012).
 - **Flatpak (GNOME 50 runtime): verified M01–M06.** Distribution lane and the supported path for
   distros too old for a native build, including Ubuntu 24.04.
 - Both lanes build the same source; no lane-specific code.
