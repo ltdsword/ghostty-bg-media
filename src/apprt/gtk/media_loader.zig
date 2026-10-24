@@ -649,7 +649,10 @@ fn urlFailed(reason: []const u8) void {
         redacted_url,
     });
     const play = playWanted();
-    if (play) loader.retry_timer = glib.timeoutAddOnce(delay, onRetry, null);
+    if (play) {
+        loader.status = .loading;
+        loader.retry_timer = glib.timeoutAddOnce(delay, onRetry, null);
+    }
     notifyViews();
 }
 
@@ -1033,6 +1036,8 @@ fn recordFrame() void {
     loader.last_frame_us = now_us;
     if (loader.awaiting_first_frame) {
         loader.awaiting_first_frame = false;
+        loader.status = .ready;
+        notifyViews();
         clearFailure();
         if (loader.url_player) |player| {
             loader.stream_was_live = gst_url_player.isLive(player) or

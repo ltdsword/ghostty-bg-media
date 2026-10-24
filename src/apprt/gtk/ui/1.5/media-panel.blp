@@ -97,6 +97,9 @@ template $GhosttyMediaPanel: Adw.Dialog {
 
               [suffix]
               Gtk.Scale dim_scale {
+                accessibility {
+                  label: _("Dim");
+                }
                 orientation: horizontal;
                 width-request: 200;
                 adjustment: Gtk.Adjustment {
@@ -133,6 +136,9 @@ template $GhosttyMediaPanel: Adw.Dialog {
 
               [suffix]
               Gtk.Scale volume_scale {
+                accessibility {
+                  label: _("Volume");
+                }
                 orientation: horizontal;
                 width-request: 200;
                 adjustment: Gtk.Adjustment {
