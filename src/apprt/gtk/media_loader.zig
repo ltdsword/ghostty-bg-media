@@ -450,7 +450,9 @@ pub fn setViewActive(view: *MediaView, active: bool) void {
 
 fn applyStreamSettings(stream: *gtk.MediaFile) void {
     const media_stream = stream.as(gtk.MediaStream);
-    media_stream.setLoop(@intFromBool(loader.settings.loop));
+    // Loop ourselves in onMediaEnded: GTK's own loop reopens the file on every pass and
+    // leaks a file descriptor and ~1 MB each time (GTK 4.22, GStreamer 1.28).
+    media_stream.setLoop(0);
     media_stream.setMuted(@intFromBool(loader.settings.volume == 0));
     media_stream.setVolume(@floatCast(loader.settings.volume));
 }
@@ -1143,9 +1145,14 @@ fn onMediaError(media_file: *gtk.MediaFile, _: *gobject.ParamSpec, _: ?*anyopaqu
 }
 
 fn onMediaEnded(media_file: *gtk.MediaFile, _: *gobject.ParamSpec, _: ?*anyopaque) callconv(.c) void {
-    if (loader.stream == media_file and !loader.settings.loop) {
-        log.info("background-media: ended", .{});
+    if (loader.stream != media_file) return;
+    const media_stream = media_file.as(gtk.MediaStream);
+    if (loader.settings.loop and media_stream.getEnded() != 0) {
+        media_stream.seek(0);
+        if (playWanted()) media_stream.play();
+        return;
     }
+    if (!loader.settings.loop) log.info("background-media: ended", .{});
 }
 
 fn freeJob(job: *Job) void {
