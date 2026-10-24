@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
 # Build a single-file Flatpak release bundle for Ghostty Background Media.
-# Usage: build-flatpak-bundle.sh [--out <dir>] [--state-dir <dir>]
+# Usage: build-flatpak-bundle.sh [--name <label>] [--out <dir>] [--state-dir <dir>]
 # Needs flatpak-builder and the GNOME 50 SDK from Flathub; no root required.
 set -euo pipefail
 
 repo=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 out="$repo/zig-out/flatpak"
 state="$repo/flatpak/.flatpak-builder"
+name=
 
 usage() {
-  printf 'Usage: %s [--out <dir>] [--state-dir <dir>]\n' "${0##*/}"
+  printf 'Usage: %s [--name <label>] [--out <dir>] [--state-dir <dir>]\n' "${0##*/}"
 }
 
 while (($#)); do
   case "$1" in
+    --name)
+      if (($# < 2)); then
+        usage >&2
+        exit 2
+      fi
+      name=$2
+      shift 2
+      ;;
     --out)
       if (($# < 2)); then
         usage >&2
@@ -44,12 +53,14 @@ for program in flatpak flatpak-builder sha256sum; do
   fi
 done
 
-version=$(git -C "$repo" describe --tags --always --dirty)
+if [[ -z "$name" ]]; then
+  name=$(git -C "$repo" describe --tags --always --dirty)
+fi
 mkdir -p "$out"
 flatpak-builder --user --install-deps-from=flathub --force-clean --state-dir="$state" \
   --repo="$out/repo" "$out/build" "$repo/flatpak/io.github.ltdsword.GhosttyBgMedia.yml"
 
-bundle="$out/ghostty-bg-media-${version}-$(flatpak --default-arch).flatpak"
+bundle="$out/ghostty-bg-media-${name}-$(flatpak --default-arch).flatpak"
 flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
   "$out/repo" "$bundle" io.github.ltdsword.GhosttyBgMedia stable
 

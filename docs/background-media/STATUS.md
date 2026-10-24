@@ -13,9 +13,9 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M01 — Build environment      | T3–T4 environment | DONE        | —                    | [BUILDING](BUILDING.md), [options](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/), [host Flatpak](evidence/m01/flatpak-host/)                                                                                                                                                                                                                                                                   | —                                                                                  | M02 compositor spike                               |
 | M02 — Compositor spike       | m02-spike T1      | DONE        | b2ed4d4              | [ADR](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/)                                                                                                                                                                                                                                                                                                                                               | —                                                                                  | M03 config contract (needs user approval)          |
 | M03 — Domain/config          | M03 config        | DONE        | 0f263d1              | [CONFIGURATION](CONFIGURATION.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), workspace notes/m03/T1-config-tests.txt, workspace notes/m03/T2-classifier-tests.txt, workspace notes/m03/runtime-log-check.txt, workspace notes/m03/runtime-reload-check.txt, workspace notes/m03/gate-quick.txt                                                                                             | Follow-up gaps below                                                               | M04 static images                                  |
-| M04 — Static images          | M04 static images | PARTIAL     | a63e5cf              | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png | JPEG/WebP contain and live resize/splits not verified                              | M05 local MP4                                      |
-| M05 — Local video            | M05 local video   | PARTIAL     | —                    | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt                                                                                                                                                                                                                                     | 30-minute soak shows late RSS/CPU growth                                           | M06 GIF                                            |
-| M06 — GIF                    | M06 GIF           | PARTIAL     | —                    | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt                                                                                                                                                                                                                                 | Pause/resume, terminal responsiveness, and full RSS release are not verified       | M07 HTTP/HLS                                       |
+| M04 — Static images          | M04 static images | DONE        | a63e5cf              | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png; M17 audit: workspace notes/m16/m04-jpeg-splits.png and m04-webp-contain.png | —                                                                                    | —                                                  |
+| M05 — Local video            | M05 local video   | DONE        | —                    | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt; M17 audit: workspace notes/m17/soak-mp4-30min.csv                                                                                                                                                                                   | —                                                                                    | —                                                  |
+| M06 — GIF                    | M06 GIF           | DONE        | —                    | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt; M17 audit: workspace notes/m16/m06-memory-rounds.txt                                                                                                                                                                        | —                                                                                    | —                                                  |
 | M07 — HTTP/HLS               | TBD               | DONE        | —                    | `test/background-media/http_fixture_server.py`; workspace `plans/reports/soak-261024-0715-m07-live.md`                                                                                                                                                                                                                                                                                                | —                                                                                  | M08 real-YouTube smoke                             |
 | M08 — YouTube recorded       | TBD               | DONE        | —                    | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/`; M14 quality and optional audio (D-025)                                                                                                                                                                                                                                                                                              | —                                                                                  | —                                                  |
 | M09 — YouTube live           | TBD               | DONE        | —                    | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios; workspace `notes/m09/real-soak/`; M14 quality and optional audio (D-025)                                                                                                                                                                                                                                                      | —                                                                                  | —                                                  |
@@ -23,10 +23,10 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M11 — Lifecycle              | TBD               | DONE        | —                    | workspace `notes/m11/`; [LIFECYCLE](LIFECYCLE.md)                                                                                                                                                                                                                                                                                                                                                     | Split rendering and multi-monitor checks are manual                                | M12 performance                                    |
 | M12 — Effects/performance    | TBD               | DONE        | fde84cb95, 1340f1e74 | [PERFORMANCE](PERFORMANCE.md), workspace `notes/m12/`                                                                                                                                                                                                                                                                                                                                                 | —                                                                                  | M13 security and robustness                        |
 | M13 — Security/regression    | TBD               | PARTIAL     | f72a92ffc            | [SECURITY](SECURITY.md), [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m13/`                                                                                                                                                                                                                                                                                                                        | Native Xorg untested; macOS items deferred                                        | Complete remaining M13 validation                  |
-| M14 — Docs/release candidate | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Prepare package and handoff documentation          |
+| M14 — Docs/release candidate | TBD               | DONE        | —                    | [README fork section](../../README.md); [INSTALL](INSTALL.md); [CONFIGURATION](CONFIGURATION.md); [STATUS](STATUS.md); [CHANGELOG](CHANGELOG.md)                                                                                                                                                                                                                                                       | —                                                                                  | —                                                  |
 | M15 — CI lanes               | TBD               | SKIPPED (user) | —                  | User decision, 2026-10-24                                                                                                                                                                                                                                                                                                                                                                             | —                                                                                  | —                                                  |
-| M16 — Public packaging       | TBD               | DONE        | f55670384, 4486a52d0 | [INSTALL](INSTALL.md), [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak), [D-028](DECISIONS.md#d-028-side-by-side-application-identity), [TEST_MATRIX](TEST_MATRIX.md), clean-install evidence below                                                                                                                                                                  | Publish downloads in M17                                                           | Publish packages in M17                            |
-| M17 — Public beta            | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Publish only after release gates pass              |
+| M16 — Public packaging       | TBD               | DONE        | f55670384, 4486a52d0 | [INSTALL](INSTALL.md), [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak), [D-028](DECISIONS.md#d-028-side-by-side-application-identity), [TEST_MATRIX](TEST_MATRIX.md), clean-install evidence below; fresh Ubuntu 24.04.5 Flatpak container: workspace `.pkg-test/clean-install-24.04-flatpak.log` | —                                                                                  | —                                                  |
+| M17 — Public beta            | TBD               | PREPARED    | —                    | Tag `bgm-v0.1.0-beta`, assets and notes prepared; GitHub Release publication pending (maintainer, user decision 2026-10-25); download-flow check pending | —                                                                                  | —                                                  |
 | M18 — Optional macOS parity  | TBD               | NOT_STARTED | —                    | Approval required                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Seek approval before considering additive parity   |
 
 ## M00 — Fork inheritance and baselines
@@ -129,7 +129,7 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 
 ## M04 — Static images
 
-- **Status:** PARTIAL.
+- **Status:** DONE (M17 audit).
 - **Static image behavior:** Local PNG, JPEG and WebP load in the GTK media view. Fit, position and
   dim apply; decoding runs off the GTK thread and a shared texture serves all tabs. Limits are
   16,384 pixels per side, 64 Mi pixels and 256 MiB per file.
@@ -142,13 +142,15 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 - **Visual checks:** PNG contain and cover, JPEG cover, WebP cover, and PNG dim/position are
   recorded in workspace notes/m04/visual/visual-log.txt and the matching screenshots listed in the
   M04 row above. The no-media screenshot records the empty-media fallback.
-- **Remaining gaps:** JPEG and WebP contain, live resize, and split behavior are not verified, so
-  the M04 exit gate is incomplete.
+- **Remaining gaps at M04:** JPEG and WebP contain, live resize, and split behavior were not
+  verified at that milestone.
+- **M17 audit:** JPEG/WebP contain, splits, and live source switching by configuration reload were
+  checked; see workspace `notes/m16/m04-jpeg-splits.png` and `notes/m16/m04-webp-contain.png`.
 - **Next task:** M05 local video.
 
 ## M05 — Local video
 
-- **Status:** PARTIAL.
+- **Status:** DONE (M17 audit).
 - **Backend:** D-010 accepts GTK/GStreamer. GTK's GStreamer-backed media file plays local MP4
   (H.264), WebM and MKV using the GNOME runtime and `org.freedesktop.Platform.codecs-extra`.
 - **Playback behavior:** One shared player serves all tabs. Loop, volume, background playback and
@@ -160,21 +162,24 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   GStreamer 1.26.11, its MP4/WebM/MKV demuxers and video decoders, and the codecs-extra extension
   (workspace notes/m05/runtime-gst-probe.txt). Source switching kept the app alive after 40
   switches with no panic or critical messages (workspace notes/m05/stress-switch.txt).
-- **Soak:** The 30-minute loop run ended with zero recorded errors and no crash. RSS rose from
+- **M05 soak:** The 30-minute loop run ended with zero recorded errors and no crash. RSS rose from
   215,260 KiB at 30 seconds to 225,200 KiB at 30 minutes (about 9.7 MiB); CPU samples rose into
   30–36% late in the run from mostly low-to-mid 20% readings earlier (workspace
   notes/m05/soak-30min.txt). This does not meet the exit gate's no-growth requirement.
 - **Audio:** At the time of M05, the Flatpak had no audio permission. M16 later enabled its
   PulseAudio socket; web-video audio was verified on the host (D-027).
-- **Remaining gaps:** The soak shows an RSS/CPU growth trend, so M05 remains PARTIAL despite the
-  playback and switch checks. The runtime probe confirms available plugins, but only the H.264 MP4
-  playback probe is recorded.
+- **Remaining gaps at M05:** The earlier soak showed an RSS/CPU growth trend. The runtime probe
+  confirmed available plugins, but only the H.264 MP4 playback probe was recorded then.
+- **M17 audit:** A 30-minute ReleaseFast package-build soak looped 720p H.264/AAC at opacity 0.6
+  in the background, sampling once per minute. RSS was 50,992 KiB at 3 minutes and 52,204 KiB at
+  30 minutes, with one 1.1 MiB step at 22 minutes and flat RSS afterward; CPU stayed near 6% of
+  one core, 38 threads stayed constant, and there were no errors. This meets the no-growth gate.
+  Evidence: workspace `notes/m17/soak-mp4-30min.csv`.
 - **Next task:** M06 GIF.
 
 ## M06 — Animated GIF
 
-- **Status:** PARTIAL; timing, decoder CRC, and repeated source-switch evidence exists, but the full
-  exit gate is incomplete.
+- **Status:** DONE (M17 audit); timing, decoder CRC, and repeated source-switch evidence exists.
 - **Decision:** D-011 selects the built-in pure-Zig decoder with no new dependency.
 - **Automated tests + results:** Decoder frame CRCs match the Pillow references; the evidence index
   records 24/24 tests passing (workspace notes/m06/reference-crc.txt).
@@ -188,9 +193,12 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   panic. Media-off RSS plateaued at 295,748 KiB after rounds two and three, compared with 141,384
   KiB before the run; this does not demonstrate return to the initial RSS (workspace
   notes/m06/runtime/memory-release-r1.txt).
-- **Remaining gaps:** Pause/resume when unfocused was not exercised in-app, and terminal
+- **Remaining gaps at M06:** Pause/resume when unfocused was not exercised in-app, and terminal
   responsiveness was not recorded (workspace notes/m06/EVIDENCE.md). Full memory release after a
-  source change is also not established by the RSS measurements.
+  source change was not established by the RSS measurements.
+- **M17 audit:** GIF playback paused when another app had focus (126 to 0 to 126 CPU ticks per
+  10 seconds), and RSS stayed flat across six on/off reload rounds at about 191 MB. Evidence:
+  workspace `notes/m16/m06-memory-rounds.txt`.
 - **Next task:** M07 HTTP/HLS.
 
 ## M07 — HTTP/HLS
@@ -370,17 +378,32 @@ incorrect broadcast-damage and appsink-QoS explanations. See [D-026](DECISIONS.m
 ## M16 — Packaging
 
 - **Status:** DONE for package tooling and clean-install evidence. The `.deb` tooling merged as
-  `f55670384`; the Flatpak bundle as `4486a52d0`. Public downloads are planned for M17.
+  `f55670384`; the Flatpak bundle as `4486a52d0`. M17 prepares the public beta release.
 - **Evidence:** In a fresh Ubuntu 26.04 container, `.deb` install with recommendations, `+version`,
   dependency resolution, desktop-file validation, coexistence with Ubuntu Ghostty 1.3.0, upgrade,
   remove, purge, reinstall, and downgrade all passed. On the Ubuntu 26.04.1 host, the packaged GUI
   found its resources, played web video, and owned its application D-Bus name. The 17.9 MB Flatpak
   installed beside official Ghostty, played video and audio, owned its own D-Bus name, and
   uninstalled with its exported desktop entry and data. See [INSTALL](INSTALL.md), [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak), [D-028](DECISIONS.md#d-028-side-by-side-application-identity), and [TEST_MATRIX](TEST_MATRIX.md).
-- **Not verified:** Flatpak installation on a real Ubuntu 24.04 system; `sudo apt install` on the
-  user's desktop. The container covers package install mechanics.
+- **Ubuntu 24.04 Flatpak container:** In a fresh `ubuntu:24.04.5` container, install, `+version`,
+  zero missing libraries, H.264 and HLS plugins, and uninstall passed. Evidence: workspace
+  `.pkg-test/clean-install-24.04-flatpak.log`.
+- **Not verified:** Flatpak installation on a real Ubuntu 24.04 desktop session; `sudo apt install`
+  on the user's desktop. The container covers package install mechanics.
 - **Known:** Flatpak prints a shell-integration warning because the host shell cannot read `/app`
   paths; the terminal works.
+
+## M17 — Public pre-release bgm-v0.1.0-beta
+
+- **Status:** PREPARED. Tag `bgm-v0.1.0-beta`, assets and notes are prepared; GitHub Release publication is pending (maintainer, user decision 2026-10-25).
+- **Release page:** <https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta>.
+- **Assets:** `ghostty-bg-media-bgm-v0.1.0-beta-amd64.deb`,
+  `ghostty-bg-media-bgm-v0.1.0-beta-x86_64.flatpak`, `SHA256SUMS`, and
+  `ghostty-bg-media-bgm-v0.1.0-beta-manifest.txt`. Release body:
+  [bgm-v0.1.0-beta](release-notes/bgm-v0.1.0-beta.md).
+- **Verification:** Download-flow check is pending until after publication.
+- **macOS:** No binary in this release; build and inherited-video smoke remain UNVERIFIED.
+- **Stable designation:** NOT MET; this is a beta pre-release.
 
 ## How to resume
 

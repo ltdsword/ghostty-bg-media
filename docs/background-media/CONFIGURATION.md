@@ -8,6 +8,11 @@ adds local GIF playback. No settings remain pending for local media.
 The `.deb` shares Ghostty's `~/.config/ghostty/config`. Flatpak uses
 `~/.var/app/io.github.ltdsword.GhosttyBgMedia/config/ghostty/config`; see [INSTALL.md](INSTALL.md).
 
+The panel's **Appearance** group includes a **Terminal opacity** slider for `background-opacity`.
+It changes the current session as an override. **Save to Configuration** writes it to
+`background-media.ghostty` next to the main config; the managed file loads after the main config
+and its value takes precedence. The `background-opacity` config key remains shared with Ghostty.
+
 ## Keys
 
 | Key | Type | Default | Range / values | Reload | Platform |
@@ -114,7 +119,8 @@ without clearing the source box; **Play** reapplies the box text. **Keep playing
 (`background-media-play-in-background`) keeps playback running when the window loses focus or is
 minimized.
 Pause is runtime-only. **Save to Configuration** writes the managed `background-media.ghostty`
-file next to the main config, with a comment header and the eight `background-media*` keys. It appends
+file next to the main config, with a comment header, all ten `background-media*` keys, and
+`background-opacity`. It appends
 `config-file = ?background-media.ghostty` (with a comment) to the main config once, then reloads
 configuration and clears the overrides. The managed include loads after the main config, so its
 values take precedence. Other main-config lines are not changed; writes use a temporary file and

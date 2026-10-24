@@ -2,6 +2,8 @@
 
 Linux GTK feature set, inventoried from the current code and project docs.
 macOS keeps its inherited `background-video` feature unchanged and ignores `background-media*`.
+There is no macOS binary in `bgm-v0.1.0-beta`; the macOS build and inherited-video smoke test are
+UNVERIFIED.
 Status words: **Shipped** (merged and verified by the agent), **Manual check** (merged, needs a human check), **Limitation**, **Not started**.
 
 ## At a glance
@@ -80,10 +82,10 @@ Open the panel with the header-bar background-media button or the `background-me
 - **Source:** choose a file, enter a path or URL, **Apply** the entry, or restore the configured source with **Use Configuration**.
 - **Playback:** view status; **Pause/Play**, **Turn Off**, **Retry**, and **Go Live** when applicable; seek finite video when its backend reports timing; set **Loop**, **Volume**, background playback, and 30/60 fps.
 - **YouTube quality:** when the source resolves to YouTube, select Auto (720p) or a height offered by the current video; choices above 1080p are labelled “(high CPU)”. **Save to Configuration** persists the preferred maximum (D-025).
-- **Appearance:** choose **Fit** and **Position**, and set **Dim** and **Blur** sliders.
+- **Appearance:** choose **Fit** and **Position**, and set **Dim**, **Blur**, and **Terminal opacity** sliders. Terminal opacity controls `background-opacity` as a session override; **Save to Configuration** stores it in `background-media.ghostty` next to the main config, where it overrides the main config value.
 - **Diagnostics:** see whether the GStreamer URL player is available and the selected `yt-dlp` path or missing-tool hint.
 - Status includes **No background media**, **Idle**, **Loading**, **Showing** for a still image, **Playing**, **Paused**, **Failed**, **LIVE**, **Waiting for the stream to start**, **Reconnecting**, and **Stream ended**.
-- Source and settings changes apply immediately as runtime overrides. **Turn Off** stops playback for the session while preserving the source-box text; **Play** reapplies it. **Save to Configuration** writes `background-media.ghostty` with all ten settings, adds `config-file = ?background-media.ghostty` to the main config once, reloads config, and clears overrides. The managed include loads after the main config and takes precedence. **Reset Changes** restores configured values (D-019). [`media_panel.zig`](../../src/apprt/gtk/class/media_panel.zig), [`config_save.zig`](../../src/apprt/gtk/background_media/config_save.zig).
+- Source and settings changes apply immediately as runtime overrides. **Turn Off** stops playback for the session while preserving the source-box text; **Play** reapplies it. **Save to Configuration** writes `background-media.ghostty` with all ten `background-media*` settings and `background-opacity`, adds `config-file = ?background-media.ghostty` to the main config once, reloads config, and clears overrides. The managed include loads after the main config and takes precedence. **Reset Changes** restores configured values (D-019). [`media_panel.zig`](../../src/apprt/gtk/class/media_panel.zig), [`config_save.zig`](../../src/apprt/gtk/background_media/config_save.zig).
 
 ## Lifecycle and resource use
 

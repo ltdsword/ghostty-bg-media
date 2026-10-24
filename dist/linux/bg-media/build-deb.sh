@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Build an installable Ghostty Background Media .deb package.
-# Usage: dist/linux/bg-media/build-deb.sh [--version <semver>] [--revision <n>] [--out <dir>]
+# Usage: dist/linux/bg-media/build-deb.sh [--version <app-version>] [--revision <n>] [--out <dir>]
 # Requires no root privileges. Run on Ubuntu 26.04 with the build dependencies from
 # docs/background-media/BUILDING.md, dpkg-dev, and Zig.
 
 set -euo pipefail
 
-version=1.3.2-bgmedia.0.1.0
+version=1.3.2-bgm.0.1.0-beta
 revision=1
 out=
 
@@ -102,7 +102,10 @@ printf 'Source: ghostty-bg-media\n\nPackage: ghostty-bg-media\nArchitecture: any
 shlibs_output=$(cd "$stage" && dpkg-shlibdeps -O root/opt/ghostty-bg-media/bin/ghostty)
 depends=${shlibs_output#shlibs:Depends=}
 
-debversion="${version//-/+}-$revision"
+head=${version%%-*}
+rest=${version#*-}
+[ "$head" = "$version" ] && debversion=$version || debversion="$head+${rest//-/\~}"
+debversion="$debversion-$revision"
 mkdir -p "$root/DEBIAN"
 installed_size=$(du -sk --exclude=DEBIAN "$root" | cut -f1)
 cat > "$root/DEBIAN/control" <<EOF

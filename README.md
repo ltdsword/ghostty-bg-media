@@ -1,3 +1,51 @@
+# Ghostty Background Media
+
+Ghostty Background Media is an unofficial Ghostty fork that adds configurable image, GIF, video, and livestream backgrounds to the Linux GTK terminal, with one media decoder shared across tabs and splits. It installs alongside Ghostty as `ghostty-bg-media`.
+
+> This is an unofficial modification of [Ghostty](https://github.com/ghostty-org/ghostty), not affiliated with or endorsed by the Ghostty project.
+
+![Ghostty Background Media preview](docs/background-media/images/preview.png)
+
+## Install
+
+Download the [bgm-v0.1.0-beta pre-release](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta) or browse [all releases](https://github.com/ltdsword/ghostty-bg-media/releases). See the [installation guide](docs/background-media/INSTALL.md).
+
+- Ubuntu 26.04 amd64: install the `.deb`.
+- Ubuntu 24.04 and other Linux distributions: install the Flatpak bundle.
+
+## Quick start
+
+Add this to your Ghostty configuration:
+
+```conf
+background-media = ~/Pictures/wallpaper.png
+background-opacity = 0.7
+```
+
+Media is drawn behind the terminal and shows through when the terminal background is transparent. Set `background-opacity` below `1`, or adjust the **Terminal opacity** slider in the panel's **Appearance** group. Open the panel from **Background Media…** in the main window menu; there is no default keybinding. **Save to Configuration** writes `background-media.ghostty` next to the main config, including `background-opacity`.
+
+## Linux support
+
+| Platform | Support |
+| --- | --- |
+| Linux GTK | Ubuntu 26.04 amd64 `.deb`; Ubuntu 24.04 and other distributions via Flatpak. PNG/JPEG/WebP, animated GIF, local MP4 H.264/AAC, WebM/MKV, direct HTTP(S) MP4 and HLS, and YouTube video/livestreams through user-installed `yt-dlp` (best effort). Fit, position, dim, blur, loop, pause, seek where supported, Go Live, optional sound, and pause-on-unfocus are available. Audio is muted by default. |
+
+## macOS status
+
+| Platform | Status |
+| --- | --- |
+| macOS | The inherited background video feature is preserved. This release has no macOS binary; the macOS build and inherited-video smoke test are **UNVERIFIED**. Build from source using the [upstream docs](https://ghostty.org/docs) and [background video notes](BACKGROUND_VIDEO.md). |
+
+## Credits
+
+[Ghostty](https://github.com/ghostty-org/ghostty) is by Mitchell Hashimoto and Ghostty contributors ([MIT license](LICENSE)). The inherited macOS background video is by [locphamduc96](https://github.com/locphamduc96/ghostty). Linux background media in this fork is by [ltdsword](https://github.com/ltdsword/ghostty-bg-media).
+
+## Documentation
+
+[Install](docs/background-media/INSTALL.md) · [Configuration](docs/background-media/CONFIGURATION.md) · [Features](docs/background-media/FEATURES.md) · [Changelog](docs/background-media/CHANGELOG.md) · [Status](docs/background-media/STATUS.md)
+
+---
+
 <!-- LOGO -->
 <h1>
 <p align="center">

@@ -41,9 +41,11 @@ modules:
     build-options:
       append-path: /app/zig
     build-commands:
+      # -Dversion-string: keep in sync with build-deb.sh and the release tag.
       - zig build
         -Doptimize=ReleaseFast
         -Dcpu=baseline
+        -Dversion-string=1.3.2-bgm.0.1.0-beta
         -Dflatpak=true
         -Dstrip=false
         -fno-sys=oniguruma
