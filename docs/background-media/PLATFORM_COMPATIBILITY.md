@@ -13,7 +13,7 @@ macOS runtime item remains UNVERIFIED until a macOS build and smoke test are rec
 | Local video | Inherited AVFoundation path | Supported (M05: GTK/GStreamer; MP4/H.264, WebM, MKV) | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
 | Direct HTTP(S) / HLS | No added parity commitment | Supported (M07: GStreamer URL player) | macOS inherited; runtime UNVERIFIED; Linux M07 DONE |
 | YouTube recorded/live | Inherited resolver/settings | Supported via user-installed yt-dlp (M08/M09) | macOS inherited; runtime UNVERIFIED; Linux M08/M09 DONE (real YouTube verified 2026-10-24; video-only, D-020) |
-| Settings UI | Existing Swift/AppKit panel | GTK4/libadwaita panel (M10) | macOS inherited; runtime UNVERIFIED; Linux M10 PARTIAL |
+| Settings UI | Existing Swift/AppKit panel | GTK4/libadwaita panel (M10) | macOS inherited; runtime UNVERIFIED; Linux M10 DONE |
 | Media dependencies | Existing native stack | GTK/GStreamer from the GNOME runtime plus `org.freedesktop.Platform.codecs-extra` | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
 | Build and test | Separate macOS lane | Separate Linux lane | macOS UNVERIFIED; Linux baseline partial |
 

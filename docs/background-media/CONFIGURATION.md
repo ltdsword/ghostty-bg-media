@@ -96,6 +96,11 @@ M07–M09.
 The GTK panel opens from **Background Media…** in the main menu. It exposes Source, status with
 Retry / Go Live, Appearance, Playback, Diagnostics, Save, and Reset controls. Source, appearance,
 and playback changes apply immediately as runtime overrides; they are lost on quit unless saved.
+The panel also opens from the header-bar video icon beside **View Open Tabs** in either header
+layout; there is no default keybinding. **Turn Off** stops background media for the current session
+without clearing the source box; **Play** reapplies the box text. **Keep playing in background**
+(`background-media-play-in-background`) keeps playback running when the window loses focus or is
+minimized.
 Pause is runtime-only. **Save to Configuration** writes the managed `background-media.ghostty`
 file next to the main config, with a comment header and the eight `background-media*` keys. It appends
 `config-file = ?background-media.ghostty` (with a comment) to the main config once, then reloads

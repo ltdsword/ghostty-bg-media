@@ -19,7 +19,7 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M07 — HTTP/HLS | TBD | DONE | — | `test/background-media/http_fixture_server.py`; workspace `plans/reports/soak-261024-0715-m07-live.md` | — | M08 real-YouTube smoke |
 | M08 — YouTube recorded | TBD | DONE | — | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/` | YouTube is video-only (D-020) | — |
 | M09 — YouTube live | TBD | DONE | — | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios; workspace `notes/m09/real-soak/` | RSS trend watched in M12 | — |
-| M10 — GTK controls | TBD | PARTIAL | — | workspace `notes/m10/runtime/` | finite-video seek not provided; no keyboard shortcut; Diagnostics expander and max-fps field not exercised | M11 lifecycle |
+| M10 — GTK controls | TBD | DONE | — | workspace `notes/m10/runtime/`, `notes/m10/runtime3/`, `notes/m10/classes/`; [PANEL_CHECKLIST](PANEL_CHECKLIST.md) | keystroke-leak check remains manual | M11 lifecycle |
 | M11 — Lifecycle | TBD | NOT_STARTED | — | — | — | Verify tabs, splits, windows, and sessions |
 | M12 — Effects/performance | TBD | NOT_STARTED | — | — | — | Measure quality and resource use |
 | M13 — Security/regression | TBD | NOT_STARTED | — | — | — | Run robustness and compatibility suite |
@@ -241,17 +241,27 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 
 ## M10 — GTK controls
 
-- **Status:** PARTIAL; the GTK panel and runtime override/save flow have runtime evidence.
+- **Status:** DONE (exit gate: each media type configurable without editing code or restarting).
 - **Decision:** D-019 keeps panel edits as runtime overrides until the user explicitly saves them
   to the managed include file.
 - **Automated tests + results:** AT-SPI GUI checks covered opening and populating the panel,
   pause/play, dim, and save output (workspace `notes/m10/runtime/`). `zig build test` runs the
   background_media unit tests and panel-override tests; they pass.
-- **Runtime checks:** URL apply with LIVE and Go Live, and Use Configuration were also exercised
-  (workspace `notes/m10/runtime/`).
-- **Remaining gaps:** finite-video seek is not provided (P5); there is no keyboard shortcut. The
-  Diagnostics expander and maximum-frame-rate field were not verified because AT-SPI on Wayland
-  cannot activate them. The UI is Linux-only; macOS is unaffected.
+- **Runtime checks:** The panel opened from the header-bar video icon in both header layouts and
+  from Main Menu; there is no default keybinding. It groups Source, Playback, Appearance, and
+  Diagnostics, with Reset Changes and Save to Configuration. A GUI run switched through PNG, GIF,
+  local MP4, web MP4, live HLS, YouTube video, and YouTube live without restart; seek appeared only
+  for local MP4, web MP4, and YouTube video, with 0 GStreamer CRITICALs. The panel was closed and reopened
+  five times while a YouTube URL resolved; playback started and there was no crash. With Keep
+  playing in background enabled, the timer advanced while the window was minimized. The user
+  verified seek jumps, GStreamer availability and yt-dlp path in Diagnostics, 30/60 fps buttons,
+  and Save writing `background-media.ghostty`. Turn Off stopped media for the session while keeping
+  the source text; Play reapplied it and the button reads Play. Still images show Showing and GIFs show Playing rather
+  than Paused (workspace `notes/m10/runtime/`,
+  `notes/m10/runtime3/`, `notes/m10/classes/`).
+- **Remaining gaps:** The check that typing in the panel does not send keys to the terminal remains
+  manual. There is no default keybinding by choice. The blur slider is deferred to M12. The UI is
+  Linux-only; macOS is unaffected.
 - **Next task:** M11 lifecycle.
 
 ## How to resume
