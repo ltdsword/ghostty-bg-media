@@ -1,7 +1,7 @@
 # Background media configuration
 
 The `background-media` settings are Linux GTK settings. macOS ignores them and keeps its existing
-`background-video*` behavior. All eight settings are parsed, validated and reloadable. M04 applies
+`background-video*` behavior. All nine settings are parsed, validated and reloadable. M04 applies
 fit, position and dim to static images; M05 implements the playback settings for local video; M06
 adds local GIF playback. No settings remain pending for local media.
 
@@ -13,13 +13,14 @@ adds local GIF playback. No settings remain pending for local media.
 | `background-media-fit` | Enum | `cover` | `contain`, `cover`, `stretch`, `none` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-position` | Enum | `center` | `center`, `top-left`, `top-center`, `top-right`, `center-left`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-dim` | `f32` | `0` | `0..1`; theme background tint | Config reload | Linux GTK; ignored on macOS |
+| `background-media-blur` | `f32` | `0` | `0..40` px; blurs media only, keeping terminal text sharp | Config reload | Linux GTK; ignored on macOS |
 | `background-media-loop` | Boolean | `true` | `true` / `false`; ignored for live streams | Config reload | Linux GTK; ignored on macOS |
 | `background-media-volume` | `f32` | `0` | `0..1` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-play-in-background` | Boolean | `false` | `true` / `false` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-max-fps` | `u32` | `30` | `1..240` | Config reload | Linux GTK; ignored on macOS |
 
 The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` is clamped to
-`1..240`. The default source is unset, so no media is selected.
+`1..240`. Blur is clamped to `0..40`; NaN becomes `0`. The default source is unset, so no media is selected.
 
 ## Sources and visibility
 

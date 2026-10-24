@@ -37,6 +37,7 @@ Linux GTK only. Run with an isolated `XDG_CONFIG_HOME` to protect your config.
 - [ ] Change **Fit**. Expected: the chosen fit is applied.
 - [ ] Change **Position**. Expected: the chosen position is applied.
 - [ ] Change **Dim**. Expected: the chosen dim level is applied.
+- [ ] Change **Blur**. Expected: the 0–40 slider softens only the media, text stays sharp, and the value is saved by **Save to Configuration**.
 
 ## Splits and windows
 
