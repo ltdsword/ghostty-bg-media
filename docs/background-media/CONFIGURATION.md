@@ -1,7 +1,7 @@
 # Background media configuration
 
 The `background-media` settings are Linux GTK settings. macOS ignores them and keeps its existing
-`background-video*` behavior. All nine settings are parsed, validated and reloadable. M04 applies
+`background-video*` behavior. All ten settings are parsed, validated and reloadable. M04 applies
 fit, position and dim to static images; M05 implements the playback settings for local video; M06
 adds local GIF playback. No settings remain pending for local media.
 
@@ -18,9 +18,16 @@ adds local GIF playback. No settings remain pending for local media.
 | `background-media-volume` | `f32` | `0` | `0..1` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-play-in-background` | Boolean | `false` | `true` / `false` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-max-fps` | `u32` | `30` | `1..240` | Config reload | Linux GTK; ignored on macOS |
+| `background-media-youtube-quality` | Choice | `auto` (720p) | `auto` or `1..4320` | Config reload or panel | Linux GTK; ignored on macOS |
 
 The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` is clamped to
 `1..240`. Blur is clamped to `0..40`; NaN becomes `0`. The default source is unset, so no media is selected.
+
+`background-media-youtube-quality` sets the preferred maximum height for YouTube. Auto uses 720p;
+otherwise the largest offered height at or below the preference is selected, falling back to the
+video's smallest offered height. Heights above 1080p use VP9 and are labelled “(high CPU)” in the
+panel. The panel lists the current video's available heights, and **Save to Configuration** saves
+the selected value (D-025).
 
 ## Sources and visibility
 
@@ -59,9 +66,10 @@ The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` 
   The default is a maximum of 720p, and signed URLs are re-resolved on reconnect. yt-dlp is not
   bundled; without it playback fails with `ytdlp_missing` (hint: install yt-dlp or set
   `GHOSTTY_YTDLP`). Private, age-gated, members-only, removed, and playlist-only results stop
-  without retry. YouTube backgrounds are usually video-only (silent) because YouTube no longer
-  serves combined audio+video formats (D-020); channel live URLs such as
-  `https://www.youtube.com/@<channel>/live` work.
+  without retry. D-025 adds per-video quality choices and pairs listed HLS audio with video when
+  volume is above zero; raising volume from zero restarts with audio, preserving recorded position
+  or rejoining live at the edge. Without HLS audio, the prior format choice remains, usually silent.
+  Channel live URLs such as `https://www.youtube.com/@<channel>/live` work.
 - M09 upcoming YouTube streams wait and poll again (30 s, x2, max 120 s, ±20% jitter). Ended
   streams stop cleanly; Go Live from the panel reconnects at the live edge.
 - The media layer is visible through terminal background transparency only when

@@ -31,14 +31,14 @@ Status words: **Shipped** (merged and verified by the agent), **Manual check** (
 | Local video | `~/Videos/ambient.mp4` | MP4/H.264, WebM, MKV. Sniffs `ftyp` at byte 4 or the EBML signature, then falls back to `.mp4`, `.m4v`, `.mov`, `.webm`, or `.mkv`. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig); D-010, D-021. | `GtkMediaFile` backed by GStreamer in the GNOME runtime. | Manual check | Runtime plugin probing found the listed containers/codecs; the recorded playback probe exercised H.264 MP4. Ghostty loops the retained player by seeking to the start. |
 | Direct HTTP(S) video | `https://media.example/video.mp4` | Any HTTP(S) URL not classified as HLS or YouTube is direct; file extension is not required for URL classification. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig); D-014, D-016. | Linux GStreamer URL player using `playbin3` (or `playbin`) and appsink. | Shipped | Software decoding is used for URL playback. Direct sources stop after six failed attempts. |
 | HLS VOD and live | `https://media.example/live.m3u8` | HTTP(S) URL path ending in `.m3u8`; a query string does not change path classification. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig); D-014, D-016. | Linux GStreamer URL player. | Shipped | Supports VOD and live playlists. HLS retries indefinitely with a stall watchdog and backoff. |
-| YouTube recorded | `https://www.youtube.com/watch?v=…` | Recognized YouTube hostnames, including `youtube.com`, `youtu.be`, and `youtube-nocookie.com`. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`youtube.zig`](../../src/apprt/gtk/background_media/youtube.zig), [`youtube_resolver.zig`](../../src/apprt/gtk/youtube_resolver.zig); D-017, D-020. | User-installed `yt-dlp`, then the GStreamer URL player. | Shipped | Default maximum is 720p. Prefer muxed audio when available; video-only formats are common and silent. |
-| YouTube live/upcoming | `https://www.youtube.com/@channel/live` | Same host classification; `yt-dlp` supplies recorded/live/upcoming state. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`youtube.zig`](../../src/apprt/gtk/background_media/youtube.zig), [`live.zig`](../../src/apprt/gtk/background_media/live.zig); D-017, D-018, D-020. | User-installed `yt-dlp`, then the GStreamer URL player. | Shipped | Video-only formats are usual. Upcoming streams are polled; **Go Live** reconnects at the live edge. |
+| YouTube recorded | `https://www.youtube.com/watch?v=…` | Recognized YouTube hostnames, including `youtube.com`, `youtu.be`, and `youtube-nocookie.com`. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`youtube.zig`](../../src/apprt/gtk/background_media/youtube.zig), [`youtube_resolver.zig`](../../src/apprt/gtk/youtube_resolver.zig); D-017, D-025, D-026. | User-installed `yt-dlp`, then the GStreamer URL player. | Shipped | Quality defaults to Auto (720p); listed HLS audio is fetched only above zero volume. Recorded playback keeps its position when volume is raised. H.264 segment keyframes render cleanly after the continuity fix. |
+| YouTube live/upcoming | `https://www.youtube.com/@channel/live` | Same host classification; `yt-dlp` supplies recorded/live/upcoming state. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`youtube.zig`](../../src/apprt/gtk/background_media/youtube.zig), [`live.zig`](../../src/apprt/gtk/background_media/live.zig); D-017, D-018, D-025, D-026. | User-installed `yt-dlp`, then the GStreamer URL player. | Shipped | Quality uses the current video's offered heights. Listed HLS audio is fetched only above zero volume; live playback rejoins at the live edge after a volume-up restart. Upcoming streams are polled; **Go Live** reconnects at the live edge. H.264 segment keyframes render cleanly after the continuity fix. |
 
 Local image, GIF, and video file classification reads at most 65,536 bytes for header sniffing. An unrecognized signature falls back to the file extension. Configured URLs accept only HTTP or HTTPS.
 
 ## Settings
 
-All nine settings are Linux GTK settings and apply on configuration reload. Their definitions are in [`Config.zig`](../../src/config/Config.zig); the GTK controls are in [`media-panel.blp`](../../src/apprt/gtk/ui/1.5/media-panel.blp).
+All ten settings are Linux GTK settings and apply on configuration reload. Their definitions are in [`Config.zig`](../../src/config/Config.zig); the GTK controls are in [`media-panel.blp`](../../src/apprt/gtk/ui/1.5/media-panel.blp).
 
 | Key | Default | Range | What it does | Live reload | Panel control |
 | --- | --- | --- | --- | --- | --- |
@@ -51,8 +51,9 @@ All nine settings are Linux GTK settings and apply on configuration reload. Thei
 | `background-media-volume` | `0` | `0..1` | Sets media volume; zero is muted. [`Config.zig`](../../src/config/Config.zig) | Yes | **Volume** slider |
 | `background-media-play-in-background` | `false` | Boolean | Keeps playback running when no window is active. [`Config.zig`](../../src/config/Config.zig) | Yes | **Keep playing in background** switch |
 | `background-media-max-fps` | `30` | `1..240` | Caps redraw cadence; it does not accelerate video decoding. [`Config.zig`](../../src/config/Config.zig) | Yes | **30 fps** or **60 fps** |
+| `background-media-youtube-quality` | `auto` (720p) | `auto` or `1..4320` | Sets the preferred YouTube maximum height; Auto uses 720p. [`Config.zig`](../../src/config/Config.zig) | Yes | **YouTube quality** row for a resolved YouTube source |
 
-The panel's available frame-rate buttons are 30 and 60 fps; configuration accepts 1 through 240. macOS ignores all nine `background-media*` keys.
+The panel's available frame-rate buttons are 30 and 60 fps; configuration accepts 1 through 240. macOS ignores all ten `background-media*` keys.
 
 ## Display and appearance
 
@@ -65,7 +66,7 @@ The panel's available frame-rate buttons are 30 and 60 fps; configuration accept
 ## Playback behavior
 
 - Looping for local video is implemented by Ghostty seeking the existing player to the beginning at end of stream (D-021). With looping disabled, finite video holds its final frame. GIF looping uses the GIF loop count when the setting is false and repeats forever when true (D-011). Live streams ignore the loop setting. [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig), [`gif.zig`](../../src/apprt/gtk/background_media/gif.zig), [`live.zig`](../../src/apprt/gtk/background_media/live.zig).
-- Volume ranges from muted (`0`) to full (`1`). YouTube is usually video-only, so its volume control has no effect (D-020). [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig), [`youtube.zig`](../../src/apprt/gtk/background_media/youtube.zig).
+- Volume ranges from muted (`0`) to full (`1`). For YouTube, HLS audio is fetched only when volume is above zero; raising it from zero restarts with audio, preserving recorded position or rejoining live at the edge. Lowering it to zero only mutes (D-025). [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig), [`youtube.zig`](../../src/apprt/gtk/background_media/youtube.zig).
 - With **Keep playing in background** off, media pauses when no registered view belongs to an active window (including when the window loses focus or is minimized). With it on, playback continues. Closing the last window releases the source; a later window loads it again. [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig), [Lifecycle](LIFECYCLE.md).
 - `background-media-max-fps` caps redraws for video and URL frames; GIF cadence also raises its minimum frame delay to the configured interval. It does not make decoding faster. [`cadence.zig`](../../src/apprt/gtk/background_media/cadence.zig), [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig).
 - Pausing local video or HLS used about 0.2–0.3% of one CPU core in the 2026-10-24 measurements. Pause stops playback work; a live URL can be released and reconnected when playback resumes. [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig), [PERFORMANCE.md](PERFORMANCE.md).
@@ -78,10 +79,11 @@ Open the panel with the header-bar background-media button or the `background-me
 
 - **Source:** choose a file, enter a path or URL, **Apply** the entry, or restore the configured source with **Use Configuration**.
 - **Playback:** view status; **Pause/Play**, **Turn Off**, **Retry**, and **Go Live** when applicable; seek finite video when its backend reports timing; set **Loop**, **Volume**, background playback, and 30/60 fps.
+- **YouTube quality:** when the source resolves to YouTube, select Auto (720p) or a height offered by the current video; choices above 1080p are labelled “(high CPU)”. **Save to Configuration** persists the preferred maximum (D-025).
 - **Appearance:** choose **Fit** and **Position**, and set **Dim** and **Blur** sliders.
 - **Diagnostics:** see whether the GStreamer URL player is available and the selected `yt-dlp` path or missing-tool hint.
 - Status includes **No background media**, **Idle**, **Loading**, **Showing** for a still image, **Playing**, **Paused**, **Failed**, **LIVE**, **Waiting for the stream to start**, **Reconnecting**, and **Stream ended**.
-- Source and settings changes apply immediately as runtime overrides. **Turn Off** stops playback for the session while preserving the source-box text; **Play** reapplies it. **Save to Configuration** writes `background-media.ghostty` with all nine settings, adds `config-file = ?background-media.ghostty` to the main config once, reloads config, and clears overrides. The managed include loads after the main config and takes precedence. **Reset Changes** restores configured values (D-019). [`media_panel.zig`](../../src/apprt/gtk/class/media_panel.zig), [`config_save.zig`](../../src/apprt/gtk/background_media/config_save.zig).
+- Source and settings changes apply immediately as runtime overrides. **Turn Off** stops playback for the session while preserving the source-box text; **Play** reapplies it. **Save to Configuration** writes `background-media.ghostty` with all ten settings, adds `config-file = ?background-media.ghostty` to the main config once, reloads config, and clears overrides. The managed include loads after the main config and takes precedence. **Reset Changes** restores configured values (D-019). [`media_panel.zig`](../../src/apprt/gtk/class/media_panel.zig), [`config_save.zig`](../../src/apprt/gtk/background_media/config_save.zig).
 
 ## Lifecycle and resource use
 
@@ -151,11 +153,11 @@ Logged URL sources omit credentials, query strings, and fragments. The panel's D
 ## Known limitations
 
 - Static-image checks remain incomplete for JPEG/WebP contain fit, live resize, and splits. GIF pause/resume, terminal responsiveness, and full RSS release need verification; local video has a recorded late RSS/CPU growth trend. [STATUS.md](STATUS.md).
-- The recorded local-video runtime playback probe exercised H.264 MP4, while WebM/MKV were covered by runtime plugin probing. The Flatpak currently lacks audio permission, so non-zero volume is silent there until M16. [STATUS.md](STATUS.md), [BUILDING.md](BUILDING.md).
+- The recorded local-video runtime playback probe exercised H.264 MP4, while WebM/MKV were covered by runtime plugin probing. Flatpak YouTube remains silent because its manifest has no PulseAudio socket; adding one needs user approval. [STATUS.md](STATUS.md), [BUILDING.md](BUILDING.md), D-025.
 - Switching to a different local video still leaks resources inside GTK. Ghostty retains one paused local-video player until it is replaced or the app exits; one idle network socket may survive a stream release (D-021). [LIFECYCLE.md](LIFECYCLE.md).
 - URL playback uses software decoding because VA/VAAPI hardware decoding segfaulted during testing (D-015). Reconnecting URL playback can show a blank frame until recovery.
 - WebP decoding needs the installed Flatpak app context; `flatpak-builder --run` does not provide it. [BUILDING.md](BUILDING.md#testing-webp-installed-flatpak), D-009.
-- YouTube needs user-installed `yt-dlp` and is usually silent because selected formats are video-only (D-017, D-020).
+- YouTube needs user-installed `yt-dlp`. When yt-dlp lists HLS audio, native Linux GTK fetches it only above zero volume; otherwise the prior format choice is used and may be silent (D-017, D-025). H.264 HLS keyframes are repaired by the continuity-counter fix (D-026).
 - Activity follows window focus; occlusion is not tracked. Split rendering, moving between monitors, monitor hotplug, Wayland occlusion, IME, SSH, mouse modes, drag-select/copy, and the panel keystroke-leak check still need human checks. [LIFECYCLE.md](LIFECYCLE.md), [PANEL_CHECKLIST.md](PANEL_CHECKLIST.md).
 
 ## Not started / future

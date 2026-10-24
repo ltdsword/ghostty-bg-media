@@ -26,6 +26,8 @@ Linux GTK only. Run with an isolated `XDG_CONFIG_HOME` to protect your config.
 - [ ] Select an image, GIF, or live source. Expected: the seek row is hidden.
 - [ ] Change **Loop**. Expected: the selected setting is applied to playback.
 - [ ] Change **Volume**. Expected: the selected level is applied; zero mutes.
+- [ ] Set volume to zero on a YouTube source with HLS audio, then raise it above zero. Expected: audio starts; recorded playback keeps its position and live playback rejoins the live edge.
+- [ ] Open a resolved YouTube source and change **YouTube quality**. Expected: Auto (720p) and the current video's offered heights appear; heights above 1080p are labelled **(high CPU)** and the selected maximum is applied.
 - [ ] Enable **Keep playing in background**, then minimize the window or move focus away. Expected: playback continues.
 - [ ] Select **30 fps** and **60 fps**. Expected: each frame-rate setting can be selected.
 - [ ] Check the playback status. Expected: status text appears as a subtitle.

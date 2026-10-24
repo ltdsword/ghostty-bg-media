@@ -17,12 +17,12 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M05 — Local video            | M05 local video   | PARTIAL     | —                    | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt                                                                                                                                                                                                                                     | 30-minute soak shows late RSS/CPU growth; Flatpak audio permission remains for M16 | M06 GIF                                            |
 | M06 — GIF                    | M06 GIF           | PARTIAL     | —                    | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt                                                                                                                                                                                                                                 | Pause/resume, terminal responsiveness, and full RSS release are not verified       | M07 HTTP/HLS                                       |
 | M07 — HTTP/HLS               | TBD               | DONE        | —                    | `test/background-media/http_fixture_server.py`; workspace `plans/reports/soak-261024-0715-m07-live.md`                                                                                                                                                                                                                                                                                                | —                                                                                  | M08 real-YouTube smoke                             |
-| M08 — YouTube recorded       | TBD               | DONE        | —                    | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/`                                                                                                                                                                                                                                                                                                                                      | YouTube is video-only (D-020)                                                      | —                                                  |
-| M09 — YouTube live           | TBD               | DONE        | —                    | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios; workspace `notes/m09/real-soak/`                                                                                                                                                                                                                                                                                               | RSS trend watched in M12                                                           | —                                                  |
+| M08 — YouTube recorded       | TBD               | DONE        | —                    | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/`; M14 quality and optional audio (D-025)                                                                                                                                                                                                                                                                                              | —                                                                                  | —                                                  |
+| M09 — YouTube live           | TBD               | DONE        | —                    | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios; workspace `notes/m09/real-soak/`; M14 quality and optional audio (D-025)                                                                                                                                                                                                                                                      | —                                                                                  | —                                                  |
 | M10 — GTK controls           | TBD               | DONE        | —                    | workspace `notes/m10/runtime/`, `notes/m10/runtime3/`, `notes/m10/classes/`; [PANEL_CHECKLIST](PANEL_CHECKLIST.md)                                                                                                                                                                                                                                                                                    | keystroke-leak check remains manual                                                | M11 lifecycle                                      |
 | M11 — Lifecycle              | TBD               | DONE        | —                    | workspace `notes/m11/`; [LIFECYCLE](LIFECYCLE.md)                                                                                                                                                                                                                                                                                                                                                     | Split rendering and multi-monitor checks are manual                                | M12 performance                                    |
 | M12 — Effects/performance    | TBD               | DONE        | fde84cb95, 1340f1e74 | [PERFORMANCE](PERFORMANCE.md), workspace `notes/m12/`                                                                                                                                                                                                                                                                                                                                                 | —                                                                                  | M13 security and robustness                        |
-| M13 — Security/regression    | TBD               | PARTIAL     | f72a92ffc            | [SECURITY](SECURITY.md), [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m13/`                                                                                                                                                                                                                                                                                                                        | macOS items deferred; human regression owed; full test suite pending               | Complete remaining M13 validation                  |
+| M13 — Security/regression    | TBD               | PARTIAL     | f72a92ffc            | [SECURITY](SECURITY.md), [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m13/`                                                                                                                                                                                                                                                                                                                        | Native Xorg untested; macOS items deferred                                        | Complete remaining M13 validation                  |
 | M14 — Docs/release candidate | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Prepare package and handoff documentation          |
 | M15 — CI lanes               | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Establish independent Linux/macOS CI               |
 | M16 — Public packaging       | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | App ID/coexistence decision; install gate                                          | Verify clean Flatpak install, upgrade, and removal |
@@ -214,21 +214,22 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 
 - **Status:** DONE (exit gate: public video plays on Ubuntu 26.04; tests offline).
 - **Decision:** D-017 uses user-installed yt-dlp, with `GHOSTTY_YTDLP` override; Flatpak runs it on
-  the host, defaults to 720p, and re-resolves on reconnect. D-020 makes YouTube backgrounds
-  video-only.
+  the host, defaults to 720p, and re-resolves on reconnect. D-020 originally selected video-only
+  formats; D-025 adds a quality choice and optional HLS audio when volume is above zero.
 - **Automated tests + results:** Fake yt-dlp scenarios behave as expected for HLS 720p, MP4-only
   360p, live, fatal results, flaky recovery, timeout/reconnect, and a missing executable.
 - **Runtime checks:** Big Buck Bunny selected video-only format 298 (HTTPS, avc1, 720p), played,
   and advanced; an ended live URL failed once with `unavailable`, without retry, as designed
   (workspace `notes/m08/real/`).
-- **Remaining gaps:** YouTube is video-only (D-020); yt-dlp is not bundled and must be installed by
-  the user.
+- **Remaining gaps:** yt-dlp is not bundled and must be installed by the user. Flatpak YouTube
+  audio remains unavailable pending PulseAudio permission (D-025).
 - **Next task:** —
 
 ## M09 — Livestreams
 
 - **Status:** DONE.
 - **Decision:** D-018 uses a live state machine with upcoming polling and explicit Go Live behavior.
+  D-025 adds a quality choice and optional HLS audio when volume is above zero.
 - **Automated tests + results:** The `/live-end/<s>/` fixture route and fake yt-dlp scenarios
   `upcomingthen` and `liveended001` were exercised.
 - **Runtime checks:** The Lofi Girl live stream played as HLS video-only format 232 (720p); the
@@ -236,7 +237,8 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   crash, was still playing at the end, averaged 29.6% CPU, and RSS was 314 MB at 1 minute, 342 MB
   at 30 minutes, and 344 MB at 60 minutes (flat in the second half; workspace
   `notes/m09/real-soak/`).
-- **Remaining gaps:** RSS trend (M12); real-live outage recovery covered only by fixtures.
+- **Remaining gaps:** The two-hour soak found no leak attributed; real-live outage recovery is
+  covered only by fixtures.
 - **Next task:** —
 
 ## M10 — GTK controls
@@ -294,10 +296,12 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   video stayed on the unchanged path. See [PERFORMANCE](PERFORMANCE.md).
 - **Pause:** With the panel open, local 1080p changed from 17.5% to 0.2% CPU and HLS 1080p from
   72.6% to 0.3%; paused media does no redraw work.
-- **Soak:** The two-hour soak is running with three Release instances and five-minute samples.
-  At 30 minutes, RSS was 207 → 206 MB for local 1080p, 304 → 305 MB for live HLS, and 308 →
-  314 MB for YouTube live; file descriptor and thread counts were constant. Final results will be
-  appended when the soak completes. Evidence: workspace `notes/m12/`.
+- **Soak:** The two-hour ReleaseFast soak used five-minute samples. Live HLS 720p measured
+  303 → 305 → 305 MB and YouTube live 300 → 318 → 319 MB at start/60/120 minutes. Local 1080p
+  measured 194 → 206 MB through minute 70. At minute 75 that window was switched from the panel to
+  a second (YouTube esports) livestream; afterward it held both and RSS reached 487 MB by minute
+  120. File descriptors and threads were flat at 72 / 57. No crash occurred and no leak was
+  attributed. Evidence: workspace `notes/m12/soak.csv`.
 - **Remaining cost:** URL playback uses software decoding. Enabling VA decoders measured 60% for
   HLS 1080p and 61% for YouTube, but live HLS segfaulted within 12 seconds. `gtk4paintablesink`
   would add a dependency and was not adopted.
@@ -327,12 +331,41 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   changes in `macos/`, `BACKGROUND_VIDEO.md`, `src/apprt/embedded.zig`, or the
   `background_video` block in `src/renderer/generic.zig`; `background-video` semantics are
   unchanged.
-- **Remaining gaps:** Human terminal regression is owed (shell input, SSH, editor TUI, mouse
-  modes, copy/paste, drag selection, Ctrl shortcuts, IME, colors, fonts, tabs, splits, and
-  resize). Native Xorg is untested. Ghostty's full original `zig build test` is scheduled after
-  the soak. All macOS items—build, inherited video smoke, and link audit—are deferred by the
-  2026-10-24 user decision. The remote-HLS `file://` segment behavior and a yt-dlp process that
-  outlives app exit remain low-risk open findings.
+- **Completed checks:** The user reported all five human terminal regression rows passed on
+  2026-10-24. Ghostty's original `zig build test` passed with exit 0 at `d782a3414` after the soak.
+- **Remaining gaps:** Native Xorg is untested. All macOS items—build, inherited video smoke, and
+  link audit—are deferred by the 2026-10-24 user decision. The remote-HLS `file://` segment
+  behavior and a yt-dlp process that outlives app exit remain low-risk open findings.
+
+## M14 extension: YouTube audio and quality
+
+- **What:** `background-media-youtube-quality` accepts `auto` or a preferred height from 1 to
+  4320; Auto means 720p. The current video's offered heights appear in the GTK panel, and heights
+  above 1080p are marked “(high CPU)”. Listed HLS audio is paired with video only when volume is
+  above zero; raising volume from zero restarts with audio, preserving recorded position or
+  rejoining live at the live edge. The setting can be changed by reload or panel and saved through
+  **Save to Configuration**. See [D-025](DECISIONS.md#d-025-youtube-quality-choice-and-optional-hls-audio).
+- **Evidence:** M14 GUI checks covered live playback with audio, no audio stream while muted,
+  volume-up restart behavior, and 1440p VP9 selection. GStreamer-only peak RSS / CPU measurements
+  covered audio-only, H.264 720p/1080p, and VP9 1440p/2160p. Ghostty ReleaseFast samples covered
+  live 720p with audio, recorded 720p muted, and recorded 1440p VP9 with audio. The two-hour soak,
+  full `zig build test`, and user manual regression results are recorded in
+  [PERFORMANCE](PERFORMANCE.md) and [TEST_MATRIX](TEST_MATRIX.md).
+- **Open items:** Flatpak has no PulseAudio socket, so YouTube audio remains unavailable there;
+  adding permission needs user approval. The `.pot` file was not regenerated. A quality change
+  during an in-flight resolve keeps the old result, and the quality row hides briefly while
+  re-resolving.
+
+## H.264 YouTube keyframe fix (D-026)
+
+GStreamer 1.28.2's MPEG-TS packetizer ignores YouTube adaptation-only packets that still set the
+payload flag. The next segment then appears to have a continuity mismatch and tsdemux discards its
+IDR keyframe. The URL player now renumbers continuity counters with a pad probe on each tsdemux
+sink pad, stopping if packet alignment is lost and resetting on DISCONT/flush. The offline
+comparison yielded 3732/3732 frames identical to FFmpeg; slow-HLS continuity mismatches fell
+17 → 0, libav “co located POCs unavailable” messages fell 16 → 0, and the picture was clean. Four
+unit tests passed. This affected every build with the URL player since M07 and replaces the earlier
+incorrect broadcast-damage and appsink-QoS explanations. See [D-026](DECISIONS.md#d-026-renumber-mpeg-ts-continuity-counters-before-tsdemux).
 
 ## How to resume
 

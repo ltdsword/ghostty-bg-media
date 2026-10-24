@@ -3,6 +3,51 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-026 Renumber MPEG-TS continuity counters before tsdemux
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** YouTube H.264 video was smeared or striped from each HLS segment start until the
+  next segment. YouTube TS segments end with adaptation-only packets that still set the payload
+  flag (`afc=11`, length 183). YouTube counts these in the continuity counter as MPEG-TS requires,
+  but GStreamer 1.28.2's packetizer ignores them. tsdemux then sees a continuity mismatch at the
+  next segment's first packet and discards that PES, which contains the segment's IDR keyframe.
+- **Decision:** Add a pad probe to every `tsdemux` sink pad in the URL player and renumber
+  continuity counters to skip the ignored packets. Stop rewriting if packet alignment is lost;
+  reset on DISCONT and flush.
+- **Consequences:** The offline comparison produced 3732/3732 frames identical to FFmpeg. In
+  Ghostty over slow HLS, continuity mismatches fell from 17 to 0, libav “co located POCs
+  unavailable” messages fell from 16 to 0, and the picture was clean. Four unit tests cover the
+  counter logic. This affected every build with the URL player since M07 and replaces the earlier
+  incorrect broadcast-damage and appsink-QoS explanations.
+- **Evidence:** [TEST_MATRIX](TEST_MATRIX.md); [`gst_url_player.zig`](../../src/apprt/gtk/gst_url_player.zig).
+
+## D-025 YouTube quality choice and optional HLS audio
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **User decisions:** “Per-video list + saved max” for quality and “Only when volume > 0” for
+  audio.
+- **Context:** YouTube sources need a user-selectable quality ceiling and should use separately
+  listed HLS audio when available without fetching it while muted.
+- **Decision:** Add `background-media-youtube-quality`, accepting `auto` or a height from 1 to
+  4320, defaulting to `auto` (720p). Choose the largest offered height at or below the preferred
+  maximum, or the video's smallest height if none is below it. Formats above 1080p are VP9 only.
+  The panel lists Auto (720p) and the current video's available heights; heights above 1080p are
+  labelled “(high CPU)”. On Linux GTK, pair listed HLS video and audio formats through a
+  one-variant HLS master playlist passed as a `data:` URI. Fetch audio only when volume is above
+  zero; raising volume from zero restarts playback with audio, preserving recorded position and
+  rejoining live at the live edge. Lowering volume to zero only mutes. Re-run yt-dlp when quality
+  changes, and reject format URLs containing `"`, CR, LF, or NUL. If HLS audio is unavailable,
+  retain the prior format choice, usually silent.
+- **Consequences:** Quality can be changed by config reload or the panel and is saved by **Save to
+  Configuration**. macOS ignores the setting. Flatpak remains silent because its manifest has no
+  PulseAudio socket; adding one needs user approval. The `.pot` file was not regenerated. A quality
+  change during an in-flight resolve keeps the old result, and the quality row hides briefly while
+  re-resolving.
+- **Evidence:** [CONFIGURATION](CONFIGURATION.md), [FEATURES](FEATURES.md), [TEST_MATRIX](TEST_MATRIX.md),
+  [PERFORMANCE](PERFORMANCE.md).
+
 ## D-024 Kill the yt-dlp process group; HTTP(S)-only format URLs
 
 - **Status:** ACCEPTED
@@ -63,6 +108,7 @@ docs and logs.
   the D-010 `GtkMediaFile` backend.
 
 ## D-020 YouTube backgrounds are video-only
+- **Superseded by:** D-025 (2026-10-24).
 
 - **Status:** ACCEPTED
 - **Date:** 2026-10-24

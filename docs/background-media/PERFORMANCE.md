@@ -66,17 +66,38 @@ workspace `notes/m12/bench-hw.txt`.
 
 ## Soak
 
-A two-hour soak is running with three Release instances: a local 1080p loop, a live HLS fixture,
-and a real YouTube livestream. Samples are taken every five minutes. At 30 minutes, RSS was flat:
+A two-hour ReleaseFast soak used five-minute samples. Live HLS 720p and YouTube live stayed flat
+after warm-up. The local 1080p loop stayed flat through minute 70. At minute 75 that window was
+switched from the panel to a second (YouTube esports) livestream; afterward it held both and RSS
+reached 487 MB by minute 120. There was no crash and no leak was attributed; file descriptors and
+threads were flat at the end.
 
-| Instance     | RSS at start → 30 minutes (MB) | File descriptors / threads |
-| ------------ | -----------------------------: | -------------------------: |
-| Local 1080p  |                      207 → 206 |                    55 / 34 |
-| Live HLS     |                      304 → 305 |                    34 / 41 |
-| YouTube live |                      308 → 314 |                    38 / 41 |
+| Instance / interval | RSS (MB) | File descriptors / threads |
+| ------------------- | -------: | -------------------------: |
+| Live HLS 720p, start → 60 → 120 min | 303 → 305 → 305 | — |
+| YouTube live, start → 60 → 120 min | 300 → 318 → 319 | — |
+| Local 1080p, start → minute 70 | 194 → 206 | — |
+| After minute-75 switch described above, by minute 120 | 487 | 72 / 57 |
 
-The 2 h soak is still running; the 30-minute results are above. Final results will be appended
-when it completes. Evidence: workspace `notes/m12/soak.csv`.
+Evidence: workspace `notes/m12/soak.csv`.
+
+## YouTube quality and audio
+
+Measurements used the GStreamer player alone with software decoding and VA demoted. RSS is peak
+resident memory; CPU is percent of one core.
+
+| Stream | Peak RSS (MB) | CPU (%) |
+| --- | ---: | ---: |
+| Audio-only, 128k AAC | 79 | 3 |
+| 720p60 H.264 | 149 | 27 |
+| 1080p60 H.264 | 219 | 46 |
+| 1440p60 VP9 | 111 | 155 |
+| 2160p60 VP9 | 207 | 271 |
+
+Ghostty with no media was about 159 MB. In the M14 ReleaseFast build, live 720p with audio used
+306 MB / 38% CPU; recorded 720p muted used 313 MB; recorded 1440p VP9 with audio used 416 MB /
+88% CPU. These measurements show the high CPU cost of VP9 above 1080p. Evidence: M14 measurements;
+see [D-025](DECISIONS.md#d-025-youtube-quality-choice-and-optional-hls-audio).
 
 ## Remaining cost
 
