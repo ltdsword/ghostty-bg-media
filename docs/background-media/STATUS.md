@@ -17,9 +17,9 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M05 — Local video | M05 local video | PARTIAL | — | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt | 30-minute soak shows late RSS/CPU growth; Flatpak audio permission remains for M16 | M06 GIF |
 | M06 — GIF | M06 GIF | PARTIAL | — | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt | Pause/resume, terminal responsiveness, and full RSS release are not verified | M07 HTTP/HLS |
 | M07 — HTTP/HLS | TBD | DONE | — | `test/background-media/http_fixture_server.py`; workspace `plans/reports/soak-261024-0715-m07-live.md` | — | M08 real-YouTube smoke |
-| M08 — YouTube recorded | TBD | PARTIAL | — | `test/background-media/fake-yt-dlp` | Real-YouTube smoke blocked; yt-dlp could not be run by the agent | Real-YouTube smoke |
-| M09 — YouTube live | TBD | PARTIAL | — | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios | Real YouTube live untested; RSS slow rise to watch in M12 | M10 GTK controls |
-| M10 — GTK controls | TBD | PARTIAL | — | workspace `notes/m10/runtime/` | finite-video seek not provided; no keyboard shortcut | M11 lifecycle |
+| M08 — YouTube recorded | TBD | DONE | — | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/` | YouTube is video-only (D-020) | — |
+| M09 — YouTube live | TBD | DONE | — | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios; workspace `notes/m09/real-soak/` | RSS trend watched in M12 | — |
+| M10 — GTK controls | TBD | PARTIAL | — | workspace `notes/m10/runtime/` | finite-video seek not provided; no keyboard shortcut; Diagnostics expander and max-fps field not exercised | M11 lifecycle |
 | M11 — Lifecycle | TBD | NOT_STARTED | — | — | — | Verify tabs, splits, windows, and sessions |
 | M12 — Effects/performance | TBD | NOT_STARTED | — | — | — | Measure quality and resource use |
 | M13 — Security/regression | TBD | NOT_STARTED | — | — | — | Run robustness and compatibility suite |
@@ -212,29 +212,32 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 
 ## M08 — YouTube recorded
 
-- **Status:** PARTIAL; fixture scenarios pass, but the real-YouTube exit gate remains open.
+- **Status:** DONE (exit gate: public video plays on Ubuntu 26.04; tests offline).
 - **Decision:** D-017 uses user-installed yt-dlp, with `GHOSTTY_YTDLP` override; Flatpak runs it on
-  the host, defaults to 720p, and re-resolves on reconnect.
+  the host, defaults to 720p, and re-resolves on reconnect. D-020 makes YouTube backgrounds
+  video-only.
 - **Automated tests + results:** Fake yt-dlp scenarios behave as expected for HLS 720p, MP4-only
   360p, live, fatal results, flaky recovery, timeout/reconnect, and a missing executable.
-- **Runtime checks:** Real-YouTube smoke was blocked because the agent environment refused to
-  download/run yt-dlp.
-- **Remaining gaps:** Real-YouTube smoke is unverified; yt-dlp is not bundled and must be installed
-  by the user.
-- **Next task:** Real-YouTube smoke when yt-dlp can be run.
+- **Runtime checks:** Big Buck Bunny selected video-only format 298 (HTTPS, avc1, 720p), played,
+  and advanced; an ended live URL failed once with `unavailable`, without retry, as designed
+  (workspace `notes/m08/real/`).
+- **Remaining gaps:** YouTube is video-only (D-020); yt-dlp is not bundled and must be installed by
+  the user.
+- **Next task:** —
 
 ## M09 — Livestreams
 
-- **Status:** PARTIAL; fixture/runtime behavior is exercised, but real YouTube live is untested.
+- **Status:** DONE.
 - **Decision:** D-018 uses a live state machine with upcoming polling and explicit Go Live behavior.
 - **Automated tests + results:** The `/live-end/<s>/` fixture route and fake yt-dlp scenarios
   `upcomingthen` and `liveended001` were exercised.
-- **Runtime checks:** Upcoming-to-live used one player; YouTube and HLS ended cleanly. A 2-hour
-  fake-yt-dlp live soak had no crash and recovered 7/7 outages; CPU was 20.8% and RSS rose from
-  313 MB to about 385 MB.
-- **Remaining gaps:** Real YouTube live is untested; the soak's RSS rise was not fully flat and is
-  watched in M12.
-- **Next task:** M10 GTK controls.
+- **Runtime checks:** The Lofi Girl live stream played as HLS video-only format 232 (720p); the
+  panel showed LIVE and there were 0 GStreamer CRITICALs. The 60-minute real-live soak had no
+  crash, was still playing at the end, averaged 29.6% CPU, and RSS was 314 MB at 1 minute, 342 MB
+  at 30 minutes, and 344 MB at 60 minutes (flat in the second half; workspace
+  `notes/m09/real-soak/`).
+- **Remaining gaps:** RSS trend (M12); real-live outage recovery covered only by fixtures.
+- **Next task:** —
 
 ## M10 — GTK controls
 
@@ -242,11 +245,13 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 - **Decision:** D-019 keeps panel edits as runtime overrides until the user explicitly saves them
   to the managed include file.
 - **Automated tests + results:** AT-SPI GUI checks covered opening and populating the panel,
-  pause/play, dim, and save output (workspace `notes/m10/runtime/`).
+  pause/play, dim, and save output (workspace `notes/m10/runtime/`). `zig build test` runs the
+  background_media unit tests and panel-override tests; they pass.
 - **Runtime checks:** URL apply with LIVE and Go Live, and Use Configuration were also exercised
   (workspace `notes/m10/runtime/`).
-- **Remaining gaps:** finite-video seek
-  is not provided (P5); there is no keyboard shortcut. The UI is Linux-only; macOS is unaffected.
+- **Remaining gaps:** finite-video seek is not provided (P5); there is no keyboard shortcut. The
+  Diagnostics expander and maximum-frame-rate field were not verified because AT-SPI on Wayland
+  cannot activate them. The UI is Linux-only; macOS is unaffected.
 - **Next task:** M11 lifecycle.
 
 ## How to resume

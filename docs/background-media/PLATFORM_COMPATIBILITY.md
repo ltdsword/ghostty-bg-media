@@ -12,7 +12,7 @@ macOS runtime item remains UNVERIFIED until a macOS build and smoke test are rec
 | Animated GIF | No added parity commitment | Supported (M06: built-in decoder) | macOS runtime UNVERIFIED; Linux M06 PARTIAL |
 | Local video | Inherited AVFoundation path | Supported (M05: GTK/GStreamer; MP4/H.264, WebM, MKV) | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
 | Direct HTTP(S) / HLS | No added parity commitment | Supported (M07: GStreamer URL player) | macOS inherited; runtime UNVERIFIED; Linux M07 DONE |
-| YouTube recorded/live | Inherited resolver/settings | Supported via user-installed yt-dlp (M08/M09) | macOS inherited; runtime UNVERIFIED; Linux M08/M09 PARTIAL (real YouTube unverified) |
+| YouTube recorded/live | Inherited resolver/settings | Supported via user-installed yt-dlp (M08/M09) | macOS inherited; runtime UNVERIFIED; Linux M08/M09 DONE (real YouTube verified 2026-10-24; video-only, D-020) |
 | Settings UI | Existing Swift/AppKit panel | GTK4/libadwaita panel (M10) | macOS inherited; runtime UNVERIFIED; Linux M10 PARTIAL |
 | Media dependencies | Existing native stack | GTK/GStreamer from the GNOME runtime plus `org.freedesktop.Platform.codecs-extra` | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
 | Build and test | Separate macOS lane | Separate Linux lane | macOS UNVERIFIED; Linux baseline partial |
@@ -106,6 +106,7 @@ an independent CI lane is planned for M15. See [MACOS_BASELINE.md §7](MACOS_BAS
 
 - **Native (Ubuntu 26.04 dev host): VERIFIED (2026-10-24).** Native build and GTK gate passed;
   M07 and later evidence is from this lane. See [BUILDING.md](BUILDING.md#native-lane-ubuntu-2604-d-012).
-- **Flatpak (GNOME 50 runtime): verified M01–M06.** Distribution lane and the supported path for
-  distros too old for a native build, including Ubuntu 24.04.
+- **Flatpak (GNOME 50 runtime): verified M01–M06; M07–M09 runtime (real YouTube live) checked
+  2026-10-24.** Distribution lane and the supported path for distros too old for a native build,
+  including Ubuntu 24.04.
 - Both lanes build the same source; no lane-specific code.

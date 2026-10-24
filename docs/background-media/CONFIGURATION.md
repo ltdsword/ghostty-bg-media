@@ -58,7 +58,9 @@ The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` 
   The default is a maximum of 720p, and signed URLs are re-resolved on reconnect. yt-dlp is not
   bundled; without it playback fails with `ytdlp_missing` (hint: install yt-dlp or set
   `GHOSTTY_YTDLP`). Private, age-gated, members-only, removed, and playlist-only results stop
-  without retry.
+  without retry. YouTube backgrounds are usually video-only (silent) because YouTube no longer
+  serves combined audio+video formats (D-020); channel live URLs such as
+  `https://www.youtube.com/@<channel>/live` work.
 - M09 upcoming YouTube streams wait and poll again (30 s, x2, max 120 s, ±20% jitter). Ended
   streams stop cleanly; Go Live from the panel reconnects at the live edge.
 - The media layer is visible through terminal background transparency only when

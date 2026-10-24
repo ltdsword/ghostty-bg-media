@@ -3,6 +3,17 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-020 YouTube backgrounds are video-only
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** yt-dlp 2026.10 offers no muxed formats for recorded YouTube videos and lists live
+  HLS formats without audio.
+- **Decision:** Prefer muxed formats when available; otherwise play video-only, preferring HTTPS
+  before HLS. Do not merge separate audio, consistent with the limited format selection in master
+  plan M08 task 4.
+- **Consequences:** YouTube backgrounds are usually silent; volume has no effect for them.
+
 ## D-019 GTK panel changes save through a managed include file
 
 - **Status:** ACCEPTED
