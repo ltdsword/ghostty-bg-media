@@ -16,4 +16,6 @@ test {
     _ = @import("gtk/key.zig");
     _ = @import("gtk/portal.zig");
     _ = @import("gtk/scale.zig");
+    _ = @import("gtk/background_media/main.zig");
+    _ = @import("gtk/media_overrides.zig");
 }
