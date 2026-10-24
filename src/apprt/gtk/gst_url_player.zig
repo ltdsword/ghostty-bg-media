@@ -31,6 +31,28 @@ const MapInfo = extern struct {
     _gst_reserved: [4]?*anyopaque,
 };
 
+const PadProbeInfo = extern struct {
+    type: c_uint,
+    id: c_ulong,
+    data: ?*anyopaque,
+    offset: u64,
+    size: c_uint,
+};
+
+const MiniObjectHeader = extern struct {
+    type: usize,
+    refcount: c_int,
+    lockstate: c_int,
+    flags: c_uint,
+};
+
+const probe_type_buffer: c_uint = 1 << 4;
+const probe_type_buffer_list: c_uint = 1 << 5;
+const probe_type_event_flush: c_uint = 1 << 8;
+const probe_ok: c_int = 1;
+const buffer_flag_discont: c_uint = 1 << 6;
+const map_readwrite: c_int = 1 | 2;
+
 const Api = struct {
     init_check: *const fn (?*c_int, ?*anyopaque, ?*?*glib.Error) callconv(.c) c_int,
     registry_get: *const fn () callconv(.c) ?*anyopaque,
@@ -58,6 +80,11 @@ const Api = struct {
     buffer_map: *const fn (*anyopaque, *MapInfo, c_int) callconv(.c) c_int,
     buffer_unmap: *const fn (*anyopaque, *MapInfo) callconv(.c) void,
     mini_object_unref: *const fn (*anyopaque) callconv(.c) void,
+    element_get_factory: *const fn (*anyopaque) callconv(.c) ?*anyopaque,
+    object_get_name: *const fn (*anyopaque) callconv(.c) ?[*:0]u8,
+    element_get_static_pad: *const fn (*anyopaque, [*:0]const u8) callconv(.c) ?*anyopaque,
+    pad_add_probe: *const fn (*anyopaque, c_uint, *const anyopaque, ?*anyopaque, ?*const anyopaque) callconv(.c) c_ulong,
+    mini_object_make_writable: *const fn (*anyopaque) callconv(.c) ?*anyopaque,
 };
 
 const ApiState = enum { unloaded, loaded, unavailable };
@@ -106,6 +133,66 @@ pub fn available() bool {
     return getApi() != null;
 }
 
+/// GStreamer's tsdemux ignores adaptation-only packets that still set the payload flag (afc=11, length 183)
+/// and does not count them, while YouTube's muxer counts them as MPEG-TS requires. The first packet of the next
+/// HLS segment then fails tsdemux's continuity check and the segment's keyframe is dropped, smearing the picture.
+/// Renumbers continuity counters before tsdemux so those packets are skipped consistently.
+const TsContinuity = struct {
+    const packet_size = 188;
+    const null_pid = 0x1fff;
+
+    skipped: [8192]u4 = @splat(0),
+    offset: u8 = 0,
+    pid_high: u8 = 0,
+    pid: u13 = 0,
+    afc: u2 = 0,
+    lost: bool = false,
+
+    fn reset(self: *TsContinuity) void {
+        self.offset = 0;
+        self.lost = false;
+    }
+
+    fn process(self: *TsContinuity, bytes: []u8) void {
+        var i: usize = 0;
+        while (i < bytes.len and !self.lost) {
+            switch (self.offset) {
+                0 => {
+                    if (bytes[i] != 0x47) {
+                        self.lost = true;
+                        return;
+                    }
+                },
+                1 => self.pid_high = bytes[i] & 0x1f,
+                2 => self.pid = (@as(u13, self.pid_high) << 8) | @as(u13, bytes[i]),
+                3 => {
+                    self.afc = @truncate(bytes[i] >> 4);
+                    if (self.pid != null_pid and self.afc & 1 != 0 and self.skipped[self.pid] != 0) {
+                        const cc: u4 = @as(u4, @truncate(bytes[i] & 0x0f)) -% self.skipped[self.pid];
+                        bytes[i] = (bytes[i] & 0xf0) | @as(u8, cc);
+                    }
+                },
+                4 => {
+                    if (self.pid != null_pid and self.afc == 3 and bytes[i] == 183) {
+                        self.skipped[self.pid] +%= 1;
+                    }
+                },
+                else => {
+                    const n = @min(TsContinuity.packet_size - @as(usize, self.offset), bytes.len - i);
+                    self.offset += @intCast(n);
+                    i += n;
+                    if (self.offset == TsContinuity.packet_size) self.offset = 0;
+                    continue;
+                },
+            }
+
+            self.offset += 1;
+            i += 1;
+            if (self.offset == TsContinuity.packet_size) self.offset = 0;
+        }
+    }
+};
+
 pub fn create(uri: [:0]const u8, volume: f32, callbacks: Callbacks) ?*Player {
     const api = getApi() orelse return null;
     const yuv = if (comptime gtk_version.atLeast(4, 20, 0))
@@ -144,6 +231,8 @@ pub fn create(uri: [:0]const u8, volume: f32, callbacks: Callbacks) ?*Player {
     setObjectProperty(pipeline.?, "video-sink", sink_bin);
     setVolumeProperties(pipeline.?, volume);
     setBufferingProperties(pipeline.?);
+    // tsdemux drops YouTube segment keyframes without this; see TsContinuity.
+    _ = connectSignal(pipeline.?, "deep-element-added", @ptrCast(&onDeepElementAdded), pipeline.?);
 
     var bus: ?*anyopaque = api.element_get_bus(pipeline.?) orelse return null;
     defer if (bus) |value| api.object_unref(value);
@@ -288,6 +377,11 @@ fn getApi() ?*const Api {
         .buffer_map = symbol(@TypeOf(@as(Api, undefined).buffer_map), gst, "gst_buffer_map") orelse return unavailableApi(),
         .buffer_unmap = symbol(@TypeOf(@as(Api, undefined).buffer_unmap), gst, "gst_buffer_unmap") orelse return unavailableApi(),
         .mini_object_unref = symbol(@TypeOf(@as(Api, undefined).mini_object_unref), gst, "gst_mini_object_unref") orelse return unavailableApi(),
+        .element_get_factory = symbol(@TypeOf(@as(Api, undefined).element_get_factory), gst, "gst_element_get_factory") orelse return unavailableApi(),
+        .object_get_name = symbol(@TypeOf(@as(Api, undefined).object_get_name), gst, "gst_object_get_name") orelse return unavailableApi(),
+        .element_get_static_pad = symbol(@TypeOf(@as(Api, undefined).element_get_static_pad), gst, "gst_element_get_static_pad") orelse return unavailableApi(),
+        .pad_add_probe = symbol(@TypeOf(@as(Api, undefined).pad_add_probe), gst, "gst_pad_add_probe") orelse return unavailableApi(),
+        .mini_object_make_writable = symbol(@TypeOf(@as(Api, undefined).mini_object_make_writable), gst, "gst_mini_object_make_writable") orelse return unavailableApi(),
     };
 
     if (api.init_check(null, null, null) == 0) return unavailableApi();
@@ -385,6 +479,61 @@ fn connectSignal(
     data: *anyopaque,
 ) c_ulong {
     return g_signal_connect_data(instance, detailed_signal, callback, data, null, 0);
+}
+
+fn onDeepElementAdded(_: ?*anyopaque, _: ?*anyopaque, element: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
+    const api = getApi() orelse return;
+    const factory = api.element_get_factory(element orelse return) orelse return;
+    const name = api.object_get_name(factory) orelse return;
+    defer glib.free(name);
+    if (!std.mem.eql(u8, std.mem.span(name), "tsdemux")) return;
+    const pad = api.element_get_static_pad(element.?, "sink") orelse return;
+    defer api.object_unref(pad);
+    const fixer = alloc.create(TsContinuity) catch return;
+    fixer.* = .{};
+    _ = api.pad_add_probe(
+        pad,
+        probe_type_buffer | probe_type_buffer_list | probe_type_event_flush,
+        @ptrCast(&onTsDemuxProbe),
+        fixer,
+        @ptrCast(&freeTsContinuity),
+    );
+    log.debug("background-media: tsdemux continuity fix attached", .{});
+}
+
+fn onTsDemuxProbe(_: ?*anyopaque, info: ?*PadProbeInfo, data: ?*anyopaque) callconv(.c) c_int {
+    const fixer: *TsContinuity = @ptrCast(@alignCast(data orelse return probe_ok));
+    const probe_info = info orelse return probe_ok;
+    const api = getApi() orelse return probe_ok;
+    if (probe_info.type & probe_type_event_flush != 0) {
+        fixer.reset();
+        return probe_ok;
+    }
+    if (probe_info.type & probe_type_buffer_list != 0) {
+        fixer.lost = true;
+        return probe_ok;
+    }
+    if (probe_info.type & probe_type_buffer == 0) return probe_ok;
+    var buffer = probe_info.data orelse return probe_ok;
+    if (@as(*const MiniObjectHeader, @ptrCast(@alignCast(buffer))).flags & buffer_flag_discont != 0) {
+        fixer.reset();
+    }
+    if (fixer.lost) return probe_ok;
+    buffer = api.mini_object_make_writable(buffer) orelse return probe_ok;
+    probe_info.data = buffer;
+    var map: MapInfo = undefined;
+    if (api.buffer_map(buffer, &map, map_readwrite) == 0) {
+        fixer.lost = true;
+        return probe_ok;
+    }
+    defer api.buffer_unmap(buffer, &map);
+    if (map.data) |d| fixer.process(d[0..map.size]);
+    return probe_ok;
+}
+
+fn freeTsContinuity(data: ?*anyopaque) callconv(.c) void {
+    const fixer: *TsContinuity = @ptrCast(@alignCast(data orelse return));
+    alloc.destroy(fixer);
 }
 
 fn onNewSample(sink: ?*anyopaque, data: ?*anyopaque) callconv(.c) c_int {
@@ -604,4 +753,107 @@ fn onBusEos(_: ?*anyopaque, _: ?*anyopaque, data: ?*anyopaque) callconv(.c) void
     const player: *Player = @ptrCast(@alignCast(data orelse return));
     if (player.destroyed.load(.acquire)) return;
     player.callbacks.ended();
+}
+
+fn testTsPacket(pid: u13, cc: u4, afc: u2, adaptation_len: u8) [188]u8 {
+    var packet: [TsContinuity.packet_size]u8 = @splat(0xff);
+    packet[0] = 0x47;
+    packet[1] = @as(u8, @truncate(pid >> 8)) & 0x1f;
+    packet[2] = @truncate(pid);
+    packet[3] = (@as(u8, afc) << 4) | @as(u8, cc);
+    if (afc & 2 != 0) packet[4] = adaptation_len;
+    return packet;
+}
+
+fn testTsStream() [8 * TsContinuity.packet_size]u8 {
+    const packets = [8][TsContinuity.packet_size]u8{
+        testTsPacket(256, 11, 1, 0),
+        testTsPacket(256, 12, 1, 0),
+        testTsPacket(257, 5, 1, 0),
+        testTsPacket(256, 13, 3, 183),
+        testTsPacket(256, 14, 3, 183),
+        testTsPacket(256, 15, 3, 183),
+        testTsPacket(256, 0, 1, 0),
+        testTsPacket(256, 1, 1, 0),
+    };
+    var bytes: [8 * TsContinuity.packet_size]u8 = undefined;
+    for (packets, 0..) |packet, index| {
+        @memcpy(bytes[index * TsContinuity.packet_size ..][0..TsContinuity.packet_size], &packet);
+    }
+    return bytes;
+}
+
+test "ts continuity renumbers after counted stuffing" {
+    const original = testTsStream();
+    var bytes = original;
+    var fixer = TsContinuity{};
+    fixer.process(&bytes);
+
+    try std.testing.expectEqual(@as(u8, 13), bytes[6 * TsContinuity.packet_size + 3] & 0x0f);
+    try std.testing.expectEqual(@as(u8, 14), bytes[7 * TsContinuity.packet_size + 3] & 0x0f);
+    try std.testing.expectEqual(@as(u8, 5), bytes[2 * TsContinuity.packet_size + 3] & 0x0f);
+    for (original, bytes, 0..) |before, after, index| {
+        if (index % TsContinuity.packet_size == 3) {
+            try std.testing.expectEqual(before & 0xf0, after & 0xf0);
+        } else {
+            try std.testing.expectEqual(before, after);
+        }
+    }
+}
+
+test "ts continuity is split-invariant" {
+    const original = testTsStream();
+    var expected = original;
+    var one_shot = TsContinuity{};
+    one_shot.process(&expected);
+
+    for (1..401) |chunk_size| {
+        var bytes = original;
+        var fixer = TsContinuity{};
+        var offset: usize = 0;
+        while (offset < bytes.len) {
+            const end = @min(offset + chunk_size, bytes.len);
+            fixer.process(bytes[offset..end]);
+            offset = end;
+        }
+        try std.testing.expectEqualSlices(u8, expected[0..], bytes[0..]);
+    }
+}
+
+test "ts continuity ignores afc 10 and null pid" {
+    const packets = [4][TsContinuity.packet_size]u8{
+        testTsPacket(256, 11, 1, 0),
+        testTsPacket(256, 12, 2, 183),
+        testTsPacket(TsContinuity.null_pid, 13, 3, 183),
+        testTsPacket(256, 12, 1, 0),
+    };
+    var bytes: [4 * TsContinuity.packet_size]u8 = undefined;
+    for (packets, 0..) |packet, index| {
+        @memcpy(bytes[index * TsContinuity.packet_size ..][0..TsContinuity.packet_size], &packet);
+    }
+    var fixer = TsContinuity{};
+    fixer.process(&bytes);
+
+    try std.testing.expectEqual(@as(u8, 12), bytes[3 * TsContinuity.packet_size + 3] & 0x0f);
+}
+
+test "ts continuity stops after lost sync" {
+    var suffix: [2 * TsContinuity.packet_size]u8 = undefined;
+    const stuffing = testTsPacket(256, 13, 3, 183);
+    const payload = testTsPacket(256, 0, 1, 0);
+    @memcpy(suffix[0..TsContinuity.packet_size], &stuffing);
+    @memcpy(suffix[TsContinuity.packet_size..][0..TsContinuity.packet_size], &payload);
+
+    var lost_stream: [1 + 2 * TsContinuity.packet_size]u8 = undefined;
+    lost_stream[0] = 0;
+    @memcpy(lost_stream[1..], &suffix);
+    var fixer = TsContinuity{};
+    fixer.process(&lost_stream);
+    try std.testing.expect(fixer.lost);
+    try std.testing.expectEqualSlices(u8, suffix[0..], lost_stream[1..]);
+
+    fixer.reset();
+    fixer.process(&suffix);
+    try std.testing.expect(!fixer.lost);
+    try std.testing.expectEqual(@as(u8, 15), suffix[TsContinuity.packet_size + 3] & 0x0f);
 }

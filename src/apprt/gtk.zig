@@ -17,5 +17,6 @@ test {
     _ = @import("gtk/portal.zig");
     _ = @import("gtk/scale.zig");
     _ = @import("gtk/background_media/main.zig");
+    _ = @import("gtk/gst_url_player.zig");
     _ = @import("gtk/media_overrides.zig");
 }
