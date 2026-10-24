@@ -9,6 +9,7 @@ const Common = @import("../class.zig").Common;
 const pattern = @import("../media_spike_pattern.zig");
 const bg = @import("../background_media/main.zig");
 const media_loader = @import("../media_loader.zig");
+const media_overrides = @import("../media_overrides.zig");
 const Application = @import("application.zig").Application;
 
 const log = std.log.scoped(.gtk_media_view);
@@ -153,94 +154,115 @@ pub const MediaView = extern struct {
         const config_obj = Application.default().getConfig();
         defer config_obj.unref();
         const config = config_obj.get();
+        const overrides = media_overrides.get();
 
-        priv.fit = std.meta.stringToEnum(bg.layout.Fit, @tagName(config.@"background-media-fit")).?;
-        priv.position = std.meta.stringToEnum(bg.layout.Position, @tagName(config.@"background-media-position")).?;
-        priv.dim = config.@"background-media-dim";
+        priv.fit = overrides.fit orelse std.meta.stringToEnum(bg.layout.Fit, @tagName(config.@"background-media-fit")).?;
+        priv.position = overrides.position orelse std.meta.stringToEnum(bg.layout.Position, @tagName(config.@"background-media-position")).?;
+        priv.dim = overrides.dim orelse config.@"background-media-dim";
         priv.bg_rgb = .{
             .r = config.background.r,
             .g = config.background.g,
             .b = config.background.b,
         };
         media_loader.applySettings(.{
-            .loop = config.@"background-media-loop",
-            .volume = config.@"background-media-volume",
-            .play_in_background = config.@"background-media-play-in-background",
-            .max_fps = config.@"background-media-max-fps",
+            .loop = overrides.loop orelse config.@"background-media-loop",
+            .volume = overrides.volume orelse config.@"background-media-volume",
+            .play_in_background = overrides.play_in_background orelse config.@"background-media-play-in-background",
+            .max_fps = overrides.max_fps orelse config.@"background-media-max-fps",
+            .paused = overrides.paused,
         });
 
-        if (config.@"background-media") |source| {
-            switch (source) {
-                .url => |url| {
-                    const url_kind = bg.source.classifyUrl(url);
-                    if (url_kind) |kind| {
-                        if (kind == .http_direct or kind == .http_hls or kind == .youtube) {
-                            media_loader.requestUrl(.{
-                                .id = bg.state.sourceId(url),
-                                .url = url,
-                                .kind = kind,
-                            });
-                        } else {
-                            media_loader.request(null);
-                        }
+        const EffectiveSource = union(enum) {
+            none,
+            url: []const u8,
+            path: struct { value: []const u8, optional: bool },
+        };
+        const source: EffectiveSource = switch (overrides.source) {
+            .unset => if (config.@"background-media") |configured| switch (configured) {
+                .url => |url| .{ .url = url },
+                .path => |path| switch (path) {
+                    .optional => |value| .{ .path = .{ .value = value, .optional = true } },
+                    .required => |value| .{ .path = .{ .value = value, .optional = false } },
+                },
+            } else .none,
+            .none => .none,
+            .value => |value| if (media_overrides.parseSource(value)) |parsed| switch (parsed) {
+                .url => |url| .{ .url = url },
+                .path => |path| .{ .path = .{ .value = path.path, .optional = path.optional } },
+            } else .none,
+        };
+
+        switch (source) {
+            .none => {
+                media_loader.request(null);
+                priv.state = .disabled;
+            },
+            .url => |url| {
+                const url_kind = bg.source.classifyUrl(url);
+                if (url_kind) |kind| {
+                    if (kind == .http_direct or kind == .http_hls or kind == .youtube) {
+                        media_loader.requestUrl(.{
+                            .id = bg.state.sourceId(url),
+                            .url = url,
+                            .kind = kind,
+                        });
                     } else {
                         media_loader.request(null);
                     }
-                    var next_state: bg.state.State = undefined;
-                    if (url_kind) |kind| {
-                        next_state = .{ .ready = .{
-                            .kind = kind,
-                            .media_type = .unknown,
-                            .source_id = bg.state.sourceId(url),
-                        } };
-                    } else {
-                        next_state = .{ .failed = .invalid_url };
-                    }
+                } else {
+                    media_loader.request(null);
+                }
+                var next_state: bg.state.State = undefined;
+                if (url_kind) |kind| {
+                    next_state = .{ .ready = .{
+                        .kind = kind,
+                        .media_type = .unknown,
+                        .source_id = bg.state.sourceId(url),
+                    } };
+                } else {
+                    next_state = .{ .failed = .invalid_url };
+                }
 
-                    const changed = !std.meta.eql(priv.state, next_state);
-                    const action = bg.state.reconcile(priv.state, next_state);
-                    priv.state = next_state;
+                const changed = !std.meta.eql(priv.state, next_state);
+                const action = bg.state.reconcile(priv.state, next_state);
+                priv.state = next_state;
 
-                    if (next_state == .failed and changed) {
-                        var redacted_buf: [512]u8 = undefined;
-                        log.warn("background-media: {s} state=failed reason={s} source={s}", .{
-                            @tagName(action),
-                            @tagName(next_state.failed),
-                            bg.source.redactUrl(&redacted_buf, url),
-                        });
-                    } else if (action != .none) {
-                        switch (next_state) {
-                            .disabled => log.info("background-media: {s} state=disabled kind=none type=none", .{
-                                @tagName(action),
-                            }),
-                            .ready => |ready| log.info("background-media: {s} state=ready kind={s} type={s}", .{
-                                @tagName(action),
-                                @tagName(ready.kind),
-                                @tagName(ready.media_type),
-                            }),
-                            .failed => unreachable,
-                        }
-                    }
-                },
-                .path => |path| {
-                    const path_value, const optional = switch (path) {
-                        .optional => |value| .{ value, true },
-                        .required => |value| .{ value, false },
-                    };
-                    media_loader.request(.{
-                        .id = bg.state.sourceId(path_value),
-                        .path = path_value,
-                        .optional = optional,
+                if (next_state == .failed and changed) {
+                    var redacted_buf: [512]u8 = undefined;
+                    log.warn("background-media: {s} state=failed reason={s} source={s}", .{
+                        @tagName(action),
+                        @tagName(next_state.failed),
+                        bg.source.redactUrl(&redacted_buf, url),
                     });
-                    priv.state = .disabled;
-                },
-            }
-        } else {
-            media_loader.request(null);
-            priv.state = .disabled;
+                } else if (action != .none) {
+                    switch (next_state) {
+                        .disabled => log.info("background-media: {s} state=disabled kind=none type=none", .{
+                            @tagName(action),
+                        }),
+                        .ready => |ready| log.info("background-media: {s} state=ready kind={s} type={s}", .{
+                            @tagName(action),
+                            @tagName(ready.kind),
+                            @tagName(ready.media_type),
+                        }),
+                        .failed => unreachable,
+                    }
+                }
+            },
+            .path => |path| {
+                media_loader.request(.{
+                    .id = bg.state.sourceId(path.value),
+                    .path = path.value,
+                    .optional = path.optional,
+                });
+                priv.state = .disabled;
+            },
         }
 
         self.as(gtk.Widget).queueDraw();
+    }
+
+    pub fn reapplyConfig(self: *Self) void {
+        self.applyConfig();
     }
 
     pub fn mediaChanged(self: *Self) void {

@@ -17,13 +17,13 @@ const alloc = std.heap.c_allocator;
 
 pub const Request = struct {
     id: u64,
-    path: [:0]const u8,
+    path: []const u8,
     optional: bool,
 };
 
 pub const UrlRequest = struct {
     id: u64,
-    url: [:0]const u8,
+    url: []const u8,
     kind: bg.source.Kind,
 };
 
@@ -32,6 +32,7 @@ pub const Settings = struct {
     volume: f32 = 0,
     play_in_background: bool = false,
     max_fps: u32 = 30,
+    paused: bool = false,
 };
 
 const ViewEntry = struct {
@@ -39,11 +40,14 @@ const ViewEntry = struct {
     active: bool = false,
 };
 
-const Status = enum { idle, loading, ready, failed };
+pub const Status = enum { idle, loading, ready, failed };
 
 const Loader = struct {
     generation: u64 = 0,
     current_id: u64 = 0,
+    last_kind: ?bg.source.Kind = null,
+    last_failure: [64]u8 = undefined,
+    last_failure_len: u8 = 0,
     status: Status = .idle,
     texture: ?*gdk.Texture = null,
     stream: ?*gtk.MediaFile = null,
@@ -126,6 +130,8 @@ pub fn unregister(view: *MediaView) void {
 pub fn request(req: ?Request) void {
     const req_value = req orelse {
         release();
+        loader.last_kind = null;
+        clearFailure();
         notifyViews();
         return;
     };
@@ -134,18 +140,22 @@ pub fn request(req: ?Request) void {
         (loader.status == .loading or loader.status == .ready)) return;
 
     release();
+    clearFailure();
     loader.generation += 1;
     loader.current_id = req_value.id;
+    loader.last_kind = .local_file;
     loader.status = .loading;
 
     const path = alloc.dupeZ(u8, req_value.path) catch {
         loader.status = .failed;
+        setFailure("unreadable");
         log.warn("background-media: failed reason=unreadable source={s}", .{req_value.path});
         return;
     };
     const job = alloc.create(Job) catch {
         alloc.free(path);
         loader.status = .failed;
+        setFailure("unreadable");
         log.warn("background-media: failed reason=unreadable source={s}", .{req_value.path});
         return;
     };
@@ -159,6 +169,7 @@ pub fn request(req: ?Request) void {
     const thread = std.Thread.spawn(.{}, worker, .{job}) catch {
         freeJob(job);
         loader.status = .failed;
+        setFailure("unreadable");
         log.warn("background-media: failed reason=unreadable source={s}", .{req_value.path});
         return;
     };
@@ -171,9 +182,12 @@ pub fn requestUrl(req: UrlRequest) void {
 
     release();
     loader.generation += 1;
+    clearFailure();
+    loader.last_kind = req.kind;
     const url = alloc.dupeZ(u8, req.url) catch {
         loader.current_id = req.id;
         loader.status = .failed;
+        setFailure("unreadable");
         var redacted_buf: [512]u8 = undefined;
         log.warn("background-media: failed reason=unreadable source={s}", .{
             bg.source.redactUrl(&redacted_buf, req.url),
@@ -202,6 +216,117 @@ pub const LiveInfo = struct {
     reconnect_attempts: u32,
 };
 
+pub const StatusInfo = struct {
+    status: Status,
+    kind: ?bg.source.Kind,
+    has_source: bool,
+    playing: bool,
+    /// This slice points into the loader buffer and is valid until the next loader change.
+    failure: []const u8,
+    attempts: u32,
+    retry_pending: bool,
+    live: LiveInfo,
+};
+
+pub fn statusInfo() StatusInfo {
+    const kind = loader.last_kind;
+    return .{
+        .status = loader.status,
+        .kind = kind,
+        .has_source = kind != null,
+        .playing = (loader.url_player != null or loader.stream != null) and playWanted(),
+        .failure = loader.last_failure[0..loader.last_failure_len],
+        .attempts = loader.failed_attempts,
+        .retry_pending = loader.retry_timer != 0 or loader.poll_timer != 0,
+        .live = liveInfo(),
+    };
+}
+
+pub const YtdlpInfo = struct {
+    found: bool,
+    override: bool,
+    path_buf: [256]u8,
+    path_len: usize,
+};
+
+pub const Diagnostics = struct {
+    gst_url_player: bool,
+    ytdlp: YtdlpInfo,
+};
+
+pub fn diagnostics() Diagnostics {
+    return .{
+        .gst_url_player = gst_url_player.available(),
+        .ytdlp = ytdlpInfo(),
+    };
+}
+
+fn ytdlpInfo() YtdlpInfo {
+    var info: YtdlpInfo = .{
+        .found = false,
+        .override = false,
+        .path_buf = [_]u8{0} ** 256,
+        .path_len = 0,
+    };
+    const override = global.environ().getPosix("GHOSTTY_YTDLP");
+    if (inFlatpak()) {
+        if (override) |path| {
+            info.override = true;
+            info.found = true;
+            setDiagnosticPath(&info, path);
+        } else {
+            setDiagnosticPath(&info, "host (flatpak-spawn)");
+        }
+        return info;
+    }
+
+    const selected = override orelse "yt-dlp";
+    info.override = override != null;
+    info.found = findExecutable(selected, global.environ().getPosix("PATH") orelse "", &info);
+    if (!info.found) setDiagnosticPath(&info, selected);
+    return info;
+}
+
+fn findExecutable(name: []const u8, path_env: []const u8, info: *YtdlpInfo) bool {
+    if (std.mem.indexOfScalar(u8, name, '/') != null) {
+        if (!isExecutableFile(name)) return false;
+        setDiagnosticPath(info, name);
+        return true;
+    }
+
+    var path_it = std.mem.splitScalar(u8, path_env, ':');
+    var candidate_buf: [std.posix.PATH_MAX]u8 = undefined;
+    while (path_it.next()) |directory| {
+        const candidate = if (directory.len == 0)
+            name
+        else
+            std.fmt.bufPrint(&candidate_buf, "{s}/{s}", .{ directory, name }) catch continue;
+        if (!isExecutableFile(candidate)) continue;
+        setDiagnosticPath(info, candidate);
+        return true;
+    }
+    return false;
+}
+
+fn isExecutableFile(path: []const u8) bool {
+    const cwd = std.Io.Dir.cwd();
+    const file_stat = cwd.statFile(global.io(), path, .{}) catch return false;
+    if (file_stat.kind != .file) return false;
+    cwd.access(global.io(), path, .{ .execute = true }) catch return false;
+    return true;
+}
+
+fn setDiagnosticPath(info: *YtdlpInfo, path: []const u8) void {
+    info.path_len = @min(path.len, info.path_buf.len);
+    @memcpy(info.path_buf[0..info.path_len], path[0..info.path_len]);
+}
+
+fn inFlatpak() bool {
+    const file = std.Io.Dir.openFileAbsolute(global.io(), "/.flatpak-info", .{ .mode = .read_only }) catch return false;
+    file.close(global.io());
+    return true;
+}
+
 pub fn liveInfo() LiveInfo {
     const is_live = loader.stream_was_live or loader.resolved_live;
     return .{
@@ -219,6 +344,38 @@ pub fn goLive() void {
     dropStream();
     loader.live_state = .reconnecting;
     connectUrl();
+}
+
+pub fn retry() void {
+    if (loader.last_kind == null) return;
+    if (loader.url != null) {
+        if (loader.retry_timer != 0) {
+            _ = glib.Source.remove(loader.retry_timer);
+            loader.retry_timer = 0;
+        }
+        if (loader.poll_timer != 0) {
+            _ = glib.Source.remove(loader.poll_timer);
+            loader.poll_timer = 0;
+        }
+        dropStream();
+        loader.failed_attempts = 0;
+        clearFailure();
+        loader.status = .loading;
+        loader.live_state = .idle;
+        if (loader.resolved) |resolved| freeResolved(resolved);
+        loader.resolved = null;
+        connectUrl();
+        return;
+    }
+
+    clearFailure();
+    loader.failed_attempts = 0;
+    loader.current_id = 0;
+    reapplyAll();
+}
+
+pub fn reapplyAll() void {
+    for (loader.views.items) |entry| entry.view.reapplyConfig();
 }
 
 pub fn applySettings(settings: Settings) void {
@@ -250,7 +407,7 @@ fn applyStreamSettings(stream: *gtk.MediaFile) void {
 }
 
 fn updatePlayState() void {
-    const play = loader.settings.play_in_background or loader.active_views > 0;
+    const play = playWanted();
     if (loader.url != null) {
         if (!play) {
             if (loader.retry_timer != 0) {
@@ -286,6 +443,20 @@ fn updatePlayState() void {
         }
     }
     if (loader.anim) |anim| gif_player.setPaused(anim, !play);
+}
+
+fn playWanted() bool {
+    return !loader.settings.paused and (loader.settings.play_in_background or loader.active_views > 0);
+}
+
+fn setFailure(reason: []const u8) void {
+    const len = @min(reason.len, loader.last_failure.len);
+    @memcpy(loader.last_failure[0..len], reason[0..len]);
+    loader.last_failure_len = @intCast(len);
+}
+
+fn clearFailure() void {
+    loader.last_failure_len = 0;
 }
 
 fn release() void {
@@ -437,6 +608,7 @@ fn attachStream(stream: *gtk.MediaFile) void {
 }
 
 fn urlFailed(reason: []const u8) void {
+    setFailure(reason);
     loader.live_state = bg.live.next(loader.live_state, .failure);
     const kind = loader.url_kind;
     const retry_kind: bg.source.Kind = if (kind == .youtube)
@@ -456,6 +628,7 @@ fn urlFailed(reason: []const u8) void {
     var redacted_buf: [512]u8 = undefined;
     const redacted_url = bg.source.redactUrl(&redacted_buf, url);
     if (!bg.retry.shouldRetry(retry_kind, loader.failed_attempts)) {
+        setFailure("network_gave_up");
         log.warn("background-media: failed reason=network_gave_up attempts={d} source={s}", .{
             loader.failed_attempts,
             redacted_url,
@@ -475,7 +648,7 @@ fn urlFailed(reason: []const u8) void {
         delay,
         redacted_url,
     });
-    const play = loader.settings.play_in_background or loader.active_views > 0;
+    const play = playWanted();
     if (play) loader.retry_timer = glib.timeoutAddOnce(delay, onRetry, null);
     notifyViews();
 }
@@ -526,6 +699,7 @@ fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
             }
             loader.live_state = bg.live.next(loader.live_state, .fatal);
             loader.status = .failed;
+            setFailure(@tagName(fatal));
             log.warn("background-media: failed reason={s} source=youtube", .{@tagName(fatal)});
             notifyViews();
         },
@@ -545,10 +719,12 @@ fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
             }
             if (!ytdlp_missing_warned) {
                 ytdlp_missing_warned = true;
+                setFailure("ytdlp_missing");
                 log.warn("background-media: failed reason=ytdlp_missing hint=\"install yt-dlp or set GHOSTTY_YTDLP\"", .{});
             }
             loader.live_state = bg.live.next(loader.live_state, .fatal);
             loader.status = .failed;
+            setFailure("ytdlp_missing");
             notifyViews();
         },
     }
@@ -568,7 +744,7 @@ fn onRetry(_: ?*anyopaque) callconv(.c) void {
 }
 
 fn scheduleUpcomingPoll() void {
-    const play = loader.settings.play_in_background or loader.active_views > 0;
+    const play = playWanted();
     if (!play) return;
 
     const delay = bg.live.upcomingDelayMs(loader.upcoming_polls, @bitCast(glib.getMonotonicTime()));
@@ -584,7 +760,7 @@ fn scheduleUpcomingPoll() void {
 fn onUpcomingPoll(_: ?*anyopaque) callconv(.c) void {
     loader.poll_timer = 0;
     if (loader.url == null) return;
-    const play = loader.settings.play_in_background or loader.active_views > 0;
+    const play = playWanted();
     if (!play) return;
     connectUrl();
 }
@@ -626,7 +802,7 @@ fn onWatchdog(_: ?*anyopaque) callconv(.c) c_int {
     _ = url;
 
     const now_us = glib.getMonotonicTime();
-    const play = loader.settings.play_in_background or loader.active_views > 0;
+    const play = playWanted();
     if (!play or loader.url_player == null or loader.url_ended) {
         loader.last_frame_us = now_us;
         return 1;
@@ -752,6 +928,7 @@ fn onDone(ud: ?*anyopaque) callconv(.c) void {
             loader.texture = null;
             loader.current_id = job.id;
             loader.status = .failed;
+            setFailure(@tagName(failure));
             log.warn("background-media: failed reason={s} source={s}", .{
                 @tagName(failure),
                 job.path,
@@ -856,6 +1033,7 @@ fn recordFrame() void {
     loader.last_frame_us = now_us;
     if (loader.awaiting_first_frame) {
         loader.awaiting_first_frame = false;
+        clearFailure();
         if (loader.url_player) |player| {
             loader.stream_was_live = gst_url_player.isLive(player) or
                 (loader.url_kind == .youtube and loader.resolved_live);
@@ -878,6 +1056,7 @@ fn onMediaError(media_file: *gtk.MediaFile, _: *gobject.ParamSpec, _: ?*anyopaqu
     const err = media_stream.getError();
     const path = if (media_file.getFile()) |file| file.getPath() else null;
     defer if (path) |path_value| glib.free(path_value);
+    setFailure("playback_error");
     log.warn("background-media: failed reason=playback_error source={s} detail={s}", .{
         path orelse "(unknown)",
         if (err) |error_value| error_value.f_message orelse "(no detail)" else "(no detail)",
