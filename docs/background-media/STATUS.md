@@ -7,27 +7,27 @@ recorded below; M00/M01 have no separate milestone commit recorded.
 **Environment change (2026-10-24, D-012/D-013):** the native lane is verified on Ubuntu 26.04.1;
 Flatpak remains the distribution lane. M07 and later evidence is from the native lane (BUILDING.md).
 
-| Milestone | Owner | State | Commit | Evidence | Blockers | Next task |
-| --- | --- | --- | --- | --- | --- | --- |
-| M00 — Baselines | T2 audit | PARTIAL | — | [BASELINE](BASELINE.md), [macOS baseline](MACOS_BASELINE.md), gate log (Agent-Kit workspace `notes/m00/gate-full-baseline.log`) | Linux app launch and macOS build/runtime unverified | Complete approved Linux and macOS baseline runs |
-| M01 — Build environment | T3–T4 environment | DONE | — | [BUILDING](BUILDING.md), [options](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/), [host Flatpak](evidence/m01/flatpak-host/) | — | M02 compositor spike |
-| M02 — Compositor spike | m02-spike T1 | DONE | b2ed4d4 | [ADR](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/) | — | M03 config contract (needs user approval) |
-| M03 — Domain/config | M03 config | DONE | 0f263d1 | [CONFIGURATION](CONFIGURATION.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), workspace notes/m03/T1-config-tests.txt, workspace notes/m03/T2-classifier-tests.txt, workspace notes/m03/runtime-log-check.txt, workspace notes/m03/runtime-reload-check.txt, workspace notes/m03/gate-quick.txt | Follow-up gaps below | M04 static images |
-| M04 — Static images | M04 static images | PARTIAL | a63e5cf | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png | JPEG/WebP contain and live resize/splits not verified | M05 local MP4 |
-| M05 — Local video | M05 local video | PARTIAL | — | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt | 30-minute soak shows late RSS/CPU growth; Flatpak audio permission remains for M16 | M06 GIF |
-| M06 — GIF | M06 GIF | PARTIAL | — | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt | Pause/resume, terminal responsiveness, and full RSS release are not verified | M07 HTTP/HLS |
-| M07 — HTTP/HLS | TBD | DONE | — | `test/background-media/http_fixture_server.py`; workspace `plans/reports/soak-261024-0715-m07-live.md` | — | M08 real-YouTube smoke |
-| M08 — YouTube recorded | TBD | DONE | — | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/` | YouTube is video-only (D-020) | — |
-| M09 — YouTube live | TBD | DONE | — | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios; workspace `notes/m09/real-soak/` | RSS trend watched in M12 | — |
-| M10 — GTK controls | TBD | DONE | — | workspace `notes/m10/runtime/`, `notes/m10/runtime3/`, `notes/m10/classes/`; [PANEL_CHECKLIST](PANEL_CHECKLIST.md) | keystroke-leak check remains manual | M11 lifecycle |
-| M11 — Lifecycle | TBD | DONE | — | workspace `notes/m11/`; [LIFECYCLE](LIFECYCLE.md) | Split rendering and multi-monitor checks are manual | M12 performance |
-| M12 — Effects/performance | TBD | NOT_STARTED | — | — | — | Measure quality and resource use |
-| M13 — Security/regression | TBD | NOT_STARTED | — | — | — | Run robustness and compatibility suite |
-| M14 — Docs/release candidate | TBD | NOT_STARTED | — | — | — | Prepare package and handoff documentation |
-| M15 — CI lanes | TBD | NOT_STARTED | — | — | — | Establish independent Linux/macOS CI |
-| M16 — Public packaging | TBD | NOT_STARTED | — | — | App ID/coexistence decision; install gate | Verify clean Flatpak install, upgrade, and removal |
-| M17 — Public beta | TBD | NOT_STARTED | — | — | — | Publish only after release gates pass |
-| M18 — Optional macOS parity | TBD | NOT_STARTED | — | Approval required | — | Seek approval before considering additive parity |
+| Milestone                    | Owner             | State       | Commit               | Evidence                                                                                                                                                                                                                                                                                                                                                                                              | Blockers                                                                           | Next task                                          |
+| ---------------------------- | ----------------- | ----------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------- |
+| M00 — Baselines              | T2 audit          | PARTIAL     | —                    | [BASELINE](BASELINE.md), [macOS baseline](MACOS_BASELINE.md), gate log (Agent-Kit workspace `notes/m00/gate-full-baseline.log`)                                                                                                                                                                                                                                                                       | Linux app launch and macOS build/runtime unverified                                | Complete approved Linux and macOS baseline runs    |
+| M01 — Build environment      | T3–T4 environment | DONE        | —                    | [BUILDING](BUILDING.md), [options](BUILD_ENV_OPTIONS.md), [M01 evidence](evidence/m01/), [host Flatpak](evidence/m01/flatpak-host/)                                                                                                                                                                                                                                                                   | —                                                                                  | M02 compositor spike                               |
+| M02 — Compositor spike       | m02-spike T1      | DONE        | b2ed4d4              | [ADR](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/)                                                                                                                                                                                                                                                                                                                                               | —                                                                                  | M03 config contract (needs user approval)          |
+| M03 — Domain/config          | M03 config        | DONE        | 0f263d1              | [CONFIGURATION](CONFIGURATION.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), workspace notes/m03/T1-config-tests.txt, workspace notes/m03/T2-classifier-tests.txt, workspace notes/m03/runtime-log-check.txt, workspace notes/m03/runtime-reload-check.txt, workspace notes/m03/gate-quick.txt                                                                                             | Follow-up gaps below                                                               | M04 static images                                  |
+| M04 — Static images          | M04 static images | PARTIAL     | a63e5cf              | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png | JPEG/WebP contain and live resize/splits not verified                              | M05 local MP4                                      |
+| M05 — Local video            | M05 local video   | PARTIAL     | —                    | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt                                                                                                                                                                                                                                     | 30-minute soak shows late RSS/CPU growth; Flatpak audio permission remains for M16 | M06 GIF                                            |
+| M06 — GIF                    | M06 GIF           | PARTIAL     | —                    | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt                                                                                                                                                                                                                                 | Pause/resume, terminal responsiveness, and full RSS release are not verified       | M07 HTTP/HLS                                       |
+| M07 — HTTP/HLS               | TBD               | DONE        | —                    | `test/background-media/http_fixture_server.py`; workspace `plans/reports/soak-261024-0715-m07-live.md`                                                                                                                                                                                                                                                                                                | —                                                                                  | M08 real-YouTube smoke                             |
+| M08 — YouTube recorded       | TBD               | DONE        | —                    | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/`                                                                                                                                                                                                                                                                                                                                      | YouTube is video-only (D-020)                                                      | —                                                  |
+| M09 — YouTube live           | TBD               | DONE        | —                    | `test/background-media/http_fixture_server.py`; fake yt-dlp scenarios; workspace `notes/m09/real-soak/`                                                                                                                                                                                                                                                                                               | RSS trend watched in M12                                                           | —                                                  |
+| M10 — GTK controls           | TBD               | DONE        | —                    | workspace `notes/m10/runtime/`, `notes/m10/runtime3/`, `notes/m10/classes/`; [PANEL_CHECKLIST](PANEL_CHECKLIST.md)                                                                                                                                                                                                                                                                                    | keystroke-leak check remains manual                                                | M11 lifecycle                                      |
+| M11 — Lifecycle              | TBD               | DONE        | —                    | workspace `notes/m11/`; [LIFECYCLE](LIFECYCLE.md)                                                                                                                                                                                                                                                                                                                                                     | Split rendering and multi-monitor checks are manual                                | M12 performance                                    |
+| M12 — Effects/performance    | TBD               | DONE        | fde84cb95, 1340f1e74 | [PERFORMANCE](PERFORMANCE.md), workspace `notes/m12/`                                                                                                                                                                                                                                                                                                                                                 | —                                                                                  | M13 security and robustness                        |
+| M13 — Security/regression    | TBD               | PARTIAL     | f72a92ffc            | [SECURITY](SECURITY.md), [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m13/`                                                                                                                                                                                                                                                                                                                        | macOS items deferred; human regression owed; full test suite pending               | Complete remaining M13 validation                  |
+| M14 — Docs/release candidate | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Prepare package and handoff documentation          |
+| M15 — CI lanes               | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Establish independent Linux/macOS CI               |
+| M16 — Public packaging       | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | App ID/coexistence decision; install gate                                          | Verify clean Flatpak install, upgrade, and removal |
+| M17 — Public beta            | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Publish only after release gates pass              |
+| M18 — Optional macOS parity  | TBD               | NOT_STARTED | —                    | Approval required                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Seek approval before considering additive parity   |
 
 ## M00 — Fork inheritance and baselines
 
@@ -279,6 +279,60 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   movement and hotplug, and Wayland occlusion were not verified by the agent; they are manual
   checklist items.
 - **Platform:** Linux only; macOS deferred by user decision.
+
+## M12 — Effects and performance
+
+- **Status:** DONE.
+- **Commits:** `fde84cb95` adds the `background-media-blur` setting and Appearance panel slider;
+  `1340f1e74` adds YUV texture upload for URL video.
+- **Decisions:** D-022 records the user-approved blur setting; D-023 selects I420 YUV textures on
+  GTK 4.20 or newer. URL hardware decoding remains disabled under D-015 after the retest segfault.
+- **Performance:** On Ubuntu 26.04.1 with an Intel Core Ultra 5 235U / Arrow Lake-U iGPU, GTK
+  4.22.4, GStreamer 1.28.2, ReleaseFast, and play-in-background enabled, the 30-second samples
+  after a 12-second warmup changed live HLS 720p from 21.3% to 19.2% CPU, HLS 1080p VOD from
+  68.8% to 49.9%, and YouTube 1080p from 66.5% to 54.3%. CPU is percent of one core. Local
+  video stayed on the unchanged path. See [PERFORMANCE](PERFORMANCE.md).
+- **Pause:** With the panel open, local 1080p changed from 17.5% to 0.2% CPU and HLS 1080p from
+  72.6% to 0.3%; paused media does no redraw work.
+- **Soak:** The two-hour soak is running with three Release instances and five-minute samples.
+  At 30 minutes, RSS was 207 → 206 MB for local 1080p, 304 → 305 MB for live HLS, and 308 →
+  314 MB for YouTube live; file descriptor and thread counts were constant. Final results will be
+  appended when the soak completes. Evidence: workspace `notes/m12/`.
+- **Remaining cost:** URL playback uses software decoding. Enabling VA decoders measured 60% for
+  HLS 1080p and 61% for YouTube, but live HLS segfaulted within 12 seconds. `gtk4paintablesink`
+  would add a dependency and was not adopted.
+
+## M13 — Security, robustness, compatibility
+
+- **Status:** PARTIAL; Linux security and robustness evidence is recorded; the full exit gate is
+  incomplete.
+- **Commit:** `f72a92ffc` runs yt-dlp in its own process group. A 30-second timeout or 32 MiB
+  stdout limit kills the group and reaps the child. Flatpak uses
+  `flatpak-spawn --host --watch-bus`; resolved format URLs must be HTTP(S).
+- **Audit:** yt-dlp uses an argv array without a shell, passes no cookies or credentials, and has
+  a 64 KiB stderr cap. Config URLs accept HTTP(S); private-network targets are allowed when
+  user-chosen. Redirects to `file://` are rejected by libsoup. Logs redact URLs and suppress
+  GStreamer error details containing `://`. Image inputs are limited to 64 Mpixel and 256 MiB;
+  GIF canvas arithmetic is overflow-checked. See [SECURITY](SECURITY.md) and workspace
+  `notes/m13/research-r1.md`.
+- **Fault checks:** The debug-build matrix recorded 18 cases. Every case left the process alive,
+  the main loop responsive to a D-Bus action, and zero CRITICAL messages. Corrupt media, missing
+  files, HTTP failures, resolver failures, oversized output, hangs, and mid-body disconnects
+  produced the recorded failure or retry states in [TEST_MATRIX](TEST_MATRIX.md); evidence is
+  workspace `notes/m13/fault-matrix.txt`.
+- **Platform and isolation:** X11 through XWayland played local video, live HLS, GIF, and PNG;
+  terminal text remained over the media. Native Xorg is untested. With media disabled there are
+  zero media threads; Ghostty uses GStreamer through `dlopen`, and the executable's NEEDED list
+  has no GStreamer, libsoup, or AV libraries. The path audit against `24fa0219908a` found no
+  changes in `macos/`, `BACKGROUND_VIDEO.md`, `src/apprt/embedded.zig`, or the
+  `background_video` block in `src/renderer/generic.zig`; `background-video` semantics are
+  unchanged.
+- **Remaining gaps:** Human terminal regression is owed (shell input, SSH, editor TUI, mouse
+  modes, copy/paste, drag selection, Ctrl shortcuts, IME, colors, fonts, tabs, splits, and
+  resize). Native Xorg is untested. Ghostty's full original `zig build test` is scheduled after
+  the soak. All macOS items—build, inherited video smoke, and link audit—are deferred by the
+  2026-10-24 user decision. The remote-HLS `file://` segment behavior and a yt-dlp process that
+  outlives app exit remain low-risk open findings.
 
 ## How to resume
 

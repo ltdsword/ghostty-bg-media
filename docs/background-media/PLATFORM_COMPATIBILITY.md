@@ -5,17 +5,23 @@ macOS runtime item remains UNVERIFIED until a macOS build and smoke test are rec
 
 ## Support matrix
 
-| Capability | macOS | Linux / Ubuntu 26.04 | Status |
-| --- | --- | --- | --- |
-| Original video background | Inherited implementation | Not required | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED |
-| Static background image | Inherited image path | Supported (M04: PNG/JPEG/WebP) | macOS inherited; runtime UNVERIFIED; Linux M04 PARTIAL |
-| Animated GIF | No added parity commitment | Supported (M06: built-in decoder) | macOS runtime UNVERIFIED; Linux M06 PARTIAL |
-| Local video | Inherited AVFoundation path | Supported (M05: GTK/GStreamer; MP4/H.264, WebM, MKV) | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
-| Direct HTTP(S) / HLS | No added parity commitment | Supported (M07: GStreamer URL player) | macOS inherited; runtime UNVERIFIED; Linux M07 DONE |
-| YouTube recorded/live | Inherited resolver/settings | Supported via user-installed yt-dlp (M08/M09) | macOS inherited; runtime UNVERIFIED; Linux M08/M09 DONE (real YouTube verified 2026-10-24; video-only, D-020) |
-| Settings UI | Existing Swift/AppKit panel | GTK4/libadwaita panel (M10) | macOS inherited; runtime UNVERIFIED; Linux M10 DONE |
-| Media dependencies | Existing native stack | GTK/GStreamer from the GNOME runtime plus `org.freedesktop.Platform.codecs-extra` | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL |
-| Build and test | Separate macOS lane | Separate Linux lane | macOS UNVERIFIED; Linux baseline partial |
+| Capability                | macOS                       | Linux / Ubuntu 26.04                                                              | Status                                                                                                        |
+| ------------------------- | --------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Original video background | Inherited implementation    | Not required                                                                      | macOS inherited; runtime UNVERIFIED; Linux NOT_STARTED                                                        |
+| Static background image   | Inherited image path        | Supported (M04: PNG/JPEG/WebP)                                                    | macOS inherited; runtime UNVERIFIED; Linux M04 PARTIAL                                                        |
+| Animated GIF              | No added parity commitment  | Supported (M06: built-in decoder)                                                 | macOS runtime UNVERIFIED; Linux M06 PARTIAL                                                                   |
+| Local video               | Inherited AVFoundation path | Supported (M05: GTK/GStreamer; MP4/H.264, WebM, MKV)                              | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL                                                        |
+| Direct HTTP(S) / HLS      | No added parity commitment  | Supported (M07: GStreamer URL player)                                             | macOS inherited; runtime UNVERIFIED; Linux M07 DONE                                                           |
+| YouTube recorded/live     | Inherited resolver/settings | Supported via user-installed yt-dlp (M08/M09)                                     | macOS inherited; runtime UNVERIFIED; Linux M08/M09 DONE (real YouTube verified 2026-10-24; video-only, D-020) |
+| Settings UI               | Existing Swift/AppKit panel | GTK4/libadwaita panel (M10)                                                       | macOS inherited; runtime UNVERIFIED; Linux M10 DONE                                                           |
+| Background-media blur     | No added parity commitment  | Supported by GTK snapshot blur; media only                                        | macOS unchanged; Linux M12 DONE; blur cost not benchmarked separately                                         |
+| URL video texture upload  | No added parity commitment  | I420 YUV texture on GTK 4.20+; RGBA fallback on older GTK                         | macOS unchanged; Linux M12 DONE; color checked against RGBA path                                              |
+| Media dependencies        | Existing native stack       | GTK/GStreamer from the GNOME runtime plus `org.freedesktop.Platform.codecs-extra` | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL                                                        |
+| X11 via XWayland          | No added parity commitment  | Video, live HLS, GIF, and PNG verified; terminal text stays over media            | macOS not applicable; Linux M13 verified                                                                      |
+| Native Xorg               | No added parity commitment  | Not tested                                                                        | macOS not applicable; Linux M13 untested                                                                      |
+| Media disabled            | No added parity commitment  | Zero media threads; GTK may map its GStreamer libraries                           | macOS not applicable; Linux M13 verified                                                                      |
+| GStreamer linkage         | Existing native stack       | Ghostty uses `dlopen`; no GStreamer/libsoup/AV libraries in its NEEDED list       | macOS build/link audit UNVERIFIED (deferred); Linux M13 audit recorded                                        |
+| Build and test            | Separate macOS lane         | Separate Linux lane                                                               | macOS UNVERIFIED (deferred); Linux M12 DONE; M13 PARTIAL                                                      |
 
 Source-level macOS capability notes, including image-format gaps and the protected implementation,
 are in [MACOS_BASELINE.md](MACOS_BASELINE.md). The table does not claim feature parity beyond the
@@ -36,12 +42,12 @@ inherited paths.
 
 The M03 config contract is:
 
-| Config values | macOS | Linux / GTK |
-| --- | --- | --- |
-| Only `background-media` | Ignore `background-media*`; inherited `background-video*` behavior is unchanged | Use `background-media*` |
-| Only `background-video` | Existing `background-video*` behavior is unchanged | Ignore `background-video*` |
-| Both `background-media` and `background-video` | Ignore `background-media*`; existing `background-video*` behavior is unchanged | Use `background-media*`; ignore `background-video*` |
-| `background-image` plus `background-media` | Ignore `background-media*`; preserve existing image behavior | Use `background-media` as the media layer; the terminal renderer draws `background-image` above it |
+| Config values                                  | macOS                                                                           | Linux / GTK                                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Only `background-media`                        | Ignore `background-media*`; inherited `background-video*` behavior is unchanged | Use `background-media*`                                                                            |
+| Only `background-video`                        | Existing `background-video*` behavior is unchanged                              | Ignore `background-video*`                                                                         |
+| Both `background-media` and `background-video` | Ignore `background-media*`; existing `background-video*` behavior is unchanged  | Use `background-media*`; ignore `background-video*`                                                |
+| `background-image` plus `background-media`     | Ignore `background-media*`; preserve existing image behavior                    | Use `background-media` as the media layer; the terminal renderer draws `background-image` above it |
 
 Linux does not fall back from `background-media` to `background-video`. The terminal renderer's
 existing image and color composition remains intact. See [BASELINE.md §§6–7](BASELINE.md#7-configuration-and-reload).
@@ -59,12 +65,12 @@ existing image and color composition remains intact. See [BASELINE.md §§6–7]
 
 ## Ownership and dependency isolation
 
-| Area | Owner and boundary |
-| --- | --- |
-| macOS legacy | Protected `macos/**` implementation, existing Swift UI/player/settings, and inherited behavior |
+| Area                 | Owner and boundary                                                                                                                      |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| macOS legacy         | Protected `macos/**` implementation, existing Swift UI/player/settings, and inherited behavior                                          |
 | Linux implementation | Linux-only GTK controller, view, resolver, decoder, and lifecycle under `src/apprt/gtk/**`; select at the platform composition boundary |
-| Shared core | Neutral configuration values, parsing, validation, and defaults only; no GUI, decoder, renderer handle, or platform runtime dependency |
-| Distribution | Fork-specific packaging and independent build/validation workflows |
+| Shared core          | Neutral configuration values, parsing, validation, and defaults only; no GUI, decoder, renderer handle, or platform runtime dependency  |
+| Distribution         | Fork-specific packaging and independent build/validation workflows                                                                      |
 
 GTK also serves FreeBSD in this repository; Linux media modules and dependencies must be selected
 only for Linux. The full protected-path inventory is in
@@ -94,13 +100,13 @@ proposed module boundary is in [BASELINE.md §9](BASELINE.md#9-proposed-linux-mo
 No macOS build, CI, or runtime lane has produced evidence. Build and runtime remain UNVERIFIED;
 an independent CI lane is planned for M15. See [MACOS_BASELINE.md §7](MACOS_BASELINE.md#7-macos-build-recipe).
 
-| Test ID | Current status | Evidence / reason |
-| --- | --- | --- |
-| ISO-01 — Linux imports macOS frameworks | PASS | [latest quick gate](evidence/m02/gate-quick.txt): no Apple frameworks in GTK code |
-| ISO-02 — macOS links Linux media libraries | UNVERIFIED | [latest quick gate](evidence/m02/gate-quick.txt) is not a macOS build; macOS build graph/CI remains unverified |
-| ISO-03 — protected macOS paths unchanged | PASS | [latest quick gate](evidence/m02/gate-quick.txt): macOS unchanged since baseline |
-| MAC-01 — inherited macOS config/playback | UNVERIFIED | No macOS build or device smoke; see [MACOS_BASELINE.md §6](MACOS_BASELINE.md#6-baseline-behavior-to-regress-against-mac-01) |
-| MAC-02 — app works without Linux media dependencies | UNVERIFIED | No macOS build/launch evidence; CI lane planned for M15 |
+| Test ID                                             | Current status | Evidence / reason                                                                                                           |
+| --------------------------------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| ISO-01 — Linux imports macOS frameworks             | PASS           | [latest quick gate](evidence/m02/gate-quick.txt): no Apple frameworks in GTK code                                           |
+| ISO-02 — macOS links Linux media libraries          | UNVERIFIED     | [latest quick gate](evidence/m02/gate-quick.txt) is not a macOS build; macOS build graph/CI remains unverified              |
+| ISO-03 — protected macOS paths unchanged            | PASS           | [latest quick gate](evidence/m02/gate-quick.txt): macOS unchanged since baseline                                            |
+| MAC-01 — inherited macOS config/playback            | UNVERIFIED     | No macOS build or device smoke; see [MACOS_BASELINE.md §6](MACOS_BASELINE.md#6-baseline-behavior-to-regress-against-mac-01) |
+| MAC-02 — app works without Linux media dependencies | UNVERIFIED     | No macOS build/launch evidence; CI lane planned for M15                                                                     |
 
 ## Linux build lanes (D-012, 2026-10-24)
 
@@ -110,3 +116,19 @@ an independent CI lane is planned for M15. See [MACOS_BASELINE.md §7](MACOS_BAS
   2026-10-24.** Distribution lane and the supported path for distros too old for a native build,
   including Ubuntu 24.04.
 - Both lanes build the same source; no lane-specific code.
+
+## M12/M13 Linux compatibility notes (2026-10-24)
+
+- `background-media-blur` is a Linux GTK setting. Snapshot blur affects the media paintable only;
+  dim is applied afterward and terminal text stays sharp. macOS is unchanged.
+- On GTK 4.20 or newer, URL playback uploads I420 YUV textures for GPU conversion. Older GTK
+  versions use RGBA; a color-state construction failure also falls back to RGBA.
+- X11 through XWayland (`GDK_BACKEND=x11`) was checked with local video, live HLS, animated GIF,
+  and PNG; terminal text remained over the media. Native Xorg is untested. Evidence: workspace
+  `notes/m13/x11-text.png` and workspace `notes/m13/research-r1.md`.
+- With media disabled, Ghostty starts zero media threads. Ubuntu's GTK may map GStreamer
+  libraries because GTK links them; Ghostty's own GStreamer use is through `dlopen`. The
+  executable's NEEDED list has no GStreamer, libsoup, or AV libraries. Evidence: workspace
+  `notes/m13/research-r1.md`.
+- Linux M12 is DONE and Linux M13 is PARTIAL. macOS build, inherited video smoke, and link audit
+  are UNVERIFIED and deferred by the 2026-10-24 user decision.

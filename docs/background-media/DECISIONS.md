@@ -3,6 +3,53 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-024 Kill the yt-dlp process group; HTTP(S)-only format URLs
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** Killing only the yt-dlp child on timeout or oversized stdout left descendants able
+  to keep stdout open, hang resolution, and survive as orphans. Resolved format URLs also needed
+  an explicit scheme check.
+- **Decision:** Spawn yt-dlp in its own process group (`pgid = 0`), kill the whole group after the
+  30-second timeout or 32 MiB stdout limit, then reap the child. In Flatpak, use
+  `flatpak-spawn --host --watch-bus`. Accept resolved format URLs only when they use HTTP or
+  HTTPS.
+- **Consequences:** Resolver timeouts report `resolve_timeout` at about 30 seconds, and child
+  descendants are killed with the group. A yt-dlp process still running when the app exits can
+  continue until it ends.
+- **Evidence:** workspace `notes/m13/research-r1.md`; [SECURITY](SECURITY.md).
+
+## D-023 Upload URL frames as YUV textures on GTK 4.20+
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** CPU conversion of URL video from YUV to RGBA was a significant part of 1080p HLS
+  CPU use.
+- **Decision:** On GTK 4.20 or newer, request I420 from the URL player appsink and create
+  `GdkMemoryTextureBuilder` textures in `g8_b8_r8_420`. Use narrow-range CICP and BT.709 for
+  heights of at least 720 pixels, otherwise BT.601. Keep RGBA on older GTK or when the color state
+  cannot be built.
+- **Consequences:** GDK/GPU converts to RGB and Ghostty copies 1.5 bytes per pixel rather than 4.
+  Colors were checked against the RGBA path; the layout math has three tests. Local video is
+  unchanged.
+- **Evidence:** [PERFORMANCE](PERFORMANCE.md); workspace `notes/m12/color-rgba.png`; workspace
+  `notes/m12/color-yuv.png`.
+
+## D-022 Add `background-media-blur`
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **Context:** The Linux GTK media layer needed a user-controlled blur effect while keeping
+  terminal text sharp.
+- **User decision:** M12 D1, “A: Add blur (Recommended)”.
+- **Decision:** Add `background-media-blur`, an `f32` pixel radius clamped to `0..40`, defaulting
+  to `0` with NaN mapped to `0`. Apply GTK snapshot blur to the media paintable only; apply dim
+  afterward. Add the Appearance panel slider and persist its value.
+- **Consequences:** Blur affects the media only and uses GPU work; its cost was not benchmarked
+  separately. This is Linux GTK behavior; macOS remains unchanged.
+- **Evidence:** [PERFORMANCE](PERFORMANCE.md); workspace `notes/m12/blur-0.png`; workspace
+  `notes/m12/blur-20.png`.
+
 ## D-021 Keep and reuse local video players; loop in Ghostty
 
 - **Status:** ACCEPTED
@@ -72,6 +119,8 @@ docs and logs.
 - **Context:** Intel's iHD VA driver crashed in-process after about 60 s of live HLS.
 - **Decision:** After GStreamer initialization, demote VA/VAAPI features to rank 0 for URL playback.
 - **Consequences:** Revisit hardware decoding in M12; URL playback uses software decoding meanwhile.
+- 2026-10-24 retest: live HLS segfault within 12 s; still disabled.
+- **Evidence:** workspace `notes/m12/bench-hw.txt`.
 
 ## D-014 Linux URL playback uses a GStreamer player
 
