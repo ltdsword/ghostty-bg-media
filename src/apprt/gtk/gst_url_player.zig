@@ -36,6 +36,7 @@ const Api = struct {
     element_get_bus: *const fn (*anyopaque) callconv(.c) ?*anyopaque,
     bus_add_signal_watch: *const fn (*anyopaque) callconv(.c) void,
     bus_remove_signal_watch: *const fn (*anyopaque) callconv(.c) void,
+    object_ref_sink: *const fn (*anyopaque) callconv(.c) ?*anyopaque,
     object_unref: *const fn (*anyopaque) callconv(.c) void,
     message_parse_error: *const fn (*anyopaque, ?*?*glib.Error, ?*?[*:0]u8) callconv(.c) void,
     element_query_duration: *const fn (*anyopaque, c_int, *i64) callconv(.c) c_int,
@@ -98,6 +99,7 @@ pub fn create(uri: [:0]const u8, volume: f32, callbacks: Callbacks) ?*Player {
 
     var pipeline: ?*anyopaque = api.element_factory_make("playbin3", null) orelse
         api.element_factory_make("playbin", null) orelse return null;
+    _ = api.object_ref_sink(pipeline.?);
     defer if (pipeline) |value| api.object_unref(value);
 
     var parse_error: ?*glib.Error = null;
@@ -109,6 +111,8 @@ pub fn create(uri: [:0]const u8, volume: f32, callbacks: Callbacks) ?*Player {
         if (parse_error) |error_value| error_value.free();
         return null;
     };
+    // We own a full ref; playbin takes its own; our deferred unref stays correct.
+    _ = api.object_ref_sink(sink_bin);
     defer api.object_unref(sink_bin);
     defer if (parse_error) |error_value| error_value.free();
 
@@ -228,6 +232,7 @@ fn getApi() ?*const Api {
         .element_get_bus = symbol(@TypeOf(@as(Api, undefined).element_get_bus), gst, "gst_element_get_bus") orelse return unavailableApi(),
         .bus_add_signal_watch = symbol(@TypeOf(@as(Api, undefined).bus_add_signal_watch), gst, "gst_bus_add_signal_watch") orelse return unavailableApi(),
         .bus_remove_signal_watch = symbol(@TypeOf(@as(Api, undefined).bus_remove_signal_watch), gst, "gst_bus_remove_signal_watch") orelse return unavailableApi(),
+        .object_ref_sink = symbol(@TypeOf(@as(Api, undefined).object_ref_sink), gst, "gst_object_ref_sink") orelse return unavailableApi(),
         .object_unref = symbol(@TypeOf(@as(Api, undefined).object_unref), gst, "gst_object_unref") orelse return unavailableApi(),
         .message_parse_error = symbol(@TypeOf(@as(Api, undefined).message_parse_error), gst, "gst_message_parse_error") orelse return unavailableApi(),
         .element_query_duration = symbol(@TypeOf(@as(Api, undefined).element_query_duration), gst, "gst_element_query_duration") orelse return unavailableApi(),
