@@ -41,7 +41,7 @@ pub const MediaPanel = extern struct {
         fit_row: *adw.ComboRow,
         position_row: *adw.ComboRow,
         dim_scale: *gtk.Scale,
-        status_row: *adw.ActionRow,
+        playback_row: *adw.ActionRow,
         retry_button: *gtk.Button,
         live_button: *gtk.Button,
         play_button: *gtk.Button,
@@ -376,7 +376,7 @@ pub const MediaPanel = extern struct {
             else => if (info.retry_pending) appendReconnectStatus(&buffer, &len, info.attempts),
         }
 
-        priv.status_row.setSubtitle(buffer[0..len :0]);
+        priv.playback_row.setSubtitle(buffer[0..len :0]);
         priv.retry_button.as(gtk.Widget).setVisible(@intFromBool(info.status == .failed or info.retry_pending));
         priv.live_button.as(gtk.Widget).setVisible(@intFromBool(info.live.is_live));
         priv.play_button.setLabel(if (media_overrides.get().paused) i18n._("Play") else i18n._("Pause"));
@@ -454,7 +454,7 @@ pub const MediaPanel = extern struct {
             class.bindTemplateChildPrivate("fit_row", .{});
             class.bindTemplateChildPrivate("position_row", .{});
             class.bindTemplateChildPrivate("dim_scale", .{});
-            class.bindTemplateChildPrivate("status_row", .{});
+            class.bindTemplateChildPrivate("playback_row", .{});
             class.bindTemplateChildPrivate("retry_button", .{});
             class.bindTemplateChildPrivate("live_button", .{});
             class.bindTemplateChildPrivate("play_button", .{});

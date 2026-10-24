@@ -41,13 +41,19 @@ template $GhosttyMediaPanel: Adw.Dialog {
               apply => $source_applied();
             }
 
-            Adw.ActionRow status_row {
-              title: _("Status");
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Playback");
+
+            Adw.ActionRow playback_row {
+              title: _("Playback");
 
               [suffix]
               Gtk.Button retry_button {
                 label: _("Retry");
                 visible: false;
+                valign: center;
                 clicked => $retry();
               }
 
@@ -55,71 +61,9 @@ template $GhosttyMediaPanel: Adw.Dialog {
               Gtk.Button live_button {
                 label: _("Go Live");
                 visible: false;
+                valign: center;
                 clicked => $go_live();
               }
-            }
-          }
-
-          Adw.PreferencesGroup {
-            title: _("Appearance");
-
-            Adw.ComboRow fit_row {
-              title: _("Fit");
-              model: Gtk.StringList {
-                strings [
-                  _("contain"),
-                  _("cover"),
-                  _("stretch"),
-                  _("none")
-                ]
-              };
-              notify::selected => $fit_changed();
-            }
-
-            Adw.ComboRow position_row {
-              title: _("Position");
-              model: Gtk.StringList {
-                strings [
-                  _("center"),
-                  _("top-left"),
-                  _("top-center"),
-                  _("top-right"),
-                  _("center-left"),
-                  _("center-right"),
-                  _("bottom-left"),
-                  _("bottom-center"),
-                  _("bottom-right")
-                ]
-              };
-              notify::selected => $position_changed();
-            }
-
-            Adw.ActionRow {
-              title: _("Dim");
-
-              [suffix]
-              Gtk.Scale dim_scale {
-                accessibility {
-                  label: _("Dim");
-                }
-                orientation: horizontal;
-                width-request: 200;
-                adjustment: Gtk.Adjustment {
-                  lower: 0;
-                  upper: 1;
-                  step-increment: 0.05;
-                  page-increment: 0.05;
-                };
-                value-changed => $dim_changed();
-              }
-            }
-          }
-
-          Adw.PreferencesGroup {
-            title: _("Playback");
-
-            Adw.ActionRow {
-              title: _("Playback");
 
               [suffix]
               Gtk.Button play_button {
@@ -216,6 +160,61 @@ template $GhosttyMediaPanel: Adw.Dialog {
                   group: fps30_button;
                   toggled => $fps_toggled();
                 }
+              }
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Appearance");
+
+            Adw.ComboRow fit_row {
+              title: _("Fit");
+              model: Gtk.StringList {
+                strings [
+                  _("contain"),
+                  _("cover"),
+                  _("stretch"),
+                  _("none")
+                ]
+              };
+              notify::selected => $fit_changed();
+            }
+
+            Adw.ComboRow position_row {
+              title: _("Position");
+              model: Gtk.StringList {
+                strings [
+                  _("center"),
+                  _("top-left"),
+                  _("top-center"),
+                  _("top-right"),
+                  _("center-left"),
+                  _("center-right"),
+                  _("bottom-left"),
+                  _("bottom-center"),
+                  _("bottom-right")
+                ]
+              };
+              notify::selected => $position_changed();
+            }
+
+            Adw.ActionRow {
+              title: _("Dim");
+
+              [suffix]
+              Gtk.Scale dim_scale {
+                accessibility {
+                  label: _("Dim");
+                }
+                orientation: horizontal;
+                width-request: 200;
+                adjustment: Gtk.Adjustment {
+                  lower: 0;
+                  upper: 1;
+                  step-increment: 0.05;
+                  page-increment: 0.05;
+                };
+                value-changed => $dim_changed();
               }
             }
           }
