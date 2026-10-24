@@ -181,7 +181,7 @@ fn liveStatus(live_status: ?[]const u8, is_live: ?bool) LiveStatus {
 }
 
 fn chooseFormat(formats: []const Raw.RawFormat, max_height: u32, fps_cap: u32) ?usize {
-    for (0..3) |tier| {
+    for (0..4) |tier| {
         var best: ?usize = null;
         for (formats, 0..) |format, index| {
             if (!eligible(format, max_height)) continue;
@@ -217,6 +217,7 @@ fn tierOf(format: Raw.RawFormat) ?usize {
     if (isHls(protocol) and has_audio) return 0;
     if (std.mem.eql(u8, protocol, "https") and has_audio) return 1;
     if (std.mem.eql(u8, protocol, "https") and !has_audio) return 2;
+    if (isHls(protocol) and !has_audio) return 3;
     return null;
 }
 
@@ -306,7 +307,7 @@ test "resolve reports playlist and malformed JSON errors" {
     try std.testing.expectEqual(Fatal.bad_json, fatalOf(error.BadJson));
 }
 
-test "format tiers prefer HLS audio, then HTTPS audio, then HTTPS video" {
+test "format tiers prefer HLS audio, then HTTPS audio, then HTTPS video, then HLS video" {
     const hls_json = "{\"formats\":[{\"format_id\":\"hls\",\"url\":\"https://cdn.example/hls\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"aac\",\"height\":360},{\"format_id\":\"https\",\"url\":\"https://cdn.example/direct\",\"protocol\":\"https\",\"vcodec\":\"vp09\",\"acodec\":\"opus\",\"height\":720}]}";
     var hls = try resolve(std.testing.allocator, hls_json, default_max_height, 0);
     defer hls.deinit();
@@ -324,6 +325,21 @@ test "format tiers prefer HLS audio, then HTTPS audio, then HTTPS video" {
     defer video.deinit();
     try std.testing.expectEqualStrings("video", video.info.format_id);
     try std.testing.expect(!video.info.has_audio);
+
+    const video_priority_json = "{\"formats\":[{\"format_id\":\"hls-video\",\"url\":\"https://cdn.example/hls-video.m3u8\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":720},{\"format_id\":\"https-video\",\"url\":\"https://cdn.example/https-video\",\"protocol\":\"https\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":720}]}";
+    var video_priority = try resolve(std.testing.allocator, video_priority_json, default_max_height, 0);
+    defer video_priority.deinit();
+    try std.testing.expectEqualStrings("https-video", video_priority.info.format_id);
+}
+
+test "live HLS without audio resolves" {
+    const json = "{\"live_status\":\"is_live\",\"formats\":[{\"format_id\":\"232\",\"url\":\"https://cdn.example/live.m3u8\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1.4D401F\",\"acodec\":\"none\",\"height\":720},{\"format_id\":\"270\",\"url\":\"https://cdn.example/1080.m3u8\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1.640028\",\"acodec\":\"none\",\"height\":1080}]}";
+    var resolved = try resolve(std.testing.allocator, json, default_max_height, 0);
+    defer resolved.deinit();
+    try std.testing.expectEqualStrings("232", resolved.info.format_id);
+    try std.testing.expectEqual(source.Kind.http_hls, resolved.info.url_kind);
+    try std.testing.expect(!resolved.info.has_audio);
+    try std.testing.expectEqual(LiveStatus.live, resolved.info.live);
 }
 
 test "format selection excludes unsupported codecs and excessive height" {
