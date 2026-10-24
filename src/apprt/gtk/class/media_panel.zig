@@ -360,7 +360,7 @@ pub const MediaPanel = extern struct {
             switch (info.status) {
                 .idle => appendStatus(&buffer, &len, std.mem.span(i18n._("Idle"))),
                 .loading => appendStatus(&buffer, &len, std.mem.span(i18n._("Loading"))),
-                .ready => appendStatus(&buffer, &len, std.mem.span(if (info.playing) i18n._("Playing") else i18n._("Paused"))),
+                .ready => appendStatus(&buffer, &len, std.mem.span(if (info.still) i18n._("Showing") else if (info.playing) i18n._("Playing") else i18n._("Paused"))),
                 .failed => {
                     appendStatus(&buffer, &len, std.mem.span(i18n._("Failed: ")));
                     appendStatus(&buffer, &len, info.failure);
@@ -379,7 +379,8 @@ pub const MediaPanel = extern struct {
         priv.playback_row.setSubtitle(buffer[0..len :0]);
         priv.retry_button.as(gtk.Widget).setVisible(@intFromBool(info.status == .failed or info.retry_pending));
         priv.live_button.as(gtk.Widget).setVisible(@intFromBool(info.live.is_live));
-        priv.play_button.setLabel(if (media_overrides.get().paused) i18n._("Play") else i18n._("Pause"));
+        priv.play_button.setLabel(if (media_overrides.get().paused or media_overrides.get().source == .none) i18n._("Play") else i18n._("Pause"));
+        priv.play_button.as(gtk.Widget).setSensitive(@intFromBool(!info.still));
     }
 
     fn appendStatus(buffer: *[512:0]u8, len: *usize, text: []const u8) void {

@@ -263,6 +263,8 @@ pub const StatusInfo = struct {
     kind: ?bg.source.Kind,
     has_source: bool,
     playing: bool,
+    /// A still image is shown; nothing to play or pause.
+    still: bool,
     /// This slice points into the loader buffer and is valid until the next loader change.
     failure: []const u8,
     attempts: u32,
@@ -276,7 +278,8 @@ pub fn statusInfo() StatusInfo {
         .status = loader.status,
         .kind = kind,
         .has_source = kind != null,
-        .playing = (loader.url_player != null or loader.stream != null) and playWanted(),
+        .playing = (loader.url_player != null or loader.stream != null or loader.anim != null) and playWanted(),
+        .still = loader.status == .ready and kind != null and loader.url_player == null and loader.stream == null and loader.anim == null,
         .failure = loader.last_failure[0..loader.last_failure_len],
         .attempts = loader.failed_attempts,
         .retry_pending = loader.retry_timer != 0 or loader.poll_timer != 0,
