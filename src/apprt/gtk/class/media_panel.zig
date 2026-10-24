@@ -34,6 +34,8 @@ pub const MediaPanel = extern struct {
         syncing: bool = false,
         diagnostics_loaded: bool = false,
         status_timer: c_uint = 0,
+        quality_heights: [12]u32 = [_]u32{0} ** 12,
+        quality_len: u8 = 0,
 
         toast_overlay: *adw.ToastOverlay,
         source_row: *adw.EntryRow,
@@ -56,6 +58,7 @@ pub const MediaPanel = extern struct {
         background_row: *adw.SwitchRow,
         fps30_button: *gtk.ToggleButton,
         fps60_button: *gtk.ToggleButton,
+        quality_row: *adw.ComboRow,
         diag_row: *adw.ExpanderRow,
         gst_row: *adw.ActionRow,
         ytdlp_row: *adw.ActionRow,
@@ -132,6 +135,8 @@ pub const MediaPanel = extern struct {
         const max_fps = overrides.max_fps orelse config.@"background-media-max-fps";
         priv.fps30_button.setActive(@intFromBool(max_fps == 30));
         priv.fps60_button.setActive(@intFromBool(max_fps == 60));
+        priv.quality_row.as(gtk.Widget).setVisible(@intFromBool(priv.quality_len > 0));
+        selectQuality(priv, priv.quality_heights[0..priv.quality_len], media_loader.youtubeQualities().current);
     }
 
     fn onSourceApplied(_: *adw.EntryRow, self: *Self) callconv(.c) void {
@@ -229,6 +234,17 @@ pub const MediaPanel = extern struct {
         media_overrides.setMaxFps(if (button == priv.fps30_button) 30 else 60);
     }
 
+    fn onQualityChanged(row: *adw.ComboRow, _: *gobject.ParamSpec, self: *Self) callconv(.c) void {
+        const priv = self.private();
+        if (priv.syncing) return;
+        const selected = row.getSelected();
+        if (selected == 0) {
+            media_overrides.setYoutubeQuality(0);
+        } else if (selected <= @as(u32, priv.quality_len)) {
+            media_overrides.setYoutubeQuality(priv.quality_heights[@intCast(selected - 1)]);
+        }
+    }
+
     fn onTogglePlay(_: *gtk.Button, self: *Self) callconv(.c) void {
         const text = std.mem.span(self.private().source_row.as(gtk.Editable).getText());
         if (media_overrides.get().source == .none and text.len > 0) {
@@ -293,6 +309,10 @@ pub const MediaPanel = extern struct {
             bg.layout.Position,
             @tagName(config.@"background-media-position"),
         ).?;
+        const configured_youtube_quality: u32 = switch (config.@"background-media-youtube-quality") {
+            .auto => 0,
+            .height => |height| height,
+        };
         const values: media_config_save.Values = .{
             .source = source,
             .fit = @tagName(fit),
@@ -303,6 +323,7 @@ pub const MediaPanel = extern struct {
             .volume = overrides.volume orelse config.@"background-media-volume",
             .play_in_background = overrides.play_in_background orelse config.@"background-media-play-in-background",
             .max_fps = overrides.max_fps orelse config.@"background-media-max-fps",
+            .youtube_quality = overrides.youtube_quality orelse configured_youtube_quality,
         };
 
         var result = media_config_save.save(alloc, values) catch |err| {
@@ -336,8 +357,24 @@ pub const MediaPanel = extern struct {
         const priv = self.private();
         const info = media_loader.statusInfo();
         const pb = media_loader.playback();
+        const qualities = media_loader.youtubeQualities();
         var buffer: [512:0]u8 = undefined;
         var len: usize = 0;
+
+        {
+            const was_syncing = priv.syncing;
+            priv.syncing = true;
+            priv.quality_row.as(gtk.Widget).setVisible(@intFromBool(qualities.heights.len > 0));
+            if (qualities.heights.len != priv.quality_len or
+                !std.mem.eql(u32, qualities.heights, priv.quality_heights[0..priv.quality_len]))
+            {
+                rebuildQualityList(priv, qualities.heights);
+                priv.quality_len = @intCast(qualities.heights.len);
+                @memcpy(priv.quality_heights[0..qualities.heights.len], qualities.heights);
+            }
+            selectQuality(priv, qualities.heights, qualities.current);
+            priv.syncing = was_syncing;
+        }
 
         priv.seek_row.as(gtk.Widget).setVisible(@intFromBool(pb.seekable));
         priv.off_button.as(gtk.Widget).setSensitive(@intFromBool(info.has_source));
@@ -402,6 +439,33 @@ pub const MediaPanel = extern struct {
         const suffix = std.fmt.bufPrint(buffer[len.*..], std.mem.span(i18n._(" · Reconnecting (attempt {d})")), .{attempts}) catch return;
         len.* += suffix.len;
         buffer[len.*] = 0;
+    }
+
+    fn rebuildQualityList(priv: *Private, heights: []const u32) void {
+        const list_model = priv.quality_row.getModel().?;
+        const model = gobject.ext.cast(gtk.StringList, list_model) orelse unreachable;
+        while (list_model.getNItems() > 0) model.remove(0);
+        model.append(i18n._("Auto (720p)"));
+        for (heights) |height| {
+            const suffix = if (height > 1080) std.mem.span(i18n._(" (high CPU)")) else "";
+            const label = std.fmt.allocPrintSentinel(alloc, "{d}p{s}", .{ height, suffix }, 0) catch unreachable;
+            defer alloc.free(label);
+            model.append(label);
+        }
+    }
+
+    fn selectQuality(priv: *Private, heights: []const u32, quality: u32) void {
+        if (heights.len == 0) return;
+        if (quality == 0) {
+            priv.quality_row.setSelected(0);
+            return;
+        }
+        var selected: u32 = 1;
+        for (heights, 0..) |height, index| {
+            if (height > quality) break;
+            selected = @intCast(index + 1);
+        }
+        priv.quality_row.setSelected(selected);
     }
 
     fn formatTime(buffer: *[32:0]u8, microseconds: i64) [:0]const u8 {
@@ -478,6 +542,7 @@ pub const MediaPanel = extern struct {
             class.bindTemplateChildPrivate("background_row", .{});
             class.bindTemplateChildPrivate("fps30_button", .{});
             class.bindTemplateChildPrivate("fps60_button", .{});
+            class.bindTemplateChildPrivate("quality_row", .{});
             class.bindTemplateChildPrivate("diag_row", .{});
             class.bindTemplateChildPrivate("gst_row", .{});
             class.bindTemplateChildPrivate("ytdlp_row", .{});
@@ -494,6 +559,7 @@ pub const MediaPanel = extern struct {
             class.bindTemplateCallback("volume_changed", &onVolumeChanged);
             class.bindTemplateCallback("background_changed", &onBackgroundChanged);
             class.bindTemplateCallback("fps_toggled", &onFpsToggled);
+            class.bindTemplateCallback("quality_changed", &onQualityChanged);
             class.bindTemplateCallback("toggle_play", &onTogglePlay);
             class.bindTemplateCallback("turn_off", &onTurnOff);
             class.bindTemplateCallback("seek_changed", &onSeekChanged);

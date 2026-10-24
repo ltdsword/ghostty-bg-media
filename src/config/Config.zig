@@ -789,6 +789,15 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// This can be changed at runtime by reloading the configuration.
 @"background-media-max-fps": u32 = 30,
 
+/// The preferred maximum height of YouTube video, in pixels, or `auto` (720). The
+/// background media panel lists the heights the current video offers. If a video
+/// has no height at or below this value, its smallest one is used. Heights above
+/// 1080 are VP9 only and use much more CPU. The default value is `auto`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-youtube-quality": background_media.YoutubeQuality = .auto,
+
 /// Video to play behind the terminal, looping. Only supported on macOS,
 /// where it can also be set from View > Background Video….
 ///
@@ -11570,6 +11579,7 @@ test "background-media defaults" {
     try testing.expectEqual(@as(f32, 0.0), cfg.@"background-media-volume");
     try testing.expect(!cfg.@"background-media-play-in-background");
     try testing.expectEqual(@as(u32, 30), cfg.@"background-media-max-fps");
+    try testing.expect(cfg.@"background-media-youtube-quality" == .auto);
 }
 
 test "background-media paths expand and URLs do not" {

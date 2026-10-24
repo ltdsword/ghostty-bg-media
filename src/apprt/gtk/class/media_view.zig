@@ -156,6 +156,10 @@ pub const MediaView = extern struct {
         defer config_obj.unref();
         const config = config_obj.get();
         const overrides = media_overrides.get();
+        const configured_youtube_quality: u32 = switch (config.@"background-media-youtube-quality") {
+            .auto => 0,
+            .height => |height| height,
+        };
 
         priv.fit = overrides.fit orelse std.meta.stringToEnum(bg.layout.Fit, @tagName(config.@"background-media-fit")).?;
         priv.position = overrides.position orelse std.meta.stringToEnum(bg.layout.Position, @tagName(config.@"background-media-position")).?;
@@ -172,6 +176,7 @@ pub const MediaView = extern struct {
             .volume = overrides.volume orelse config.@"background-media-volume",
             .play_in_background = overrides.play_in_background orelse config.@"background-media-play-in-background",
             .max_fps = overrides.max_fps orelse config.@"background-media-max-fps",
+            .youtube_quality = overrides.youtube_quality orelse configured_youtube_quality,
             .paused = overrides.paused,
         });
 

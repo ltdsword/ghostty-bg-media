@@ -32,6 +32,7 @@ pub const Settings = struct {
     volume: f32 = 0,
     play_in_background: bool = false,
     max_fps: u32 = 30,
+    youtube_quality: u32 = 0,
     paused: bool = false,
 };
 
@@ -65,6 +66,8 @@ const Loader = struct {
     url: ?[:0]u8 = null,
     url_kind: bg.source.Kind = .local_file,
     resolved: ?youtube_resolver.Resolved = null,
+    audio_attached: bool = false,
+    pending_seek_ns: i64 = 0,
     resolving: bool = false,
     resolved_live: bool = false,
     live_state: bg.live.State = .idle,
@@ -428,10 +431,29 @@ pub fn reapplyAll() void {
 }
 
 pub fn applySettings(settings: Settings) void {
+    const old = loader.settings;
     loader.settings = settings;
     if (loader.stream) |stream| applyStreamSettings(stream);
     if (loader.url_player) |player| gst_url_player.setVolume(player, settings.volume);
+    if (loader.url_kind == .youtube) {
+        if (old.youtube_quality != settings.youtube_quality) {
+            restartYoutube(true);
+        } else if (old.volume == 0 and settings.volume > 0 and !loader.audio_attached and
+            loader.resolved != null and loader.resolved.?.audio_url != null and loader.url_player != null)
+        {
+            restartYoutube(false);
+        }
+    }
     updatePlayState();
+}
+
+pub fn youtubeQualities() struct { heights: []const u32, current: u32 } {
+    if (loader.url_kind != .youtube) return .{ .heights = &.{}, .current = 0 };
+    const resolved = loader.resolved orelse return .{ .heights = &.{}, .current = 0 };
+    return .{
+        .heights = resolved.heights[0..resolved.heights_len],
+        .current = loader.settings.youtube_quality,
+    };
 }
 
 pub fn setViewActive(view: *MediaView, active: bool) void {
@@ -522,6 +544,8 @@ fn release() void {
     loader.resolved = null;
     loader.resolving = false;
     loader.resolved_live = false;
+    loader.pending_seek_ns = 0;
+    loader.audio_attached = false;
     loader.live_state = .idle;
     loader.stream_was_live = false;
     loader.upcoming_polls = 0;
@@ -570,6 +594,7 @@ fn dropStream() void {
     const url_source = loader.url != null or loader.url_player != null;
     if (loader.url_player) |player| gst_url_player.destroy(player);
     loader.url_player = null;
+    loader.audio_attached = false;
     if (url_source) {
         if (loader.texture) |texture_value| texture_value.unref();
         loader.texture = null;
@@ -615,7 +640,13 @@ fn connectUrl() void {
     if (loader.url_kind == .youtube and loader.resolved == null) {
         loader.live_state = .resolving;
         loader.resolving = true;
-        if (!youtube_resolver.start(source_url, loader.settings.max_fps, loader.generation, onYoutubeResolved)) {
+        if (!youtube_resolver.start(
+            source_url,
+            loader.settings.max_fps,
+            effectiveMaxHeight(loader.settings.youtube_quality),
+            loader.generation,
+            onYoutubeResolved,
+        )) {
             loader.resolving = false;
             if (loader.url_ended and loader.stream_was_live) {
                 finishLiveEnded();
@@ -625,16 +656,41 @@ fn connectUrl() void {
         }
         return;
     }
-    const media_url = if (loader.url_kind == .youtube) loader.resolved.?.url else source_url;
-    const player = gst_url_player.create(media_url, loader.settings.volume, .{
+    var paired_uri: ?[:0]u8 = null;
+    var audio_attached = false;
+    const media_url = if (loader.url_kind == .youtube) blk: {
+        const resolved = loader.resolved.?;
+        if (resolved.audio_url) |audio_url| {
+            if (loader.settings.volume > 0) {
+                paired_uri = bg.youtube.pairUri(
+                    alloc,
+                    resolved.url,
+                    audio_url,
+                    resolved.width,
+                    resolved.height,
+                    resolved.bandwidth,
+                ) catch {
+                    urlFailed("playlist_create");
+                    return;
+                };
+                audio_attached = true;
+                break :blk paired_uri.?;
+            }
+        }
+        break :blk resolved.url;
+    } else source_url;
+    const maybe_player = gst_url_player.create(media_url, loader.settings.volume, .{
         .frame = onUrlFrame,
         .failed = onUrlFailed,
         .ended = onUrlEnded,
-    }) orelse {
+    });
+    if (paired_uri) |uri| alloc.free(uri);
+    const player = maybe_player orelse {
         urlFailed("player_create");
         return;
     };
     loader.url_player = player;
+    loader.audio_attached = audio_attached;
     loader.url_ended = false;
     loader.stream_was_live = false;
     loader.paused_since_connect = false;
@@ -752,13 +808,14 @@ fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
             result.* = .missing;
             loader.resolved_live = resolved.live == .live;
             const title = resolved.title[0..@min(resolved.title.len, 80)];
-            log.info("background-media: resolved youtube id={s} title=\"{s}\" format={s} {d}p kind={s} live={s}", .{
+            log.info("background-media: resolved youtube id={s} title=\"{s}\" format={s} {d}p kind={s} live={s} audio={s}", .{
                 resolved.id,
                 title,
                 resolved.format_id,
                 resolved.height,
                 @tagName(resolved.url_kind),
                 @tagName(resolved.live),
+                if (resolved.audio_url != null) "yes" else "no",
             });
             connectUrl();
         },
@@ -812,6 +869,26 @@ fn freeResolved(resolved: youtube_resolver.Resolved) void {
     alloc.free(resolved.id);
     alloc.free(resolved.title);
     alloc.free(resolved.format_id);
+    if (resolved.audio_url) |audio_url| alloc.free(audio_url);
+}
+
+fn effectiveMaxHeight(quality: u32) u32 {
+    return if (quality == 0) bg.youtube.default_max_height else quality;
+}
+
+fn restartYoutube(re_resolve: bool) void {
+    if (!loader.resolved_live) {
+        if (loader.url_player) |player| {
+            if (gst_url_player.timing(player)) |timing| loader.pending_seek_ns = timing.position_ns;
+        }
+    }
+    dropStream();
+    if (re_resolve) {
+        if (loader.resolved) |resolved| freeResolved(resolved);
+        loader.resolved = null;
+    }
+    log.info("background-media: youtube restart reason={s}", .{if (re_resolve) "quality" else "audio"});
+    connectUrl();
 }
 
 fn onRetry(_: ?*anyopaque) callconv(.c) void {
@@ -864,6 +941,8 @@ fn finishLiveEnded() void {
         loader.watchdog_timer = 0;
     }
     loader.awaiting_first_frame = false;
+    loader.pending_seek_ns = 0;
+    loader.audio_attached = false;
     loader.last_frame_us = 0;
     dropStream();
     loader.status = .idle;
@@ -1109,6 +1188,10 @@ fn recordFrame() void {
     const now_us = glib.getMonotonicTime();
     loader.last_frame_us = now_us;
     if (loader.awaiting_first_frame) {
+        if (loader.pending_seek_ns > 0) {
+            if (loader.url_player) |player| gst_url_player.seekTo(player, loader.pending_seek_ns);
+            loader.pending_seek_ns = 0;
+        }
         loader.awaiting_first_frame = false;
         loader.status = .ready;
         notifyViews();

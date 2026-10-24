@@ -89,6 +89,34 @@ pub const Source = union(enum) {
     }
 };
 
+pub const YoutubeQuality = union(enum) {
+    auto,
+    height: u32,
+
+    pub fn parseCLI(self: *YoutubeQuality, alloc: Allocator, input: ?[]const u8) !void {
+        _ = alloc;
+        var value = input orelse return error.InvalidValue;
+        value = std.mem.trim(u8, value, cli.args.whitespace);
+        if (std.mem.eql(u8, value, "auto")) {
+            self.* = .auto;
+            return;
+        }
+
+        if (value.len == 0) return error.InvalidValue;
+        for (value) |char| if (!std.ascii.isDigit(char)) return error.InvalidValue;
+        const height = std.fmt.parseInt(u32, value, 10) catch return error.InvalidValue;
+        if (height == 0 or height > 4320) return error.InvalidValue;
+        self.* = .{ .height = height };
+    }
+
+    pub fn formatEntry(self: *const YoutubeQuality, formatter: formatterpkg.EntryFormatter) !void {
+        switch (self.*) {
+            .auto => try formatter.formatEntry([]const u8, "auto"),
+            .height => |height| try formatter.formatEntry(u32, height),
+        }
+    }
+};
+
 pub const Fit = enum { contain, cover, stretch, none };
 
 pub const Position = enum {
@@ -135,4 +163,29 @@ test "background_media source parsing" {
 
     try testing.expectError(error.ValueRequired, rejected.parseCLI(alloc, ""));
     try testing.expectError(error.ValueRequired, rejected.parseCLI(alloc, null));
+}
+
+test "background_media YouTube quality parsing and formatting" {
+    const testing = std.testing;
+    var quality: YoutubeQuality = undefined;
+
+    try quality.parseCLI(testing.allocator, "auto");
+    try testing.expect(quality == .auto);
+    var auto_buf: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer auto_buf.deinit();
+    try quality.formatEntry(formatterpkg.entryFormatter("quality", &auto_buf.writer));
+    try testing.expectEqualStrings("quality = auto\n", auto_buf.written());
+
+    try quality.parseCLI(testing.allocator, "1080");
+    try testing.expectEqual(@as(u32, 1080), quality.height);
+    var height_buf: std.Io.Writer.Allocating = .init(testing.allocator);
+    defer height_buf.deinit();
+    try quality.formatEntry(formatterpkg.entryFormatter("quality", &height_buf.writer));
+    try testing.expectEqualStrings("quality = 1080\n", height_buf.written());
+
+    try testing.expectError(error.InvalidValue, quality.parseCLI(testing.allocator, null));
+    try testing.expectError(error.InvalidValue, quality.parseCLI(testing.allocator, ""));
+    try testing.expectError(error.InvalidValue, quality.parseCLI(testing.allocator, "0"));
+    try testing.expectError(error.InvalidValue, quality.parseCLI(testing.allocator, "4321"));
+    try testing.expectError(error.InvalidValue, quality.parseCLI(testing.allocator, "1080p"));
 }

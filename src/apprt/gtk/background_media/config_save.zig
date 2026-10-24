@@ -17,6 +17,7 @@ pub const Values = struct {
     volume: f32,
     play_in_background: bool,
     max_fps: u32,
+    youtube_quality: u32,
 };
 
 pub const SavePaths = struct {
@@ -57,6 +58,11 @@ pub fn renderManaged(writer: *std.Io.Writer, values: Values) !void {
             values.max_fps,
         },
     );
+    if (values.youtube_quality == 0) {
+        try writer.writeAll("background-media-youtube-quality = auto\n");
+    } else {
+        try writer.print("background-media-youtube-quality = {d}\n", .{values.youtube_quality});
+    }
 }
 
 /// Returns whether the config already references the managed include.
@@ -211,6 +217,7 @@ test "renderManaged outputs exact values with and without a source" {
         .volume = 0.75,
         .play_in_background = false,
         .max_fps = 30,
+        .youtube_quality = 1080,
     };
 
     var output: std.Io.Writer.Allocating = .init(testing.allocator);
@@ -227,13 +234,15 @@ test "renderManaged outputs exact values with and without a source" {
             "background-media-loop = true\n" ++
             "background-media-volume = 0.75\n" ++
             "background-media-play-in-background = false\n" ++
-            "background-media-max-fps = 30\n",
+            "background-media-max-fps = 30\n" ++
+            "background-media-youtube-quality = 1080\n",
         output.written(),
     );
 
     output.clearRetainingCapacity();
     var no_source = values;
     no_source.source = null;
+    no_source.youtube_quality = 0;
     try renderManaged(&output.writer, no_source);
     try testing.expectEqualStrings(
         "# Managed by the Ghostty background-media panel.\n" ++
@@ -246,7 +255,8 @@ test "renderManaged outputs exact values with and without a source" {
             "background-media-loop = true\n" ++
             "background-media-volume = 0.75\n" ++
             "background-media-play-in-background = false\n" ++
-            "background-media-max-fps = 30\n",
+            "background-media-max-fps = 30\n" ++
+            "background-media-youtube-quality = auto\n",
         output.written(),
     );
 }
@@ -265,6 +275,7 @@ test "renderManaged rejects line breaks and NUL in source" {
         .volume = 1,
         .play_in_background = false,
         .max_fps = 30,
+        .youtube_quality = 0,
     };
     try testing.expectError(error.InvalidValue, renderManaged(&output.writer, values));
     try testing.expectError(error.InvalidValue, renderManaged(&output.writer, .{
@@ -277,6 +288,7 @@ test "renderManaged rejects line breaks and NUL in source" {
         .volume = 1,
         .play_in_background = false,
         .max_fps = 30,
+        .youtube_quality = 0,
     }));
     try testing.expectError(error.InvalidValue, renderManaged(&output.writer, .{
         .source = "bad\x00source",
@@ -288,6 +300,7 @@ test "renderManaged rejects line breaks and NUL in source" {
         .volume = 1,
         .play_in_background = false,
         .max_fps = 30,
+        .youtube_quality = 0,
     }));
 }
 
@@ -339,6 +352,7 @@ test "saveInDir creates the main config and managed include" {
         .volume = 0.5,
         .play_in_background = true,
         .max_fps = 24,
+        .youtube_quality = 0,
     });
     defer {
         alloc.free(result.managed_path);
@@ -391,6 +405,7 @@ test "saveInDir preserves existing main config and does not append twice" {
         .volume = 0.8,
         .play_in_background = false,
         .max_fps = 30,
+        .youtube_quality = 0,
     });
     defer {
         alloc.free(first.managed_path);
@@ -416,6 +431,7 @@ test "saveInDir preserves existing main config and does not append twice" {
         .volume = 0.4,
         .play_in_background = true,
         .max_fps = 60,
+        .youtube_quality = 0,
     });
     defer {
         alloc.free(second.managed_path);

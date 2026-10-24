@@ -42,6 +42,11 @@ pub const Info = struct {
     height: u32,
     fps: f64,
     has_audio: bool,
+    audio_url: ?[]const u8,
+    width: u32,
+    bandwidth: u32,
+    heights: [12]u32,
+    heights_len: u8,
 };
 
 pub const Raw = struct {
@@ -60,7 +65,9 @@ pub const Raw = struct {
         vcodec: ?[]const u8 = null,
         acodec: ?[]const u8 = null,
         height: ?u32 = null,
+        width: ?u32 = null,
         fps: ?f64 = null,
+        tbr: ?f64 = null,
         ext: ?[]const u8 = null,
     };
 };
@@ -126,10 +133,19 @@ pub fn resolve(
 
     const live = liveStatus(raw.live_status, raw.is_live);
     const formats: []const Raw.RawFormat = raw.formats orelse &.{};
-    const chosen = chooseFormat(formats, max_height, fps_cap) orelse {
+    var heights: [12]u32 = undefined;
+    var heights_len: u8 = 0;
+    collectHeights(formats, &heights, &heights_len);
+
+    const hls_video = chooseHlsVideo(formats, max_height, fps_cap);
+    const hls_audio = if (hls_video != null) chooseHlsAudio(formats) else null;
+    const paired = hls_video != null and hls_audio != null;
+    const chosen = if (paired) hls_video else chooseFormat(formats, max_height, fps_cap);
+    const chosen_index = chosen orelse {
         return if (live == .upcoming) error.Upcoming else error.NoPlayableFormat;
     };
-    const format = formats[chosen];
+    const format = formats[chosen_index];
+    const audio_url = if (paired) formats[hls_audio.?].url else null;
     const protocol = format.protocol.?;
     const has_audio = hasAudio(format.acodec);
 
@@ -140,11 +156,16 @@ pub fn resolve(
             .title = raw.title orelse "",
             .live = live,
             .url = format.url.?,
-            .url_kind = if (isHls(protocol)) .http_hls else .http_direct,
+            .url_kind = if (paired or isHls(protocol)) .http_hls else .http_direct,
             .format_id = format.format_id orelse "",
             .height = format.height.?,
             .fps = format.fps orelse 0,
             .has_audio = has_audio,
+            .audio_url = audio_url,
+            .width = format.width orelse 0,
+            .bandwidth = bandwidthOf(format.tbr),
+            .heights = heights,
+            .heights_len = heights_len,
         },
     };
 }
@@ -199,11 +220,123 @@ fn chooseFormat(formats: []const Raw.RawFormat, max_height: u32, fps_cap: u32) ?
     return null;
 }
 
+fn chooseHlsVideo(formats: []const Raw.RawFormat, max_height: u32, fps_cap: u32) ?usize {
+    if (chooseHlsVideoAtHeight(formats, max_height, fps_cap)) |index| return index;
+    const smallest = smallestEligibleHlsHeight(formats) orelse return null;
+    return chooseHlsVideoAtHeight(formats, smallest, fps_cap);
+}
+
+fn chooseHlsVideoAtHeight(formats: []const Raw.RawFormat, max_height: u32, fps_cap: u32) ?usize {
+    var best: ?usize = null;
+    for (formats, 0..) |format, index| {
+        const protocol = format.protocol orelse continue;
+        if (!isHls(protocol) or !eligible(format, max_height)) continue;
+        if (best) |best_index| {
+            const current = formats[best_index];
+            if (isBetter(format, current, fps_cap)) {
+                best = index;
+                continue;
+            }
+            if (format.height.? == current.height.? and
+                (format.fps orelse 0) == (current.fps orelse 0) and
+                isAvc(format.vcodec.?) and !isAvc(current.vcodec.?))
+            {
+                best = index;
+            }
+            continue;
+        }
+        best = index;
+    }
+    return best;
+}
+
+fn smallestEligibleHlsHeight(formats: []const Raw.RawFormat) ?u32 {
+    var smallest: ?u32 = null;
+    for (formats) |format| {
+        const protocol = format.protocol orelse continue;
+        if (!isHls(protocol) or !eligible(format, std.math.maxInt(u32))) continue;
+        const height = format.height.?;
+        if (smallest == null or height < smallest.?) smallest = height;
+    }
+    return smallest;
+}
+
+fn chooseHlsAudio(formats: []const Raw.RawFormat) ?usize {
+    var chosen: ?usize = null;
+    for (formats, 0..) |format, index| {
+        const protocol = format.protocol orelse continue;
+        if (!isHls(protocol)) continue;
+        const codec = format.vcodec orelse continue;
+        if (!std.mem.eql(u8, codec, "none") or !validUrl(format.url)) continue;
+        chosen = index;
+    }
+    return chosen;
+}
+
+fn collectHeights(formats: []const Raw.RawFormat, heights: *[12]u32, len: *u8) void {
+    len.* = 0;
+    for (formats) |format| {
+        const protocol = format.protocol orelse continue;
+        if (!isHls(protocol) or !eligible(format, std.math.maxInt(u32))) continue;
+        const height = format.height.?;
+        var insert: usize = 0;
+        const count: usize = @intCast(len.*);
+        while (insert < count and heights[insert] < height) : (insert += 1) {}
+        if (insert < count and heights[insert] == height) continue;
+        if (count == heights.len and insert == heights.len) continue;
+        const end = @min(count, heights.len - 1);
+        var cursor = end;
+        while (cursor > insert) : (cursor -= 1) heights[cursor] = heights[cursor - 1];
+        heights[insert] = height;
+        if (count < heights.len) len.* += 1;
+    }
+}
+
+fn bandwidthOf(tbr: ?f64) u32 {
+    const bandwidth = (tbr orelse return 0) * 1000;
+    if (!std.math.isFinite(bandwidth) or bandwidth <= 0 or
+        bandwidth > @as(f64, @floatFromInt(std.math.maxInt(u32)))) return 0;
+    return @intFromFloat(bandwidth);
+}
+
+fn isAvc(codec: []const u8) bool {
+    return std.mem.startsWith(u8, codec, "avc1");
+}
+
+pub fn pairUri(
+    alloc: std.mem.Allocator,
+    video_url: []const u8,
+    audio_url: []const u8,
+    width: u32,
+    height: u32,
+    bandwidth: u32,
+) ![:0]u8 {
+    const resolution = if (width == 0)
+        try alloc.dupe(u8, "")
+    else
+        try std.fmt.allocPrint(alloc, ",RESOLUTION={d}x{d}", .{ width, height });
+    defer alloc.free(resolution);
+
+    const playlist = try std.fmt.allocPrint(
+        alloc,
+        "#EXTM3U\n" ++
+            "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"a\",NAME=\"a\",DEFAULT=YES,AUTOSELECT=YES,URI=\"{s}\"\n" ++
+            "#EXT-X-STREAM-INF:BANDWIDTH={d}{s},AUDIO=\"a\"\n" ++
+            "{s}\n",
+        .{ audio_url, if (bandwidth == 0) 1000000 else bandwidth, resolution, video_url },
+    );
+    defer alloc.free(playlist);
+
+    const prefix = "data:application/x-hls;base64,";
+    const encoded_len = std.base64.standard.Encoder.calcSize(playlist.len);
+    const result = try alloc.allocSentinel(u8, prefix.len + encoded_len, 0);
+    @memcpy(result[0..prefix.len], prefix);
+    _ = std.base64.standard.Encoder.encode(result[prefix.len..], playlist);
+    return result;
+}
+
 fn eligible(format: Raw.RawFormat, max_height: u32) bool {
-    const url = format.url orelse return false;
-    if (url.len == 0) return false;
-    if (!std.ascii.startsWithIgnoreCase(url, "https://") and
-        !std.ascii.startsWithIgnoreCase(url, "http://")) return false;
+    if (!validUrl(format.url)) return false;
     const codec = format.vcodec orelse return false;
     if (std.mem.eql(u8, codec, "none")) return false;
     if (!std.mem.startsWith(u8, codec, "avc1") and
@@ -213,6 +346,13 @@ fn eligible(format: Raw.RawFormat, max_height: u32) bool {
     if (!isHls(protocol) and !std.mem.eql(u8, protocol, "https")) return false;
     const height = format.height orelse return false;
     return height <= max_height;
+}
+
+fn validUrl(maybe_url: ?[]const u8) bool {
+    const url = maybe_url orelse return false;
+    if (url.len == 0 or std.mem.indexOfAny(u8, url, "\"\n\r\x00") != null) return false;
+    return std.ascii.startsWithIgnoreCase(url, "https://") or
+        std.ascii.startsWithIgnoreCase(url, "http://");
 }
 
 fn tierOf(format: Raw.RawFormat) ?usize {
@@ -391,6 +531,121 @@ test "format selection rejects non-HTTP format URLs" {
     var resolved = try resolve(std.testing.allocator, https_json, default_max_height, 0);
     defer resolved.deinit();
     try std.testing.expectEqualStrings("https://cdn.example/v", resolved.info.url);
+}
+
+test "format selection pairs the best HLS video with the last HLS audio" {
+    const json = "{\"formats\":[" ++
+        "{\"format_id\":\"360\",\"url\":\"https://cdn.example/360\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"width\":640,\"height\":360,\"fps\":30,\"tbr\":400}," ++
+        "{\"format_id\":\"720\",\"url\":\"https://cdn.example/720\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"width\":1280,\"height\":720,\"fps\":30,\"tbr\":1200}," ++
+        "{\"format_id\":\"1080\",\"url\":\"https://cdn.example/1080\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"width\":1920,\"height\":1080,\"fps\":30,\"tbr\":2500}," ++
+        "{\"format_id\":\"1440\",\"url\":\"https://cdn.example/1440\",\"protocol\":\"m3u8_native\",\"vcodec\":\"vp09\",\"acodec\":\"none\",\"width\":2560,\"height\":1440,\"fps\":30,\"tbr\":5000}," ++
+        "{\"format_id\":\"audio-low\",\"url\":\"https://cdn.example/audio-low\",\"protocol\":\"m3u8_native\",\"vcodec\":\"none\"}," ++
+        "{\"format_id\":\"audio-high\",\"url\":\"https://cdn.example/audio-high\",\"protocol\":\"m3u8_native\",\"vcodec\":\"none\"}]}";
+    var resolved = try resolve(std.testing.allocator, json, 1080, 0);
+    defer resolved.deinit();
+    try std.testing.expectEqualStrings("1080", resolved.info.format_id);
+    try std.testing.expectEqualStrings("https://cdn.example/audio-high", resolved.info.audio_url.?);
+    try std.testing.expectEqual(source.Kind.http_hls, resolved.info.url_kind);
+    try std.testing.expectEqual(@as(u32, 1920), resolved.info.width);
+    try std.testing.expectEqual(@as(u32, 2500000), resolved.info.bandwidth);
+}
+
+test "format selection falls back to the smallest HLS video above the maximum" {
+    const json = "{\"formats\":[" ++
+        "{\"format_id\":\"720\",\"url\":\"https://cdn.example/720\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":720}," ++
+        "{\"format_id\":\"1080\",\"url\":\"https://cdn.example/1080\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":1080}," ++
+        "{\"url\":\"https://cdn.example/audio\",\"protocol\":\"m3u8_native\",\"vcodec\":\"none\"}]}";
+    var resolved = try resolve(std.testing.allocator, json, 480, 0);
+    defer resolved.deinit();
+    try std.testing.expectEqualStrings("720", resolved.info.format_id);
+}
+
+test "format selection prefers AVC over VP9 at equal HLS height and fps" {
+    const json = "{\"formats\":[" ++
+        "{\"format_id\":\"vp9\",\"url\":\"https://cdn.example/vp9\",\"protocol\":\"m3u8_native\",\"vcodec\":\"vp09\",\"acodec\":\"none\",\"height\":1080,\"fps\":30}," ++
+        "{\"format_id\":\"avc\",\"url\":\"https://cdn.example/avc\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":1080,\"fps\":30}," ++
+        "{\"url\":\"https://cdn.example/audio\",\"protocol\":\"m3u8_native\",\"vcodec\":\"none\"}]}";
+    var resolved = try resolve(std.testing.allocator, json, 1080, 0);
+    defer resolved.deinit();
+    try std.testing.expectEqualStrings("avc", resolved.info.format_id);
+}
+
+test "format selection keeps the old path when HLS audio is unavailable" {
+    const json = "{\"formats\":[{\"format_id\":\"video\",\"url\":\"https://cdn.example/video\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":720}]}";
+    var resolved = try resolve(std.testing.allocator, json, 720, 0);
+    defer resolved.deinit();
+    try std.testing.expectEqualStrings("video", resolved.info.format_id);
+    try std.testing.expect(resolved.info.audio_url == null);
+}
+
+test "format selection rejects quote in HLS playlist URLs" {
+    const json = "{\"formats\":[{\"url\":\"https://cdn.example/\\\"bad\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":720}]}";
+    try std.testing.expectError(error.NoPlayableFormat, resolve(std.testing.allocator, json, 720, 0));
+}
+
+test "resolved HLS heights are distinct and ascending" {
+    const json = "{\"formats\":[" ++
+        "{\"url\":\"https://cdn.example/720a\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":720}," ++
+        "{\"url\":\"https://cdn.example/360\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":360}," ++
+        "{\"url\":\"https://cdn.example/720b\",\"protocol\":\"m3u8_native\",\"vcodec\":\"vp09\",\"acodec\":\"none\",\"height\":720}," ++
+        "{\"url\":\"https://cdn.example/1080\",\"protocol\":\"m3u8_native\",\"vcodec\":\"avc1\",\"acodec\":\"none\",\"height\":1080}]}";
+    var resolved = try resolve(std.testing.allocator, json, 720, 0);
+    defer resolved.deinit();
+    try std.testing.expectEqual(@as(u8, 3), resolved.info.heights_len);
+    try std.testing.expectEqualSlices(u32, &.{ 360, 720, 1080 }, resolved.info.heights[0..resolved.info.heights_len]);
+}
+
+fn decodePairUri(alloc: std.mem.Allocator, uri: []const u8) ![]u8 {
+    const prefix = "data:application/x-hls;base64,";
+    if (!std.mem.startsWith(u8, uri, prefix)) return error.InvalidUri;
+    const payload = uri[prefix.len..];
+    const size = try std.base64.standard.Decoder.calcSizeForSlice(payload);
+    const decoded = try alloc.alloc(u8, size);
+    errdefer alloc.free(decoded);
+    try std.base64.standard.Decoder.decode(decoded, payload);
+    return decoded;
+}
+
+test "pairUri encodes the exact HLS audio and video playlist" {
+    const uri = try pairUri(
+        std.testing.allocator,
+        "https://cdn.example/video.m3u8",
+        "https://cdn.example/audio.m3u8",
+        1920,
+        1080,
+        2500000,
+    );
+    defer std.testing.allocator.free(uri);
+    const decoded = try decodePairUri(std.testing.allocator, uri);
+    defer std.testing.allocator.free(decoded);
+    try std.testing.expectEqualStrings(
+        "#EXTM3U\n" ++
+            "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"a\",NAME=\"a\",DEFAULT=YES,AUTOSELECT=YES,URI=\"https://cdn.example/audio.m3u8\"\n" ++
+            "#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1920x1080,AUDIO=\"a\"\n" ++
+            "https://cdn.example/video.m3u8\n",
+        decoded,
+    );
+}
+
+test "pairUri omits resolution when width is unknown and defaults bandwidth" {
+    const uri = try pairUri(
+        std.testing.allocator,
+        "https://cdn.example/video.m3u8",
+        "https://cdn.example/audio.m3u8",
+        0,
+        1080,
+        0,
+    );
+    defer std.testing.allocator.free(uri);
+    const decoded = try decodePairUri(std.testing.allocator, uri);
+    defer std.testing.allocator.free(decoded);
+    try std.testing.expectEqualStrings(
+        "#EXTM3U\n" ++
+            "#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"a\",NAME=\"a\",DEFAULT=YES,AUTOSELECT=YES,URI=\"https://cdn.example/audio.m3u8\"\n" ++
+            "#EXT-X-STREAM-INF:BANDWIDTH=1000000,AUDIO=\"a\"\n" ++
+            "https://cdn.example/video.m3u8\n",
+        decoded,
+    );
 }
 
 test "stderr classification follows the fatal substring priority" {

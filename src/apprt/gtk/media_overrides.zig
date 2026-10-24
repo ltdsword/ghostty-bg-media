@@ -19,6 +19,7 @@ pub const Overrides = struct {
     volume: ?f32 = null,
     play_in_background: ?bool = null,
     max_fps: ?u32 = null,
+    youtube_quality: ?u32 = null,
     paused: bool = false,
 };
 
@@ -93,6 +94,11 @@ pub fn setPlayInBackground(value: bool) void {
 
 pub fn setMaxFps(value: u32) void {
     current.max_fps = std.math.clamp(value, 1, 120);
+    on_change();
+}
+
+pub fn setYoutubeQuality(value: u32) void {
+    current.youtube_quality = std.math.clamp(value, 0, 4320);
     on_change();
 }
 
@@ -177,6 +183,12 @@ test "media override clamps values" {
     try std.testing.expectEqual(@as(u32, 1), current.max_fps.?);
     setMaxFps(240);
     try std.testing.expectEqual(@as(u32, 120), current.max_fps.?);
+    setYoutubeQuality(5000);
+    try std.testing.expectEqual(@as(u32, 4320), current.youtube_quality.?);
+    setYoutubeQuality(1080);
+    try std.testing.expectEqual(@as(u32, 1080), current.youtube_quality.?);
+    setYoutubeQuality(0);
+    try std.testing.expectEqual(@as(u32, 0), current.youtube_quality.?);
     clearAll();
 }
 

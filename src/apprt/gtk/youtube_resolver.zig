@@ -19,6 +19,11 @@ pub const Resolved = struct {
     title: []u8,
     format_id: []u8,
     height: u32,
+    audio_url: ?[:0]u8,
+    width: u32,
+    bandwidth: u32,
+    heights: [12]u32,
+    heights_len: u8,
 };
 
 pub const Result = union(enum) {
@@ -31,6 +36,7 @@ pub const Result = union(enum) {
 const Job = struct {
     url: [:0]u8,
     max_fps: u32,
+    max_height: u32,
     generation: u64,
     done: *const fn (generation: u64, result: *Result) void,
     result: Result = .missing,
@@ -50,6 +56,7 @@ const Timeout = struct {
 pub fn start(
     url: []const u8,
     max_fps: u32,
+    max_height: u32,
     generation: u64,
     done: *const fn (generation: u64, result: *Result) void,
 ) bool {
@@ -61,6 +68,7 @@ pub fn start(
     job.* = .{
         .url = owned_url,
         .max_fps = max_fps,
+        .max_height = max_height,
         .generation = generation,
         .done = done,
     };
@@ -81,6 +89,7 @@ pub fn freeResult(result: *Result) void {
             alloc.free(resolved.id);
             alloc.free(resolved.title);
             alloc.free(resolved.format_id);
+            if (resolved.audio_url) |audio_url| alloc.free(audio_url);
         },
         else => {},
     }
@@ -88,11 +97,11 @@ pub fn freeResult(result: *Result) void {
 }
 
 fn worker(job: *Job) void {
-    job.result = run(job.url, job.max_fps);
+    job.result = run(job.url, job.max_fps, job.max_height);
     if (glib.idleAddOnce(onDone, job) == 0) freeJob(job);
 }
 
-fn run(url: []const u8, max_fps: u32) Result {
+fn run(url: []const u8, max_fps: u32, max_height: u32) Result {
     const io = global.io();
     var environ_map = global.environMap() catch null;
     defer if (environ_map) |*map| map.deinit();
@@ -181,7 +190,7 @@ fn run(url: []const u8, max_fps: u32) Result {
     const process_term = term orelse return .{ .retriable = "wait_failed" };
     switch (process_term) {
         .exited => |code| if (code == 0) {
-            var parsed = youtube.resolve(alloc, output.items, youtube.default_max_height, max_fps) catch |err| switch (err) {
+            var parsed = youtube.resolve(alloc, output.items, max_height, max_fps) catch |err| switch (err) {
                 error.OutOfMemory => return .{ .retriable = "out_of_memory" },
                 else => |resolve_err| return .{ .fatal = youtube.fatalOf(@errorCast(resolve_err)) },
             };
@@ -208,6 +217,8 @@ fn copyResolved(info: youtube.Info) error{OutOfMemory}!Resolved {
     errdefer alloc.free(title);
     const format_id = try alloc.dupe(u8, info.format_id);
     errdefer alloc.free(format_id);
+    const audio_url = if (info.audio_url) |url| try alloc.dupeZ(u8, url) else null;
+    errdefer if (audio_url) |url| alloc.free(url);
     return .{
         .url = resolved_url,
         .url_kind = info.url_kind,
@@ -216,6 +227,11 @@ fn copyResolved(info: youtube.Info) error{OutOfMemory}!Resolved {
         .title = title,
         .format_id = format_id,
         .height = info.height,
+        .audio_url = audio_url,
+        .width = info.width,
+        .bandwidth = info.bandwidth,
+        .heights = info.heights,
+        .heights_len = info.heights_len,
     };
 }
 

@@ -162,6 +162,13 @@ template $GhosttyMediaPanel: Adw.Dialog {
                 }
               }
             }
+
+            Adw.ComboRow quality_row {
+              title: _("YouTube quality");
+              visible: false;
+              model: Gtk.StringList {};
+              notify::selected => $quality_changed();
+            }
           }
 
           Adw.PreferencesGroup {
