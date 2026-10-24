@@ -12,7 +12,7 @@ macOS runtime item remains UNVERIFIED until a macOS build and smoke test are rec
 | Animated GIF              | No added parity commitment  | Supported (M06: built-in decoder)                                                 | macOS runtime UNVERIFIED; Linux M06 PARTIAL                                                                   |
 | Local video               | Inherited AVFoundation path | Supported (M05: GTK/GStreamer; MP4/H.264, WebM, MKV)                              | macOS inherited; runtime UNVERIFIED; Linux M05 PARTIAL                                                        |
 | Direct HTTP(S) / HLS      | No added parity commitment  | Supported (M07: GStreamer URL player)                                             | macOS inherited; runtime UNVERIFIED; Linux M07 DONE                                                           |
-| YouTube recorded/live     | Inherited resolver/settings | Supported via user-installed yt-dlp (M08/M09)                                     | macOS inherited; runtime UNVERIFIED; native Linux GTK plays listed HLS audio only when volume > 0 (D-025); Flatpak silent because manifest lacks PulseAudio socket (adding it needs user approval); H.264 keyframe fix D-026 |
+| YouTube recorded/live     | Inherited resolver/settings | Supported via user-installed yt-dlp (M08/M09)                                     | macOS inherited; runtime UNVERIFIED; native Linux GTK and Flatpak play listed HLS audio when volume > 0 (D-025, D-027); H.264 keyframe fix D-026 |
 | Settings UI               | Existing Swift/AppKit panel | GTK4/libadwaita panel (M10)                                                       | macOS inherited; runtime UNVERIFIED; Linux M10 DONE                                                           |
 | Background-media blur     | No added parity commitment  | Supported by GTK snapshot blur; media only                                        | macOS unchanged; Linux M12 DONE; blur cost not benchmarked separately                                         |
 | URL video texture upload  | No added parity commitment  | I420 YUV texture on GTK 4.20+; RGBA fallback on older GTK                         | macOS unchanged; Linux M12 DONE; color checked against RGBA path                                              |
@@ -116,6 +116,14 @@ an independent CI lane is planned for M15. See [MACOS_BASELINE.md §7](MACOS_BAS
   2026-10-24.** Distribution lane and the supported path for distros too old for a native build,
   including Ubuntu 24.04.
 - Both lanes build the same source; no lane-specific code.
+
+## Install formats
+
+- Ubuntu 26.04 amd64: native `.deb` package.
+- Ubuntu 24.04 and other Linux distributions: single-file Flatpak bundle using the GNOME 50 runtime from Flathub.
+- macOS: unchanged; this Linux packaging work does not provide a macOS package.
+
+See [INSTALL.md](INSTALL.md) and [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak).
 
 ## M12/M13 Linux compatibility notes (2026-10-24)
 

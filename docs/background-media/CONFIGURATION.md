@@ -5,6 +5,9 @@ The `background-media` settings are Linux GTK settings. macOS ignores them and k
 fit, position and dim to static images; M05 implements the playback settings for local video; M06
 adds local GIF playback. No settings remain pending for local media.
 
+The `.deb` shares Ghostty's `~/.config/ghostty/config`. Flatpak uses
+`~/.var/app/io.github.ltdsword.GhosttyBgMedia/config/ghostty/config`; see [INSTALL.md](INSTALL.md).
+
 ## Keys
 
 | Key | Type | Default | Range / values | Reload | Platform |
@@ -48,8 +51,8 @@ the selected value (D-025).
   then holds the last frame. `max-fps` raises the minimum frame delay to `1/max-fps`. GIF playback
   follows the same background pause rule as video. The existing image limits apply. Decoder memory
   is the file bytes plus one canvas, with one additional restore buffer when needed.
-- The current Flatpak has no audio permission, so non-zero volume is silent there until packaging
-  adds audio access in M16.
+- Flatpak plays web-video audio when `background-media-volume` is above zero; the manifest enables
+  the PulseAudio socket (D-027).
 - Images over 16,384 pixels on either side, over 64 Mi pixels, or files over 256 MiB produce a
   warning and nothing is drawn. Corrupt or unsupported inputs also produce a warning and nothing
   is drawn.

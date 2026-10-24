@@ -131,6 +131,8 @@ See [SECURITY.md](SECURITY.md) and [TEST_MATRIX.md](TEST_MATRIX.md).
 
 Linux GTK is the only implementation of `background-media*`. Platform status and verification context: [PLATFORM_COMPATIBILITY.md](PLATFORM_COMPATIBILITY.md), [BUILDING.md](BUILDING.md).
 
+Flatpak plays web-video audio when `background-media-volume` is above zero; its manifest includes the PulseAudio socket (D-027).
+
 ## Diagnostics and logs
 
 Search application logs for `background-media:`. Common messages include:
@@ -153,7 +155,7 @@ Logged URL sources omit credentials, query strings, and fragments. The panel's D
 ## Known limitations
 
 - Static-image checks remain incomplete for JPEG/WebP contain fit, live resize, and splits. GIF pause/resume, terminal responsiveness, and full RSS release need verification; local video has a recorded late RSS/CPU growth trend. [STATUS.md](STATUS.md).
-- The recorded local-video runtime playback probe exercised H.264 MP4, while WebM/MKV were covered by runtime plugin probing. Flatpak YouTube remains silent because its manifest has no PulseAudio socket; adding one needs user approval. [STATUS.md](STATUS.md), [BUILDING.md](BUILDING.md), D-025.
+- The recorded local-video runtime playback probe exercised H.264 MP4, while WebM/MKV were covered by runtime plugin probing. M16 enabled the Flatpak PulseAudio socket and verified web-video audio (D-027). [STATUS.md](STATUS.md), [BUILDING.md](BUILDING.md).
 - Switching to a different local video still leaks resources inside GTK. Ghostty retains one paused local-video player until it is replaced or the app exits; one idle network socket may survive a stream release (D-021). [LIFECYCLE.md](LIFECYCLE.md).
 - URL playback uses software decoding because VA/VAAPI hardware decoding segfaulted during testing (D-015). Reconnecting URL playback can show a blank frame until recovery.
 - WebP decoding needs the installed Flatpak app context; `flatpak-builder --run` does not provide it. [BUILDING.md](BUILDING.md#testing-webp-installed-flatpak), D-009.
@@ -163,8 +165,8 @@ Logged URL sources omit credentials, query strings, and fragments. The panel's D
 ## Not started / future
 
 - **M14 — Docs/release candidate:** package and handoff documentation.
-- **M15 — CI lanes:** independent Linux and macOS CI.
-- **M16 — Public packaging:** app identity/coexistence decision, install/upgrade/removal checks, and Flatpak audio permission.
+- **M15 — CI lanes:** skipped by the user on 2026-10-24.
+- **M16 — Linux packaging:** done; public downloads are planned for M17. [INSTALL.md](INSTALL.md), [STATUS.md](STATUS.md).
 - **M17 — Public beta:** publish after release gates pass.
 - **M18 — Optional macOS parity:** requires a separate approval before consideration.
 - Manual checks still owed include splits, multi-monitor movement/hotplug, occlusion, IME, SSH, mouse modes, drag-select/copy, and confirming panel typing cannot leak keystrokes to the terminal. [STATUS.md](STATUS.md), [LIFECYCLE.md](LIFECYCLE.md), [PANEL_CHECKLIST.md](PANEL_CHECKLIST.md).

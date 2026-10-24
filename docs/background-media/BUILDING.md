@@ -77,10 +77,38 @@ flatpak-builder --user --install --install-deps-from=flathub --force-clean --sta
 Remove the test install with:
 
 ```sh
-flatpak uninstall --user com.mitchellh.ghostty
+flatpak uninstall --user io.github.ltdsword.GhosttyBgMedia
 ```
 
-The test install uses the upstream app ID `com.mitchellh.ghostty` until M16.
+The test install uses application ID `io.github.ltdsword.GhosttyBgMedia`.
+
+## Release packages
+
+Build release packages on Ubuntu 26.04. These scripts do not require root. The `.deb` is for
+amd64; the Flatpak bundle uses the GNOME 50 runtime from Flathub.
+
+### Debian package
+
+Install the build dependencies listed in this guide and `dpkg-dev`, then run:
+
+```sh
+dist/linux/bg-media/build-deb.sh [--version <semver>] [--revision <n>] [--out <dir>]
+```
+
+The output directory defaults to `zig-out/deb`. Each build writes `SHA256SUMS` and a
+`<name>.manifest.txt` containing the version, Git commit, dirty flag, build OS, Zig version, build
+time, and package SHA-256.
+
+### Flatpak bundle
+
+Install `flatpak-builder` and make the Flathub GNOME 50 SDK available, then run:
+
+```sh
+dist/linux/bg-media/build-flatpak-bundle.sh [--out <dir>] [--state-dir <dir>]
+```
+
+The output directory defaults to `zig-out/flatpak`. The bundle filename uses `git describe`;
+versioning will be finalized in M17.
 
 ## Developer commands
 

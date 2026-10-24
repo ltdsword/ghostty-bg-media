@@ -3,6 +3,43 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-028 Side-by-side application identity
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **User decision:** “Side by side”.
+- **Context:** The Linux background-media build must coexist with official Ghostty and use a
+  separate application identity for both package formats.
+- **Decision:** Name the package and command `ghostty-bg-media`. The `.deb` installs under
+  `/opt/ghostty-bg-media`, provides `/usr/bin/ghostty-bg-media`, and uses
+  `/usr/share/applications/io.github.ltdsword.GhosttyBgMedia.desktop`,
+  `/usr/share/icons/hicolor/*/apps/io.github.ltdsword.GhosttyBgMedia.png`, and
+  `/usr/share/doc/ghostty-bg-media/copyright`. Its launcher sets application ID
+  `io.github.ltdsword.GhosttyBgMedia` with Ghostty's `--class`; actions starting with `+`, such as
+  `+version`, pass through without that option. The Flatpak uses the same ID. The `.deb` shares
+  `~/.config/ghostty/config` with normal Ghostty.
+- **Consequences:** The package does not replace `/usr/bin/ghostty`, the official desktop file, or system terminfo; its terminfo stays under `/opt/ghostty-bg-media`. The desktop entry has no D-Bus activation or Ctrl+Alt+T shortcut. Official Ghostty may warn about unrecognized `background-media*` keys in the shared config.
+- **Evidence:** [INSTALL](INSTALL.md), [STATUS](STATUS.md), [TEST_MATRIX](TEST_MATRIX.md).
+
+## D-027 Linux packaging formats: Ubuntu 26.04 .deb and Flatpak
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-24
+- **User decisions:** “.deb 26.04 + Flatpak (Recommended)” and “Add it (Recommended)” for Flatpak audio.
+- **Context:** The GTK application requires GTK >= 4.18 and libadwaita >= 1.7 at build time
+  ([GTK check](../../src/apprt/gtk/gtk_version.zig),
+  [libadwaita check](../../src/apprt/gtk/adw_version.zig)). Ubuntu 24.04 provides GTK 4.14,
+  libadwaita 1.5, and GLib 2.80, so it cannot build the native package. Flatpak can provide a
+  distro-independent GNOME 50 runtime.
+- **Decision:** Ship a native `.deb` for Ubuntu 26.04 amd64 and a single-file Flatpak bundle for
+  Ubuntu 24.04 and other distributions. Enable the Flatpak PulseAudio socket so web-video audio
+  works when `background-media-volume` is above zero.
+- **Consequences:** Ubuntu 24.04 users install the Flatpak bundle and its GNOME 50 runtime from
+  Flathub. Flatpak YouTube uses `yt-dlp` installed on the host. Flatpak config lives under
+  `~/.var/app/io.github.ltdsword.GhosttyBgMedia/config/ghostty/config` and its media access is
+  read-only within the home directory. Downloads will be published in M17.
+- **Evidence:** [INSTALL](INSTALL.md), [BUILDING](BUILDING.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), [TEST_MATRIX](TEST_MATRIX.md).
+
 ## D-026 Renumber MPEG-TS continuity counters before tsdemux
 
 - **Status:** ACCEPTED
@@ -41,8 +78,8 @@ docs and logs.
   changes, and reject format URLs containing `"`, CR, LF, or NUL. If HLS audio is unavailable,
   retain the prior format choice, usually silent.
 - **Consequences:** Quality can be changed by config reload or the panel and is saved by **Save to
-  Configuration**. macOS ignores the setting. Flatpak remains silent because its manifest has no
-  PulseAudio socket; adding one needs user approval. The `.pot` file was not regenerated. A quality
+  Configuration**. macOS ignores the setting. M16 enables the Flatpak PulseAudio socket, so web-video
+  audio plays when volume is above zero (D-027). The `.pot` file was not regenerated. A quality
   change during an in-flight resolve keeps the old result, and the quality row hides briefly while
   re-resolving.
 - **Evidence:** [CONFIGURATION](CONFIGURATION.md), [FEATURES](FEATURES.md), [TEST_MATRIX](TEST_MATRIX.md),
@@ -201,12 +238,13 @@ docs and logs.
   2. **Distribution and compatibility:** Flatpak on the GNOME 50 runtime
      (`flatpak/com.mitchellh.ghostty.yml`). It serves users whose distro is too old for a native
      build (e.g. Ubuntu 24.04), and is built before every milestone merge so it never silently
-     breaks. M15 CI builds it on every push; M16 ships it.
+     breaks. M15 CI was skipped by the user; M16 completed packaging, with publication planned
+     for M17 (see [STATUS](STATUS.md)).
 - **Consequences:** Partly supersedes D-004 (Flatpak is no longer the dev-run lane; it remains the
   distribution format). Native runtime media deps (GStreamer plugins and `gstreamer1.0-libav`)
   come from apt and need user approval to install. Evidence from M02–M06
   was gathered in the Flatpak lane and stays valid for it; native-lane results must be recorded
-  separately. M16 still needs an own app ID so a Flatpak install and a native build can coexist.
+  separately. D-028 records the M16 application identity and coexistence decision.
 - **Evidence:** native versions, build and gate results are recorded in
   [BUILDING.md](BUILDING.md#native-lane-ubuntu-2604-d-012).
 
@@ -318,8 +356,8 @@ docs and logs.
   distribution format. The Ubuntu 26.04 container remains a dev-only compile/test lane. Docker is
   never required for end users or to run the app. This records user decision D24.
 - **Consequences:** Host Flatpak tooling installed by the user; the app builds and launches on the
-  Noble host with the gtk4-layer-shell `--libdir=lib` manifest fix (see BUILDING.md). M16 needs an
-  app-ID/coexistence decision against `com.mitchellh.ghostty`.
+  Noble host with the gtk4-layer-shell `--libdir=lib` manifest fix (see BUILDING.md). D-028 records
+  the M16 app-ID/coexistence decision against `com.mitchellh.ghostty`.
 - **Evidence:** [BUILDING.md](BUILDING.md), [BUILD_ENV_OPTIONS.md](BUILD_ENV_OPTIONS.md),
   [Flatpak attempt](evidence/m01/flatpak/attempt.txt),
   [host linkage](evidence/m01/docker/host-ldd.txt).

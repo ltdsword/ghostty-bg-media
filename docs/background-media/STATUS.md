@@ -14,7 +14,7 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M02 — Compositor spike       | m02-spike T1      | DONE        | b2ed4d4              | [ADR](COMPOSITOR_ADR.md), [M02 evidence](evidence/m02/)                                                                                                                                                                                                                                                                                                                                               | —                                                                                  | M03 config contract (needs user approval)          |
 | M03 — Domain/config          | M03 config        | DONE        | 0f263d1              | [CONFIGURATION](CONFIGURATION.md), [PLATFORM_COMPATIBILITY](PLATFORM_COMPATIBILITY.md), workspace notes/m03/T1-config-tests.txt, workspace notes/m03/T2-classifier-tests.txt, workspace notes/m03/runtime-log-check.txt, workspace notes/m03/runtime-reload-check.txt, workspace notes/m03/gate-quick.txt                                                                                             | Follow-up gaps below                                                               | M04 static images                                  |
 | M04 — Static images          | M04 static images | PARTIAL     | a63e5cf              | workspace notes/m04/runtime-log-check.txt; workspace notes/m04/visual/visual-log.txt; workspace notes/m04/T2-tests.txt; workspace notes/m04/visual/png-contain.png; workspace notes/m04/visual/png-cover.png; workspace notes/m04/visual/jpg-cover-narrow.png; workspace notes/m04/visual/webp-cover.png; workspace notes/m04/visual/png-dim-topleft-none.png; workspace notes/m04/visual/nomedia.png | JPEG/WebP contain and live resize/splits not verified                              | M05 local MP4                                      |
-| M05 — Local video            | M05 local video   | PARTIAL     | —                    | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt                                                                                                                                                                                                                                     | 30-minute soak shows late RSS/CPU growth; Flatpak audio permission remains for M16 | M06 GIF                                            |
+| M05 — Local video            | M05 local video   | PARTIAL     | —                    | workspace notes/m05/runtime-gst-probe.txt; workspace notes/m05/gtk-mediafile-probe.txt; workspace notes/m05/soak-30min.txt; workspace notes/m05/stress-switch.txt                                                                                                                                                                                                                                     | 30-minute soak shows late RSS/CPU growth                                           | M06 GIF                                            |
 | M06 — GIF                    | M06 GIF           | PARTIAL     | —                    | workspace notes/m06/EVIDENCE.md; workspace notes/m06/reference-crc.txt; workspace notes/m06/runtime/cadence-r1.txt; workspace notes/m06/runtime/memory-release-r1.txt                                                                                                                                                                                                                                 | Pause/resume, terminal responsiveness, and full RSS release are not verified       | M07 HTTP/HLS                                       |
 | M07 — HTTP/HLS               | TBD               | DONE        | —                    | `test/background-media/http_fixture_server.py`; workspace `plans/reports/soak-261024-0715-m07-live.md`                                                                                                                                                                                                                                                                                                | —                                                                                  | M08 real-YouTube smoke                             |
 | M08 — YouTube recorded       | TBD               | DONE        | —                    | `test/background-media/fake-yt-dlp`; workspace `notes/m08/real/`; M14 quality and optional audio (D-025)                                                                                                                                                                                                                                                                                              | —                                                                                  | —                                                  |
@@ -24,8 +24,8 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M12 — Effects/performance    | TBD               | DONE        | fde84cb95, 1340f1e74 | [PERFORMANCE](PERFORMANCE.md), workspace `notes/m12/`                                                                                                                                                                                                                                                                                                                                                 | —                                                                                  | M13 security and robustness                        |
 | M13 — Security/regression    | TBD               | PARTIAL     | f72a92ffc            | [SECURITY](SECURITY.md), [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m13/`                                                                                                                                                                                                                                                                                                                        | Native Xorg untested; macOS items deferred                                        | Complete remaining M13 validation                  |
 | M14 — Docs/release candidate | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Prepare package and handoff documentation          |
-| M15 — CI lanes               | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Establish independent Linux/macOS CI               |
-| M16 — Public packaging       | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | App ID/coexistence decision; install gate                                          | Verify clean Flatpak install, upgrade, and removal |
+| M15 — CI lanes               | TBD               | SKIPPED (user) | —                  | User decision, 2026-10-24                                                                                                                                                                                                                                                                                                                                                                             | —                                                                                  | —                                                  |
+| M16 — Public packaging       | TBD               | DONE        | f55670384, 4486a52d0 | [INSTALL](INSTALL.md), [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak), [D-028](DECISIONS.md#d-028-side-by-side-application-identity), [TEST_MATRIX](TEST_MATRIX.md), clean-install evidence below                                                                                                                                                                  | Publish downloads in M17                                                           | Publish packages in M17                            |
 | M17 — Public beta            | TBD               | NOT_STARTED | —                    | —                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Publish only after release gates pass              |
 | M18 — Optional macOS parity  | TBD               | NOT_STARTED | —                    | Approval required                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Seek approval before considering additive parity   |
 
@@ -164,11 +164,11 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   215,260 KiB at 30 seconds to 225,200 KiB at 30 minutes (about 9.7 MiB); CPU samples rose into
   30–36% late in the run from mostly low-to-mid 20% readings earlier (workspace
   notes/m05/soak-30min.txt). This does not meet the exit gate's no-growth requirement.
-- **Audio:** The current Flatpak has no audio permission. Non-zero volume remains silent there
-  until packaging adds audio access in M16.
+- **Audio:** At the time of M05, the Flatpak had no audio permission. M16 later enabled its
+  PulseAudio socket; web-video audio was verified on the host (D-027).
 - **Remaining gaps:** The soak shows an RSS/CPU growth trend, so M05 remains PARTIAL despite the
   playback and switch checks. The runtime probe confirms available plugins, but only the H.264 MP4
-  playback probe is recorded. Flatpak audio packaging is deferred to M16.
+  playback probe is recorded.
 - **Next task:** M06 GIF.
 
 ## M06 — Animated GIF
@@ -221,8 +221,8 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 - **Runtime checks:** Big Buck Bunny selected video-only format 298 (HTTPS, avc1, 720p), played,
   and advanced; an ended live URL failed once with `unavailable`, without retry, as designed
   (workspace `notes/m08/real/`).
-- **Remaining gaps:** yt-dlp is not bundled and must be installed by the user. Flatpak YouTube
-  audio remains unavailable pending PulseAudio permission (D-025).
+- **Remaining gaps:** yt-dlp is not bundled and must be installed by the user. M16 later enabled
+  Flatpak audio through the PulseAudio socket (D-027).
 - **Next task:** —
 
 ## M09 — Livestreams
@@ -351,8 +351,8 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   live 720p with audio, recorded 720p muted, and recorded 1440p VP9 with audio. The two-hour soak,
   full `zig build test`, and user manual regression results are recorded in
   [PERFORMANCE](PERFORMANCE.md) and [TEST_MATRIX](TEST_MATRIX.md).
-- **Open items:** Flatpak has no PulseAudio socket, so YouTube audio remains unavailable there;
-  adding permission needs user approval. The `.pot` file was not regenerated. A quality change
+- **Open items:** M16 enabled the Flatpak PulseAudio socket and verified web-video audio (D-027).
+  The `.pot` file was not regenerated. A quality change
   during an in-flight resolve keeps the old result, and the quality row hides briefly while
   re-resolving.
 
@@ -366,6 +366,21 @@ comparison yielded 3732/3732 frames identical to FFmpeg; slow-HLS continuity mis
 17 → 0, libav “co located POCs unavailable” messages fell 16 → 0, and the picture was clean. Four
 unit tests passed. This affected every build with the URL player since M07 and replaces the earlier
 incorrect broadcast-damage and appsink-QoS explanations. See [D-026](DECISIONS.md#d-026-renumber-mpeg-ts-continuity-counters-before-tsdemux).
+
+## M16 — Packaging
+
+- **Status:** DONE for package tooling and clean-install evidence. The `.deb` tooling merged as
+  `f55670384`; the Flatpak bundle as `4486a52d0`. Public downloads are planned for M17.
+- **Evidence:** In a fresh Ubuntu 26.04 container, `.deb` install with recommendations, `+version`,
+  dependency resolution, desktop-file validation, coexistence with Ubuntu Ghostty 1.3.0, upgrade,
+  remove, purge, reinstall, and downgrade all passed. On the Ubuntu 26.04.1 host, the packaged GUI
+  found its resources, played web video, and owned its application D-Bus name. The 17.9 MB Flatpak
+  installed beside official Ghostty, played video and audio, owned its own D-Bus name, and
+  uninstalled with its exported desktop entry and data. See [INSTALL](INSTALL.md), [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak), [D-028](DECISIONS.md#d-028-side-by-side-application-identity), and [TEST_MATRIX](TEST_MATRIX.md).
+- **Not verified:** Flatpak installation on a real Ubuntu 24.04 system; `sudo apt install` on the
+  user's desktop. The container covers package install mechanics.
+- **Known:** Flatpak prints a shell-integration warning because the host shell cannot read `/app`
+  paths; the terminal works.
 
 ## How to resume
 
