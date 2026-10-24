@@ -217,6 +217,26 @@ template $GhosttyMediaPanel: Adw.Dialog {
                 value-changed => $dim_changed();
               }
             }
+
+            Adw.ActionRow {
+              title: _("Blur");
+
+              [suffix]
+              Gtk.Scale blur_scale {
+                accessibility {
+                  label: _("Blur");
+                }
+                orientation: horizontal;
+                width-request: 200;
+                adjustment: Gtk.Adjustment {
+                  lower: 0;
+                  upper: 40;
+                  step-increment: 1;
+                  page-increment: 5;
+                };
+                value-changed => $blur_changed();
+              }
+            }
           }
 
           Adw.PreferencesGroup {

@@ -12,6 +12,7 @@ pub const Values = struct {
     fit: []const u8,
     position: []const u8,
     dim: f32,
+    blur: f32,
     loop: bool,
     volume: f32,
     play_in_background: bool,
@@ -40,6 +41,7 @@ pub fn renderManaged(writer: *std.Io.Writer, values: Values) !void {
         "background-media-fit = {s}\n" ++
             "background-media-position = {s}\n" ++
             "background-media-dim = {d:.2}\n" ++
+            "background-media-blur = {d:.1}\n" ++
             "background-media-loop = {}\n" ++
             "background-media-volume = {d:.2}\n" ++
             "background-media-play-in-background = {}\n" ++
@@ -48,6 +50,7 @@ pub fn renderManaged(writer: *std.Io.Writer, values: Values) !void {
             values.fit,
             values.position,
             values.dim,
+            values.blur,
             values.loop,
             values.volume,
             values.play_in_background,
@@ -203,6 +206,7 @@ test "renderManaged outputs exact values with and without a source" {
         .fit = "cover",
         .position = "center",
         .dim = 0.1,
+        .blur = 12,
         .loop = true,
         .volume = 0.75,
         .play_in_background = false,
@@ -219,6 +223,7 @@ test "renderManaged outputs exact values with and without a source" {
             "background-media-fit = cover\n" ++
             "background-media-position = center\n" ++
             "background-media-dim = 0.10\n" ++
+            "background-media-blur = 12.0\n" ++
             "background-media-loop = true\n" ++
             "background-media-volume = 0.75\n" ++
             "background-media-play-in-background = false\n" ++
@@ -237,6 +242,7 @@ test "renderManaged outputs exact values with and without a source" {
             "background-media-fit = cover\n" ++
             "background-media-position = center\n" ++
             "background-media-dim = 0.10\n" ++
+            "background-media-blur = 12.0\n" ++
             "background-media-loop = true\n" ++
             "background-media-volume = 0.75\n" ++
             "background-media-play-in-background = false\n" ++
@@ -254,6 +260,7 @@ test "renderManaged rejects line breaks and NUL in source" {
         .fit = "cover",
         .position = "center",
         .dim = 0,
+        .blur = 0,
         .loop = false,
         .volume = 1,
         .play_in_background = false,
@@ -265,6 +272,7 @@ test "renderManaged rejects line breaks and NUL in source" {
         .fit = "cover",
         .position = "center",
         .dim = 0,
+        .blur = 0,
         .loop = false,
         .volume = 1,
         .play_in_background = false,
@@ -275,6 +283,7 @@ test "renderManaged rejects line breaks and NUL in source" {
         .fit = "cover",
         .position = "center",
         .dim = 0,
+        .blur = 0,
         .loop = false,
         .volume = 1,
         .play_in_background = false,
@@ -325,6 +334,7 @@ test "saveInDir creates the main config and managed include" {
         .fit = "contain",
         .position = "top-left",
         .dim = 0.1,
+        .blur = 0,
         .loop = false,
         .volume = 0.5,
         .play_in_background = true,
@@ -376,6 +386,7 @@ test "saveInDir preserves existing main config and does not append twice" {
         .fit = "cover",
         .position = "center",
         .dim = 0.2,
+        .blur = 0,
         .loop = true,
         .volume = 0.8,
         .play_in_background = false,
@@ -400,6 +411,7 @@ test "saveInDir preserves existing main config and does not append twice" {
         .fit = "contain",
         .position = "bottom-right",
         .dim = 0.3,
+        .blur = 0,
         .loop = false,
         .volume = 0.4,
         .play_in_background = true,

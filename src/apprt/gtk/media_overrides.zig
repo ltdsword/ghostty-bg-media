@@ -14,6 +14,7 @@ pub const Overrides = struct {
     fit: ?bg.layout.Fit = null,
     position: ?bg.layout.Position = null,
     dim: ?f32 = null,
+    blur: ?f32 = null,
     loop: ?bool = null,
     volume: ?f32 = null,
     play_in_background: ?bool = null,
@@ -67,6 +68,11 @@ pub fn setPosition(value: bg.layout.Position) void {
 
 pub fn setDim(value: f32) void {
     current.dim = if (std.math.isNan(value)) 0 else std.math.clamp(value, 0, 1);
+    on_change();
+}
+
+pub fn setBlur(value: f32) void {
+    current.blur = if (std.math.isNan(value)) 0 else std.math.clamp(value, 0, 40);
     on_change();
 }
 
@@ -171,6 +177,20 @@ test "media override clamps values" {
     try std.testing.expectEqual(@as(u32, 1), current.max_fps.?);
     setMaxFps(240);
     try std.testing.expectEqual(@as(u32, 120), current.max_fps.?);
+    clearAll();
+}
+
+test "media override clamps blur" {
+    const old_on_change = on_change;
+    on_change = noChange;
+    defer on_change = old_on_change;
+
+    setBlur(50);
+    try std.testing.expectEqual(@as(f32, 40), current.blur.?);
+    setBlur(-1);
+    try std.testing.expectEqual(@as(f32, 0), current.blur.?);
+    setBlur(std.math.nan(f32));
+    try std.testing.expectEqual(@as(f32, 0), current.blur.?);
     clearAll();
 }
 

@@ -41,6 +41,7 @@ pub const MediaPanel = extern struct {
         fit_row: *adw.ComboRow,
         position_row: *adw.ComboRow,
         dim_scale: *gtk.Scale,
+        blur_scale: *gtk.Scale,
         playback_row: *adw.ActionRow,
         retry_button: *gtk.Button,
         live_button: *gtk.Button,
@@ -124,6 +125,7 @@ pub const MediaPanel = extern struct {
         priv.fit_row.setSelected(@intCast(@intFromEnum(fit)));
         priv.position_row.setSelected(@intCast(@intFromEnum(position)));
         priv.dim_scale.as(gtk.Range).setValue(@floatCast(overrides.dim orelse config.@"background-media-dim"));
+        priv.blur_scale.as(gtk.Range).setValue(@floatCast(overrides.blur orelse config.@"background-media-blur"));
         priv.loop_row.setActive(@intFromBool(overrides.loop orelse config.@"background-media-loop"));
         priv.volume_scale.as(gtk.Range).setValue(@floatCast(overrides.volume orelse config.@"background-media-volume"));
         priv.background_row.setActive(@intFromBool(overrides.play_in_background orelse config.@"background-media-play-in-background"));
@@ -199,6 +201,11 @@ pub const MediaPanel = extern struct {
     fn onDimChanged(scale: *gtk.Scale, self: *Self) callconv(.c) void {
         if (self.private().syncing) return;
         media_overrides.setDim(@floatCast(scale.as(gtk.Range).getValue()));
+    }
+
+    fn onBlurChanged(scale: *gtk.Scale, self: *Self) callconv(.c) void {
+        if (self.private().syncing) return;
+        media_overrides.setBlur(@floatCast(scale.as(gtk.Range).getValue()));
     }
 
     fn onLoopChanged(row: *adw.SwitchRow, _: *gobject.ParamSpec, self: *Self) callconv(.c) void {
@@ -291,6 +298,7 @@ pub const MediaPanel = extern struct {
             .fit = @tagName(fit),
             .position = @tagName(position),
             .dim = overrides.dim orelse config.@"background-media-dim",
+            .blur = overrides.blur orelse config.@"background-media-blur",
             .loop = overrides.loop orelse config.@"background-media-loop",
             .volume = overrides.volume orelse config.@"background-media-volume",
             .play_in_background = overrides.play_in_background orelse config.@"background-media-play-in-background",
@@ -455,6 +463,7 @@ pub const MediaPanel = extern struct {
             class.bindTemplateChildPrivate("fit_row", .{});
             class.bindTemplateChildPrivate("position_row", .{});
             class.bindTemplateChildPrivate("dim_scale", .{});
+            class.bindTemplateChildPrivate("blur_scale", .{});
             class.bindTemplateChildPrivate("playback_row", .{});
             class.bindTemplateChildPrivate("retry_button", .{});
             class.bindTemplateChildPrivate("live_button", .{});
@@ -480,6 +489,7 @@ pub const MediaPanel = extern struct {
             class.bindTemplateCallback("fit_changed", &onFitChanged);
             class.bindTemplateCallback("position_changed", &onPositionChanged);
             class.bindTemplateCallback("dim_changed", &onDimChanged);
+            class.bindTemplateCallback("blur_changed", &onBlurChanged);
             class.bindTemplateCallback("loop_changed", &onLoopChanged);
             class.bindTemplateCallback("volume_changed", &onVolumeChanged);
             class.bindTemplateCallback("background_changed", &onBackgroundChanged);

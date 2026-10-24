@@ -748,6 +748,15 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// This can be changed at runtime by reloading the configuration.
 @"background-media-dim": f32 = 0.0,
 
+/// Blur radius for the background media, in pixels, from `0` (no blur) to
+/// `40`. Only the media is blurred; terminal text stays sharp.
+///
+/// The default value is `0`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-blur": f32 = 0.0,
+
 /// Whether to loop the background media. This is ignored for live streams.
 ///
 /// The default value is `true`.

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: com.mitchellh.ghostty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
-"POT-Creation-Date: 2026-10-24 15:58+0700\n"
+"POT-Creation-Date: 2026-10-24 17:46+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -287,7 +287,7 @@ msgid "Go Live"
 msgstr ""
 
 #: src/apprt/gtk/ui/1.5/media-panel.blp:71
-#: src/apprt/gtk/class/media_panel.zig:382
+#: src/apprt/gtk/class/media_panel.zig:390
 msgid "Pause"
 msgstr ""
 
@@ -397,24 +397,29 @@ msgstr ""
 msgid "Dim"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.5/media-panel.blp:223
-#: src/apprt/gtk/ui/1.5/media-panel.blp:226
+#: src/apprt/gtk/ui/1.5/media-panel.blp:222
+#: src/apprt/gtk/ui/1.5/media-panel.blp:227
+msgid "Blur"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:243
+#: src/apprt/gtk/ui/1.5/media-panel.blp:246
 msgid "Diagnostics"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.5/media-panel.blp:230
+#: src/apprt/gtk/ui/1.5/media-panel.blp:250
 msgid "GStreamer URL player"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.5/media-panel.blp:234
+#: src/apprt/gtk/ui/1.5/media-panel.blp:254
 msgid "yt-dlp"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.5/media-panel.blp:247
+#: src/apprt/gtk/ui/1.5/media-panel.blp:267
 msgid "Reset Changes"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.5/media-panel.blp:252
+#: src/apprt/gtk/ui/1.5/media-panel.blp:272
 msgid "Save to Configuration"
 msgstr ""
 
@@ -504,99 +509,99 @@ msgstr ""
 msgid "The currently running process in this split will be terminated."
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:149
+#: src/apprt/gtk/class/media_panel.zig:151
 msgid "Choose Background Media"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:155
+#: src/apprt/gtk/class/media_panel.zig:157
 msgid "Images and videos"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:261
+#: src/apprt/gtk/class/media_panel.zig:268
 msgid "Available"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:261
+#: src/apprt/gtk/class/media_panel.zig:268
 msgid "Not available"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:264
+#: src/apprt/gtk/class/media_panel.zig:271
 msgid " (GHOSTTY_YTDLP)"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:269
+#: src/apprt/gtk/class/media_panel.zig:276
 msgid "Not found: install yt-dlp or set GHOSTTY_YTDLP"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:301
+#: src/apprt/gtk/class/media_panel.zig:309
 msgid "Could not save: {s}"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:308
+#: src/apprt/gtk/class/media_panel.zig:316
 msgid "Saved to {s}"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:350
+#: src/apprt/gtk/class/media_panel.zig:358
 msgid "No background media"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:353
+#: src/apprt/gtk/class/media_panel.zig:361
 msgid "Local file"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:354
+#: src/apprt/gtk/class/media_panel.zig:362
 msgid "Web video"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:355
+#: src/apprt/gtk/class/media_panel.zig:363
 msgid "HLS stream"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:356
+#: src/apprt/gtk/class/media_panel.zig:364
 msgid "YouTube"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:361
+#: src/apprt/gtk/class/media_panel.zig:369
 msgid "Idle"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:362
+#: src/apprt/gtk/class/media_panel.zig:370
 msgid "Loading"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:363
+#: src/apprt/gtk/class/media_panel.zig:371
 msgid "Showing"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:363
+#: src/apprt/gtk/class/media_panel.zig:371
 msgid "Playing"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:363
+#: src/apprt/gtk/class/media_panel.zig:371
 msgid "Paused"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:365
+#: src/apprt/gtk/class/media_panel.zig:373
 msgid "Failed: "
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:371
+#: src/apprt/gtk/class/media_panel.zig:379
 msgid " · LIVE"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:373
+#: src/apprt/gtk/class/media_panel.zig:381
 msgid " · Waiting for the stream to start"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:375
+#: src/apprt/gtk/class/media_panel.zig:383
 msgid " · Stream ended"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:382
+#: src/apprt/gtk/class/media_panel.zig:390
 msgid "Play"
 msgstr ""
 
-#: src/apprt/gtk/class/media_panel.zig:394
+#: src/apprt/gtk/class/media_panel.zig:402
 msgid " · Reconnecting (attempt {d})"
 msgstr ""
 

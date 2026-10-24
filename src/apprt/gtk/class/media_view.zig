@@ -40,6 +40,7 @@ pub const MediaView = extern struct {
         fit: bg.layout.Fit = .cover,
         position: bg.layout.Position = .center,
         dim: f32 = 0,
+        blur: f32 = 0,
         bg_rgb: struct { r: u8, g: u8, b: u8 } = .{ .r = 0, .g = 0, .b = 0 },
 
         pub var offset: c_int = 0;
@@ -159,6 +160,8 @@ pub const MediaView = extern struct {
         priv.fit = overrides.fit orelse std.meta.stringToEnum(bg.layout.Fit, @tagName(config.@"background-media-fit")).?;
         priv.position = overrides.position orelse std.meta.stringToEnum(bg.layout.Position, @tagName(config.@"background-media-position")).?;
         priv.dim = overrides.dim orelse config.@"background-media-dim";
+        const blur = overrides.blur orelse config.@"background-media-blur";
+        priv.blur = if (std.math.isNan(blur)) 0 else std.math.clamp(blur, 0, 40);
         priv.bg_rgb = .{
             .r = config.background.r,
             .g = config.background.g,
@@ -364,7 +367,9 @@ pub const MediaView = extern struct {
         });
         snap.save();
         snap.translate(&.{ .f_x = dest.x, .f_y = dest.y });
+        if (priv.blur > 0) snap.pushBlur(priv.blur);
         paintable.snapshot(snap.as(gdk.Snapshot), dest.width, dest.height);
+        if (priv.blur > 0) snap.pop();
         snap.restore();
         if (priv.dim > 0) {
             const color = gdk.RGBA{
