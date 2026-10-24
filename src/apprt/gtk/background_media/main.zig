@@ -7,6 +7,7 @@ pub const cadence = @import("cadence.zig");
 pub const retry = @import("retry.zig");
 pub const youtube = @import("youtube.zig");
 pub const live = @import("live.zig");
+pub const config_save = @import("config_save.zig");
 
 test {
     @import("std").testing.refAllDecls(@This());
