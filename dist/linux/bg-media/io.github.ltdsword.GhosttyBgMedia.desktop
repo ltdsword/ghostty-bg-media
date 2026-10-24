@@ -1,0 +1,24 @@
+[Desktop Entry]
+Version=1.0
+Name=Ghostty Background Media
+Type=Application
+Comment=Terminal emulator with image, GIF and video backgrounds
+TryExec=ghostty-bg-media
+Exec=ghostty-bg-media --gtk-single-instance=true
+Icon=io.github.ltdsword.GhosttyBgMedia
+Categories=System;TerminalEmulator;
+Keywords=terminal;tty;pty;
+StartupNotify=true
+StartupWMClass=io.github.ltdsword.GhosttyBgMedia
+Terminal=false
+Actions=new-window;
+X-GNOME-UsesNotifications=true
+X-TerminalArgExec=-e
+X-TerminalArgTitle=--title=
+X-TerminalArgAppId=--class=
+X-TerminalArgDir=--working-directory=
+X-TerminalArgHold=--wait-after-command
+
+[Desktop Action new-window]
+Name=New Window
+Exec=ghostty-bg-media --gtk-single-instance=true

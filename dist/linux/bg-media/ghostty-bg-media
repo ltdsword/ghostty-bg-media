@@ -1,0 +1,10 @@
+#!/bin/sh
+# Ghostty Background Media launcher. Runs the bundled Ghostty with its own application id so it can run next to
+# the official Ghostty (separate windows, desktop entry and single-instance group). Used by the .deb and Flatpak.
+for app in /opt/ghostty-bg-media/bin/ghostty /app/bin/ghostty; do
+    [ -x "$app" ] && break
+done
+case "${1-}" in
+    +*) exec "$app" "$@" ;;
+esac
+exec "$app" --class=io.github.ltdsword.GhosttyBgMedia "$@"
