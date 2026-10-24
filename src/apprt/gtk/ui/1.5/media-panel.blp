@@ -4,7 +4,7 @@ using Adw 1;
 
 template $GhosttyMediaPanel: Adw.Dialog {
   title: _("Background Media");
-  content-width: 480;
+  content-width: 600;
   closed => $closed();
 
   Adw.ToastOverlay toast_overlay {
@@ -20,23 +20,25 @@ template $GhosttyMediaPanel: Adw.Dialog {
         Adw.PreferencesPage {
           Adw.PreferencesGroup {
             title: _("Source");
+            header-suffix: Gtk.Box {
+              spacing: 6;
+
+              Gtk.Button choose_button {
+                label: _("Choose File…");
+                styles [ "suggested-action" ]
+                clicked => $choose_file();
+              }
+
+              Gtk.Button {
+                label: _("Use Configuration");
+                clicked => $use_configuration();
+              }
+            };
 
             Adw.EntryRow source_row {
               title: _("Image, video or URL");
               show-apply-button: true;
               apply => $source_applied();
-
-              [suffix]
-              Gtk.Button {
-                label: _("Choose File…");
-                clicked => $choose_file();
-              }
-
-              [suffix]
-              Gtk.Button {
-                label: _("Use Configuration");
-                clicked => $use_configuration();
-              }
             }
 
             Adw.ActionRow status_row {
@@ -121,8 +123,48 @@ template $GhosttyMediaPanel: Adw.Dialog {
 
               [suffix]
               Gtk.Button play_button {
+                valign: center;
                 label: _("Pause");
                 clicked => $toggle_play();
+              }
+
+              [suffix]
+              Gtk.Button off_button {
+                valign: center;
+                label: _("Turn Off");
+                clicked => $turn_off();
+              }
+            }
+
+            Adw.ActionRow seek_row {
+              title: _("Time");
+              visible: false;
+
+              [suffix]
+              Gtk.Label position_label {
+                label: "0:00";
+              }
+
+              [suffix]
+              Gtk.Scale seek_scale {
+                orientation: horizontal;
+                width-request: 200;
+                hexpand: true;
+                accessibility {
+                  label: _("Seek");
+                }
+                adjustment: Gtk.Adjustment {
+                  lower: 0;
+                  upper: 1;
+                  step-increment: 1;
+                  page-increment: 10;
+                };
+                change-value => $seek_changed();
+              }
+
+              [suffix]
+              Gtk.Label duration_label {
+                label: "0:00";
               }
             }
 
@@ -152,19 +194,29 @@ template $GhosttyMediaPanel: Adw.Dialog {
             }
 
             Adw.SwitchRow background_row {
-              title: _("Play when unfocused");
+              title: _("Keep playing in background");
               notify::active => $background_changed();
             }
 
-            Adw.SpinRow fps_row {
-              title: _("Maximum frame rate");
-              adjustment: Gtk.Adjustment {
-                lower: 1;
-                upper: 120;
-                step-increment: 1;
-                page-increment: 1;
-              };
-              notify::value => $fps_changed();
+            Adw.ActionRow {
+              title: _("Frame rate");
+
+              [suffix]
+              Gtk.Box {
+                styles [ "linked" ]
+                valign: center;
+
+                Gtk.ToggleButton fps30_button {
+                  label: _("30 fps");
+                  toggled => $fps_toggled();
+                }
+
+                Gtk.ToggleButton fps60_button {
+                  label: _("60 fps");
+                  group: fps30_button;
+                  toggled => $fps_toggled();
+                }
+              }
             }
           }
 
@@ -186,15 +238,22 @@ template $GhosttyMediaPanel: Adw.Dialog {
           }
 
           Adw.PreferencesGroup {
-            Gtk.Button save_button {
-              label: _("Save to Configuration");
-              styles [ "suggested-action" ]
-              clicked => $save();
-            }
+            Gtk.Box {
+              orientation: horizontal;
+              spacing: 12;
+              halign: end;
+              margin-top: 12;
 
-            Gtk.Button reset_button {
-              label: _("Reset Changes");
-              clicked => $reset();
+              Gtk.Button reset_button {
+                label: _("Reset Changes");
+                clicked => $reset();
+              }
+
+              Gtk.Button save_button {
+                label: _("Save to Configuration");
+                styles [ "suggested-action" ]
+                clicked => $save();
+              }
             }
           }
         }

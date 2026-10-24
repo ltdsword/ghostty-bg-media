@@ -40,6 +40,7 @@ const Api = struct {
     object_unref: *const fn (*anyopaque) callconv(.c) void,
     message_parse_error: *const fn (*anyopaque, ?*?*glib.Error, ?*?[*:0]u8) callconv(.c) void,
     element_query_duration: *const fn (*anyopaque, c_int, *i64) callconv(.c) c_int,
+    element_query_position: *const fn (*anyopaque, c_int, *i64) callconv(.c) c_int,
     element_seek_simple: *const fn (*anyopaque, c_int, c_int, i64) callconv(.c) c_int,
     app_sink_pull_sample: *const fn (*anyopaque) callconv(.c) ?*anyopaque,
     sample_get_buffer: *const fn (*anyopaque) callconv(.c) ?*anyopaque,
@@ -170,6 +171,26 @@ pub fn isLive(player: *Player) bool {
     return api.element_query_duration(player.pipeline, 3, &duration) == 0 or duration <= 0;
 }
 
+pub fn timing(player: *Player) ?struct { position_ns: i64, duration_ns: i64 } {
+    if (player.destroyed.load(.acquire)) return null;
+    const api = getApi() orelse return null;
+    var position_ns: i64 = 0;
+    var duration_ns: i64 = 0;
+    if (api.element_query_position(player.pipeline, 3, &position_ns) == 0 or
+        api.element_query_duration(player.pipeline, 3, &duration_ns) == 0 or
+        duration_ns <= 0)
+    {
+        return null;
+    }
+    return .{ .position_ns = position_ns, .duration_ns = duration_ns };
+}
+
+pub fn seekTo(player: *Player, position_ns: i64) void {
+    if (player.destroyed.load(.acquire)) return;
+    const api = getApi() orelse return;
+    _ = api.element_seek_simple(player.pipeline, 3, 1 | 4, position_ns);
+}
+
 pub fn rewind(player: *Player) void {
     if (player.destroyed.load(.acquire)) return;
     const api = getApi() orelse return;
@@ -236,6 +257,7 @@ fn getApi() ?*const Api {
         .object_unref = symbol(@TypeOf(@as(Api, undefined).object_unref), gst, "gst_object_unref") orelse return unavailableApi(),
         .message_parse_error = symbol(@TypeOf(@as(Api, undefined).message_parse_error), gst, "gst_message_parse_error") orelse return unavailableApi(),
         .element_query_duration = symbol(@TypeOf(@as(Api, undefined).element_query_duration), gst, "gst_element_query_duration") orelse return unavailableApi(),
+        .element_query_position = symbol(@TypeOf(@as(Api, undefined).element_query_position), gst, "gst_element_query_position") orelse return unavailableApi(),
         .element_seek_simple = symbol(@TypeOf(@as(Api, undefined).element_seek_simple), gst, "gst_element_seek_simple") orelse return unavailableApi(),
         .app_sink_pull_sample = symbol(@TypeOf(@as(Api, undefined).app_sink_pull_sample), app, "gst_app_sink_pull_sample") orelse return unavailableApi(),
         .sample_get_buffer = symbol(@TypeOf(@as(Api, undefined).sample_get_buffer), gst, "gst_sample_get_buffer") orelse return unavailableApi(),

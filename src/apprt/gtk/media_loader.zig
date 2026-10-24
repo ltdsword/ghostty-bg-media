@@ -35,6 +35,12 @@ pub const Settings = struct {
     paused: bool = false,
 };
 
+pub const Playback = struct {
+    seekable: bool = false,
+    position_us: i64 = 0,
+    duration_us: i64 = 0,
+};
+
 const ViewEntry = struct {
     view: *MediaView,
     active: bool = false,
@@ -207,6 +213,42 @@ pub fn paintable() ?*gdk.Paintable {
     if (loader.stream) |stream| return stream.as(gdk.Paintable);
     if (loader.texture) |texture_value| return texture_value.as(gdk.Paintable);
     return null;
+}
+
+pub fn playback() Playback {
+    if (loader.stream) |stream| {
+        const media_stream = stream.as(gtk.MediaStream);
+        const duration_us = media_stream.getDuration();
+        return .{
+            .seekable = media_stream.isSeekable() != 0 and duration_us > 0,
+            .position_us = media_stream.getTimestamp(),
+            .duration_us = duration_us,
+        };
+    }
+
+    if (loader.url_player) |player| {
+        if (loader.stream_was_live) return .{};
+        const timing = gst_url_player.timing(player) orelse return .{};
+        return .{
+            .seekable = true,
+            .position_us = @divTrunc(timing.position_ns, 1_000),
+            .duration_us = @divTrunc(timing.duration_ns, 1_000),
+        };
+    }
+
+    return .{};
+}
+
+pub fn seek(position_us: i64) void {
+    const pb = playback();
+    if (!pb.seekable) return;
+    const bounded_position = std.math.clamp(position_us, 0, pb.duration_us);
+
+    if (loader.stream) |stream| {
+        stream.as(gtk.MediaStream).seek(bounded_position);
+    } else if (loader.url_player) |player| {
+        gst_url_player.seekTo(player, bounded_position * 1_000);
+    }
 }
 
 pub const LiveInfo = struct {

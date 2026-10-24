@@ -67,6 +67,14 @@ template $GhosttyWindow: Adw.ApplicationWindow {
 
         [end]
         Gtk.Box {
+          Gtk.Button {
+            icon-name: "video-x-generic-symbolic";
+            tooltip-text: _("Background Media");
+            action-name: "win.background-media";
+            can-focus: false;
+            focus-on-click: false;
+          }
+
           Gtk.ToggleButton {
             icon-name: "view-grid-symbolic";
             tooltip-text: _("View Open Tabs");
@@ -121,6 +129,18 @@ template $GhosttyWindow: Adw.ApplicationWindow {
         Gtk.Box {
           orientation: horizontal;
           visible: bind $titlebar_style_is_tabs(template.titlebar-style) as <bool>;
+
+          Gtk.Button {
+            styles [
+              "flat",
+            ]
+
+            icon-name: "video-x-generic-symbolic";
+            tooltip-text: _("Background Media");
+            action-name: "win.background-media";
+            can-focus: false;
+            focus-on-click: false;
+          }
 
           Gtk.ToggleButton {
             styles [

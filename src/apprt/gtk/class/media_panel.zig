@@ -37,6 +37,7 @@ pub const MediaPanel = extern struct {
 
         toast_overlay: *adw.ToastOverlay,
         source_row: *adw.EntryRow,
+        choose_button: *gtk.Button,
         fit_row: *adw.ComboRow,
         position_row: *adw.ComboRow,
         dim_scale: *gtk.Scale,
@@ -44,10 +45,16 @@ pub const MediaPanel = extern struct {
         retry_button: *gtk.Button,
         live_button: *gtk.Button,
         play_button: *gtk.Button,
+        off_button: *gtk.Button,
+        seek_row: *adw.ActionRow,
+        seek_scale: *gtk.Scale,
+        position_label: *gtk.Label,
+        duration_label: *gtk.Label,
         loop_row: *adw.SwitchRow,
         volume_scale: *gtk.Scale,
         background_row: *adw.SwitchRow,
-        fps_row: *adw.SpinRow,
+        fps30_button: *gtk.ToggleButton,
+        fps60_button: *gtk.ToggleButton,
         diag_row: *adw.ExpanderRow,
         gst_row: *adw.ActionRow,
         ytdlp_row: *adw.ActionRow,
@@ -104,6 +111,7 @@ pub const MediaPanel = extern struct {
             .value => |value| value,
         };
         priv.source_row.as(gtk.Editable).setText(source_text);
+        priv.source_row.as(gtk.Editable).setPosition(-1);
 
         const fit = overrides.fit orelse std.meta.stringToEnum(
             bg.layout.Fit,
@@ -119,7 +127,9 @@ pub const MediaPanel = extern struct {
         priv.loop_row.setActive(@intFromBool(overrides.loop orelse config.@"background-media-loop"));
         priv.volume_scale.as(gtk.Range).setValue(@floatCast(overrides.volume orelse config.@"background-media-volume"));
         priv.background_row.setActive(@intFromBool(overrides.play_in_background orelse config.@"background-media-play-in-background"));
-        priv.fps_row.setValue(@floatFromInt(overrides.max_fps orelse config.@"background-media-max-fps"));
+        const max_fps = overrides.max_fps orelse config.@"background-media-max-fps";
+        priv.fps30_button.setActive(@intFromBool(max_fps == 30));
+        priv.fps60_button.setActive(@intFromBool(max_fps == 60));
     }
 
     fn onSourceApplied(_: *adw.EntryRow, self: *Self) callconv(.c) void {
@@ -172,6 +182,7 @@ pub const MediaPanel = extern struct {
         const path = file.getPath() orelse return;
         defer glib.free(path);
         self.private().source_row.as(gtk.Editable).setText(path);
+        self.private().source_row.as(gtk.Editable).setPosition(-1);
         onSourceApplied(self.private().source_row, self);
     }
 
@@ -205,14 +216,32 @@ pub const MediaPanel = extern struct {
         media_overrides.setPlayInBackground(row.getActive() != 0);
     }
 
-    fn onFpsChanged(row: *adw.SpinRow, _: *gobject.ParamSpec, self: *Self) callconv(.c) void {
-        if (self.private().syncing) return;
-        media_overrides.setMaxFps(@intFromFloat(row.getValue()));
+    fn onFpsToggled(button: *gtk.ToggleButton, self: *Self) callconv(.c) void {
+        const priv = self.private();
+        if (priv.syncing or button.getActive() == 0) return;
+        media_overrides.setMaxFps(if (button == priv.fps30_button) 30 else 60);
     }
 
     fn onTogglePlay(_: *gtk.Button, self: *Self) callconv(.c) void {
-        media_overrides.setPaused(!media_overrides.get().paused);
+        const text = std.mem.span(self.private().source_row.as(gtk.Editable).getText());
+        if (media_overrides.get().source == .none and text.len > 0) {
+            media_overrides.setSource(text);
+            if (media_overrides.get().paused) media_overrides.setPaused(false);
+        } else {
+            media_overrides.setPaused(!media_overrides.get().paused);
+        }
         self.updateStatus();
+    }
+
+    fn onTurnOff(_: *gtk.Button, self: *Self) callconv(.c) void {
+        media_overrides.setSource(null);
+        self.updateStatus();
+    }
+
+    fn onSeekChanged(range: *gtk.Range, _: gtk.ScrollType, value: f64, self: *Self) callconv(.c) c_int {
+        _ = range;
+        if (!self.private().syncing) media_loader.seek(@intFromFloat(value * 1_000_000));
+        return 0;
     }
 
     fn onRetry(_: *gtk.Button, _: *Self) callconv(.c) void {
@@ -298,8 +327,24 @@ pub const MediaPanel = extern struct {
     fn updateStatus(self: *Self) void {
         const priv = self.private();
         const info = media_loader.statusInfo();
+        const pb = media_loader.playback();
         var buffer: [512:0]u8 = undefined;
         var len: usize = 0;
+
+        priv.seek_row.as(gtk.Widget).setVisible(@intFromBool(pb.seekable));
+        priv.off_button.as(gtk.Widget).setSensitive(@intFromBool(info.has_source));
+        if (pb.seekable) {
+            const was_syncing = priv.syncing;
+            priv.syncing = true;
+            defer priv.syncing = was_syncing;
+
+            priv.seek_scale.as(gtk.Range).getAdjustment().setUpper(@as(f64, @floatFromInt(pb.duration_us)) / 1_000_000.0);
+            priv.seek_scale.as(gtk.Range).setValue(@as(f64, @floatFromInt(pb.position_us)) / 1_000_000.0);
+            var position_buf: [32:0]u8 = undefined;
+            var duration_buf: [32:0]u8 = undefined;
+            priv.position_label.setLabel(formatTime(&position_buf, pb.position_us));
+            priv.duration_label.setLabel(formatTime(&duration_buf, pb.duration_us));
+        }
 
         if (!info.has_source) {
             appendStatus(&buffer, &len, std.mem.span(i18n._("No background media")));
@@ -350,6 +395,17 @@ pub const MediaPanel = extern struct {
         buffer[len.*] = 0;
     }
 
+    fn formatTime(buffer: *[32:0]u8, microseconds: i64) [:0]const u8 {
+        const total_seconds: u64 = @intCast(@max(microseconds, 0) / 1_000_000);
+        const hours = total_seconds / 3600;
+        const formatted = if (hours > 0)
+            std.fmt.bufPrint(buffer[0..], "{d}:{d:0>2}:{d:0>2}", .{ hours, (total_seconds / 60) % 60, total_seconds % 60 }) catch unreachable
+        else
+            std.fmt.bufPrint(buffer[0..], "{d}:{d:0>2}", .{ total_seconds / 60, total_seconds % 60 }) catch unreachable;
+        buffer[formatted.len] = 0;
+        return buffer[0..formatted.len :0];
+    }
+
     fn addToast(self: *Self, title: [*:0]const u8) void {
         const toast = adw.Toast.new(title);
         toast.setTimeout(3);
@@ -394,6 +450,7 @@ pub const MediaPanel = extern struct {
 
             class.bindTemplateChildPrivate("toast_overlay", .{});
             class.bindTemplateChildPrivate("source_row", .{});
+            class.bindTemplateChildPrivate("choose_button", .{});
             class.bindTemplateChildPrivate("fit_row", .{});
             class.bindTemplateChildPrivate("position_row", .{});
             class.bindTemplateChildPrivate("dim_scale", .{});
@@ -401,10 +458,16 @@ pub const MediaPanel = extern struct {
             class.bindTemplateChildPrivate("retry_button", .{});
             class.bindTemplateChildPrivate("live_button", .{});
             class.bindTemplateChildPrivate("play_button", .{});
+            class.bindTemplateChildPrivate("off_button", .{});
+            class.bindTemplateChildPrivate("seek_row", .{});
+            class.bindTemplateChildPrivate("seek_scale", .{});
+            class.bindTemplateChildPrivate("position_label", .{});
+            class.bindTemplateChildPrivate("duration_label", .{});
             class.bindTemplateChildPrivate("loop_row", .{});
             class.bindTemplateChildPrivate("volume_scale", .{});
             class.bindTemplateChildPrivate("background_row", .{});
-            class.bindTemplateChildPrivate("fps_row", .{});
+            class.bindTemplateChildPrivate("fps30_button", .{});
+            class.bindTemplateChildPrivate("fps60_button", .{});
             class.bindTemplateChildPrivate("diag_row", .{});
             class.bindTemplateChildPrivate("gst_row", .{});
             class.bindTemplateChildPrivate("ytdlp_row", .{});
@@ -419,8 +482,10 @@ pub const MediaPanel = extern struct {
             class.bindTemplateCallback("loop_changed", &onLoopChanged);
             class.bindTemplateCallback("volume_changed", &onVolumeChanged);
             class.bindTemplateCallback("background_changed", &onBackgroundChanged);
-            class.bindTemplateCallback("fps_changed", &onFpsChanged);
+            class.bindTemplateCallback("fps_toggled", &onFpsToggled);
             class.bindTemplateCallback("toggle_play", &onTogglePlay);
+            class.bindTemplateCallback("turn_off", &onTurnOff);
+            class.bindTemplateCallback("seek_changed", &onSeekChanged);
             class.bindTemplateCallback("retry", &onRetry);
             class.bindTemplateCallback("go_live", &onGoLive);
             class.bindTemplateCallback("diagnostics_expanded", &onDiagnosticsExpanded);
