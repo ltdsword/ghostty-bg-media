@@ -46,6 +46,7 @@ const ConfigErrorsDialog = @import("config_errors_dialog.zig").ConfigErrorsDialo
 const GlobalShortcuts = @import("global_shortcuts.zig").GlobalShortcuts;
 const OpenURI = @import("../portal.zig").OpenURI;
 const media = @import("../media.zig");
+const media_overrides = @import("../media_overrides.zig");
 const Overrides = @import("Overrides.zig");
 
 const log = std.log.scoped(.gtk_ghostty_application);
@@ -178,6 +179,9 @@ pub const Application = extern struct {
 
         /// The configuration for the application.
         config: *Config,
+
+        /// Config-file value, before the panel override.
+        file_background_opacity: f64 = 1.0,
 
         /// State and logic for the underlying windowing protocol.
         winproto: winprotopkg.App,
@@ -416,6 +420,7 @@ pub const Application = extern struct {
             .rt_app = rt_app,
             .core_app = core_app,
             .config = config_obj,
+            .file_background_opacity = config.@"background-opacity",
             .winproto = wp,
             .css_provider = css_provider,
             .custom_css_providers = .empty,
@@ -1237,6 +1242,26 @@ pub const Application = extern struct {
     /// The reference count is increased.
     pub fn getConfig(self: *Self) *Config {
         return self.private().config.ref();
+    }
+
+    pub fn backgroundOpacity(self: *Self) f64 {
+        return self.private().config.get().@"background-opacity";
+    }
+
+    pub fn applyOpacityOverride(self: *Self) void {
+        const priv = self.private();
+        const value: f64 = if (media_overrides.get().opacity) |v| v else priv.file_background_opacity;
+        var clone = priv.config.get().clone(self.allocator()) catch |err| {
+            log.warn("failed to clone config for background opacity override err={}", .{err});
+            return;
+        };
+        defer clone.deinit();
+
+        clone.@"background-opacity" = value;
+        clone.@"app-notifications".@"config-reload" = false;
+        self.core().updateConfig(self.rt(), &clone) catch |err| {
+            log.warn("failed to apply background opacity override err={}", .{err});
+        };
     }
 
     /// Set the configuration for this application. The reference count
@@ -2806,6 +2831,11 @@ const Action = struct {
             const alloc = self.allocator();
             var config = try CoreConfig.load(alloc);
             defer config.deinit();
+            const priv = self.private();
+            priv.file_background_opacity = config.@"background-opacity";
+            if (media_overrides.get().opacity) |opacity| {
+                config.@"background-opacity" = @floatCast(opacity);
+            }
             break :config try .new(alloc, &config);
         };
         defer config.unref();

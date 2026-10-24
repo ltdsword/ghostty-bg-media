@@ -34,6 +34,7 @@ pub const MediaPanel = extern struct {
         syncing: bool = false,
         diagnostics_loaded: bool = false,
         status_timer: c_uint = 0,
+        opacity_timer: c_uint = 0,
         quality_heights: [12]u32 = [_]u32{0} ** 12,
         quality_len: u8 = 0,
 
@@ -44,6 +45,8 @@ pub const MediaPanel = extern struct {
         position_row: *adw.ComboRow,
         dim_scale: *gtk.Scale,
         blur_scale: *gtk.Scale,
+        opacity_row: *adw.ActionRow,
+        opacity_scale: *gtk.Scale,
         playback_row: *adw.ActionRow,
         retry_button: *gtk.Button,
         live_button: *gtk.Button,
@@ -129,6 +132,8 @@ pub const MediaPanel = extern struct {
         priv.position_row.setSelected(@intCast(@intFromEnum(position)));
         priv.dim_scale.as(gtk.Range).setValue(@floatCast(overrides.dim orelse config.@"background-media-dim"));
         priv.blur_scale.as(gtk.Range).setValue(@floatCast(overrides.blur orelse config.@"background-media-blur"));
+        priv.opacity_scale.as(gtk.Range).setValue(if (overrides.opacity) |value| @floatCast(value) else Application.default().backgroundOpacity());
+        self.syncOpacityHint();
         priv.loop_row.setActive(@intFromBool(overrides.loop orelse config.@"background-media-loop"));
         priv.volume_scale.as(gtk.Range).setValue(@floatCast(overrides.volume orelse config.@"background-media-volume"));
         priv.background_row.setActive(@intFromBool(overrides.play_in_background orelse config.@"background-media-play-in-background"));
@@ -211,6 +216,32 @@ pub const MediaPanel = extern struct {
     fn onBlurChanged(scale: *gtk.Scale, self: *Self) callconv(.c) void {
         if (self.private().syncing) return;
         media_overrides.setBlur(@floatCast(scale.as(gtk.Range).getValue()));
+    }
+
+    fn onOpacityChanged(scale: *gtk.Scale, self: *Self) callconv(.c) void {
+        const priv = self.private();
+        if (priv.syncing) return;
+
+        media_overrides.setOpacity(@floatCast(scale.as(gtk.Range).getValue()));
+        self.syncOpacityHint();
+        if (priv.opacity_timer != 0) {
+            _ = glib.Source.remove(priv.opacity_timer);
+            priv.opacity_timer = 0;
+        }
+        priv.opacity_timer = glib.timeoutAdd(120, opacityTimeout, self);
+    }
+
+    fn opacityTimeout(user_data: ?*anyopaque) callconv(.c) c_int {
+        const self: *Self = @ptrCast(@alignCast(user_data.?));
+        self.private().opacity_timer = 0;
+        Application.default().applyOpacityOverride();
+        return 0;
+    }
+
+    fn syncOpacityHint(self: *Self) void {
+        const priv = self.private();
+        const opacity = priv.opacity_scale.as(gtk.Range).getValue();
+        priv.opacity_row.setSubtitle(if (opacity >= 1) i18n._("Media is hidden at 100%. Lower this to show it.") else "");
     }
 
     fn onLoopChanged(row: *adw.SwitchRow, _: *gobject.ParamSpec, self: *Self) callconv(.c) void {
@@ -323,6 +354,7 @@ pub const MediaPanel = extern struct {
             .volume = overrides.volume orelse config.@"background-media-volume",
             .play_in_background = overrides.play_in_background orelse config.@"background-media-play-in-background",
             .max_fps = overrides.max_fps orelse config.@"background-media-max-fps",
+            .background_opacity = overrides.opacity orelse @floatCast(Application.default().backgroundOpacity()),
             .youtube_quality = overrides.youtube_quality orelse configured_youtube_quality,
         };
 
@@ -338,11 +370,13 @@ pub const MediaPanel = extern struct {
         defer alloc.free(saved_message);
         _ = self.as(gtk.Widget).activateAction("app.reload-config", null);
         media_overrides.clearAll();
+        Application.default().applyOpacityOverride();
         self.addToast(saved_message);
     }
 
     fn onReset(_: *gtk.Button, self: *Self) callconv(.c) void {
         media_overrides.clearAll();
+        Application.default().applyOpacityOverride();
         self.populate();
         self.updateStatus();
     }
@@ -499,6 +533,11 @@ pub const MediaPanel = extern struct {
 
     fn dispose(self: *Self) callconv(.c) void {
         self.stopStatusTimer();
+        const priv = self.private();
+        if (priv.opacity_timer != 0) {
+            _ = glib.Source.remove(priv.opacity_timer);
+            priv.opacity_timer = 0;
+        }
         gtk.Widget.disposeTemplate(self.as(gtk.Widget), getGObjectType());
         gobject.Object.virtual_methods.dispose.call(Class.parent, self.as(Parent));
     }
@@ -528,6 +567,8 @@ pub const MediaPanel = extern struct {
             class.bindTemplateChildPrivate("position_row", .{});
             class.bindTemplateChildPrivate("dim_scale", .{});
             class.bindTemplateChildPrivate("blur_scale", .{});
+            class.bindTemplateChildPrivate("opacity_row", .{});
+            class.bindTemplateChildPrivate("opacity_scale", .{});
             class.bindTemplateChildPrivate("playback_row", .{});
             class.bindTemplateChildPrivate("retry_button", .{});
             class.bindTemplateChildPrivate("live_button", .{});
@@ -555,6 +596,7 @@ pub const MediaPanel = extern struct {
             class.bindTemplateCallback("position_changed", &onPositionChanged);
             class.bindTemplateCallback("dim_changed", &onDimChanged);
             class.bindTemplateCallback("blur_changed", &onBlurChanged);
+            class.bindTemplateCallback("opacity_changed", &onOpacityChanged);
             class.bindTemplateCallback("loop_changed", &onLoopChanged);
             class.bindTemplateCallback("volume_changed", &onVolumeChanged);
             class.bindTemplateCallback("background_changed", &onBackgroundChanged);

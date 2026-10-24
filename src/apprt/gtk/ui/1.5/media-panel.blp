@@ -244,6 +244,26 @@ template $GhosttyMediaPanel: Adw.Dialog {
                 value-changed => $blur_changed();
               }
             }
+
+            Adw.ActionRow opacity_row {
+              title: _("Terminal opacity");
+
+              [suffix]
+              Gtk.Scale opacity_scale {
+                accessibility {
+                  label: _("Terminal opacity");
+                }
+                orientation: horizontal;
+                width-request: 200;
+                adjustment: Gtk.Adjustment {
+                  lower: 0.05;
+                  upper: 1;
+                  step-increment: 0.05;
+                  page-increment: 0.1;
+                };
+                value-changed => $opacity_changed();
+              }
+            }
           }
 
           Adw.PreferencesGroup {

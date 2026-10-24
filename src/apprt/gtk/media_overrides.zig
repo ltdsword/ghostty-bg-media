@@ -15,6 +15,7 @@ pub const Overrides = struct {
     position: ?bg.layout.Position = null,
     dim: ?f32 = null,
     blur: ?f32 = null,
+    opacity: ?f32 = null,
     loop: ?bool = null,
     volume: ?f32 = null,
     play_in_background: ?bool = null,
@@ -74,6 +75,11 @@ pub fn setDim(value: f32) void {
 
 pub fn setBlur(value: f32) void {
     current.blur = if (std.math.isNan(value)) 0 else std.math.clamp(value, 0, 40);
+    on_change();
+}
+
+pub fn setOpacity(value: f32) void {
+    current.opacity = value;
     on_change();
 }
 
@@ -204,6 +210,17 @@ test "media override clamps blur" {
     setBlur(std.math.nan(f32));
     try std.testing.expectEqual(@as(f32, 0), current.blur.?);
     clearAll();
+}
+
+test "media override opacity set and clear" {
+    const old_on_change = on_change;
+    on_change = noChange;
+    defer on_change = old_on_change;
+
+    setOpacity(0.7);
+    try std.testing.expectEqual(@as(f32, 0.7), current.opacity.?);
+    clearAll();
+    try std.testing.expect(current.opacity == null);
 }
 
 test "media override source ownership and clearing" {
