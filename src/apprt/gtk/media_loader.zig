@@ -57,6 +57,10 @@ const Loader = struct {
     status: Status = .idle,
     texture: ?*gdk.Texture = null,
     stream: ?*gtk.MediaFile = null,
+    /// Last released local video, paused and kept alive: GTK's GStreamer media file leaks
+    /// threads and memory when freed, so we reuse it if the same source comes back.
+    parked_stream: ?*gtk.MediaFile = null,
+    parked_id: u64 = 0,
     url_player: ?*gst_url_player.Player = null,
     url: ?[:0]u8 = null,
     url_kind: bg.source.Kind = .local_file,
@@ -555,7 +559,7 @@ fn dropStream() void {
         if (loader.ended_handler_id != 0) {
             gobject.signalHandlerDisconnect(object, loader.ended_handler_id);
         }
-        stream.unref();
+        parkStream(stream, loader.current_id);
     }
     loader.stream = null;
     loader.invalidate_handler_id = 0;
@@ -569,6 +573,29 @@ fn dropStream() void {
         loader.texture = null;
     }
     loader.last_redraw_us = null;
+}
+
+fn parkStream(stream: *gtk.MediaFile, id: u64) void {
+    if (stream.as(gtk.MediaStream).getError() != null) {
+        stream.unref();
+        return;
+    }
+    if (loader.parked_stream) |parked_stream| parked_stream.unref();
+    loader.parked_stream = stream;
+    loader.parked_id = id;
+}
+
+fn takeParked(id: u64) ?*gtk.MediaFile {
+    if (loader.parked_stream) |stream| {
+        if (loader.parked_id == id) {
+            loader.parked_stream = null;
+            loader.parked_id = 0;
+            const media_stream = stream.as(gtk.MediaStream);
+            if (media_stream.getEnded() != 0) media_stream.seek(0);
+            return stream;
+        }
+    }
+    return null;
 }
 
 fn connectUrl() void {
@@ -1012,7 +1039,7 @@ fn onDone(ud: ?*anyopaque) callconv(.c) void {
             updatePlayState();
         },
         .video => |video| {
-            const stream = gtk.MediaFile.newForFilename(job.path);
+            const stream = takeParked(job.id) orelse gtk.MediaFile.newForFilename(job.path);
             loader.current_id = job.id;
             loader.status = .ready;
             attachStream(stream);
