@@ -102,6 +102,7 @@ fn run(url: []const u8, max_fps: u32) Result {
     const argv = youtube.argv(&argv_buf, url, override, inFlatpak(io));
     var child = std.process.spawn(io, .{
         .argv = argv,
+        .pgid = 0,
         .stdin = .ignore,
         .stdout = .pipe,
         .stderr = .pipe,
@@ -114,7 +115,7 @@ fn run(url: []const u8, max_fps: u32) Result {
     const stderr_file = child.stderr.?;
     var stderr_reader: StderrReader = .{ .file = stderr_file };
     const stderr_thread = std.Thread.spawn(.{}, readStderr, .{&stderr_reader}) catch {
-        child.kill(io);
+        killTree(&child, io);
         return .{ .retriable = "thread_start" };
     };
     child.stdout = null;
@@ -123,7 +124,7 @@ fn run(url: []const u8, max_fps: u32) Result {
 
     var timeout: Timeout = .{ .child = &child };
     const timeout_thread = std.Thread.spawn(.{}, timeoutWorker, .{&timeout}) catch {
-        child.kill(io);
+        killTree(&child, io);
         stderr_thread.join();
         return .{ .retriable = "thread_start" };
     };
@@ -156,14 +157,14 @@ fn run(url: []const u8, max_fps: u32) Result {
     var term: ?std.process.Child.Term = null;
     if (too_large or read_failed or out_of_memory) {
         if (timeout.state.cmpxchgStrong(0, 1, .acq_rel, .acquire) == null) {
-            child.kill(io);
+            killTree(&child, io);
         }
     } else if (timeout.state.load(.acquire) == 2) {
         // The timeout thread is killing the child.
     } else {
         term = child.wait(io) catch wait_result: {
             if (timeout.state.cmpxchgStrong(0, 1, .acq_rel, .acquire) == null) {
-                child.kill(io);
+                killTree(&child, io);
             }
             break :wait_result null;
         };
@@ -235,6 +236,12 @@ fn readStderr(reader: *StderrReader) void {
     }
 }
 
+/// Kill yt-dlp and everything it started, so no descendant keeps our pipes open.
+fn killTree(child: *std.process.Child, io: std.Io) void {
+    if (child.id) |pid| std.posix.kill(-pid, std.posix.SIG.KILL) catch {};
+    child.kill(io);
+}
+
 fn timeoutWorker(timeout: *Timeout) void {
     var elapsed_ms: u32 = 0;
     while (elapsed_ms < resolve_timeout_ms) : (elapsed_ms += 50) {
@@ -242,7 +249,7 @@ fn timeoutWorker(timeout: *Timeout) void {
         std.Io.sleep(global.io(), .fromMilliseconds(50), .awake) catch unreachable;
     }
     if (timeout.state.cmpxchgStrong(0, 2, .acq_rel, .acquire) == null) {
-        timeout.child.kill(global.io());
+        killTree(timeout.child, global.io());
     }
 }
 

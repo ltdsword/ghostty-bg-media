@@ -90,6 +90,8 @@ pub fn argv(
         len += 1;
         buf[len] = "--host";
         len += 1;
+        buf[len] = "--watch-bus";
+        len += 1;
     }
 
     buf[len] = override orelse "yt-dlp";
@@ -200,6 +202,8 @@ fn chooseFormat(formats: []const Raw.RawFormat, max_height: u32, fps_cap: u32) ?
 fn eligible(format: Raw.RawFormat, max_height: u32) bool {
     const url = format.url orelse return false;
     if (url.len == 0) return false;
+    if (!std.ascii.startsWithIgnoreCase(url, "https://") and
+        !std.ascii.startsWithIgnoreCase(url, "http://")) return false;
     const codec = format.vcodec orelse return false;
     if (std.mem.eql(u8, codec, "none")) return false;
     if (!std.mem.startsWith(u8, codec, "avc1") and
@@ -259,10 +263,10 @@ test "argv builds yt-dlp arguments for normal and Flatpak execution" {
         "/custom/yt-dlp", "--ignore-config", "--no-playlist", "--no-warnings", "--no-progress", "-J", "--", url,
     };
     const expected_flatpak = [_][]const u8{
-        "flatpak-spawn", "--host", "yt-dlp", "--ignore-config", "--no-playlist", "--no-warnings", "--no-progress", "-J", "--", url,
+        "flatpak-spawn", "--host", "--watch-bus", "yt-dlp", "--ignore-config", "--no-playlist", "--no-warnings", "--no-progress", "-J", "--", url,
     };
     const expected_flatpak_override = [_][]const u8{
-        "flatpak-spawn", "--host", "/custom/yt-dlp", "--ignore-config", "--no-playlist", "--no-warnings", "--no-progress", "-J", "--", url,
+        "flatpak-spawn", "--host", "--watch-bus", "/custom/yt-dlp", "--ignore-config", "--no-playlist", "--no-warnings", "--no-progress", "-J", "--", url,
     };
     var buf: [12][]const u8 = undefined;
 
@@ -377,6 +381,16 @@ test "resolve reports upcoming when no format is playable" {
     try std.testing.expectEqual(Fatal.upcoming, fatalOf(error.Upcoming));
     try std.testing.expectError(error.NoPlayableFormat, resolve(std.testing.allocator, "{}", default_max_height, 0));
     try std.testing.expectEqual(Fatal.no_playable_format, fatalOf(error.NoPlayableFormat));
+}
+
+test "format selection rejects non-HTTP format URLs" {
+    const file_json = "{\"formats\":[{\"url\":\"file:///etc/passwd\",\"protocol\":\"https\",\"vcodec\":\"avc1\",\"height\":360}]}";
+    try std.testing.expectError(error.NoPlayableFormat, resolve(std.testing.allocator, file_json, default_max_height, 0));
+
+    const https_json = "{\"formats\":[{\"url\":\"https://cdn.example/v\",\"protocol\":\"https\",\"vcodec\":\"avc1\",\"height\":360}]}";
+    var resolved = try resolve(std.testing.allocator, https_json, default_max_height, 0);
+    defer resolved.deinit();
+    try std.testing.expectEqualStrings("https://cdn.example/v", resolved.info.url);
 }
 
 test "stderr classification follows the fatal substring priority" {
