@@ -5,6 +5,7 @@ pub const gif = @import("gif.zig");
 pub const layout = @import("layout.zig");
 pub const cadence = @import("cadence.zig");
 pub const retry = @import("retry.zig");
+pub const yuv = @import("yuv.zig");
 pub const youtube = @import("youtube.zig");
 pub const live = @import("live.zig");
 pub const config_save = @import("config_save.zig");

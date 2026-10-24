@@ -4,8 +4,16 @@ const gdk = @import("gdk");
 const glib = @import("glib");
 const gobject = @import("gobject");
 
+const bg = @import("background_media/main.zig");
+const gtk_version = @import("gtk_version.zig");
+
 const log = std.log.scoped(.gtk_gst_url_player);
 const alloc = std.heap.c_allocator;
+
+var yuv_color_state_601: ?*gdk.ColorState = null;
+var yuv_color_state_709: ?*gdk.ColorState = null;
+var yuv_color_states_initialized = false;
+var yuv_color_state_warned = false;
 
 pub const Callbacks = struct {
     frame: *const fn (*gdk.Texture) void,
@@ -69,6 +77,7 @@ pub const Player = struct {
     error_signal_id: c_ulong = 0,
     eos_signal_id: c_ulong = 0,
     bus_watch: bool = true,
+    yuv: bool,
     generation: std.atomic.Value(u64) = .init(1),
     pending: std.atomic.Value(bool) = .init(false),
     destroyed: std.atomic.Value(bool) = .init(false),
@@ -89,6 +98,8 @@ const Frame = struct {
     bytes: *glib.Bytes,
     width: c_int,
     height: c_int,
+    yuv: bool,
+    layout: ?bg.yuv.I420Layout,
 };
 
 pub fn available() bool {
@@ -97,6 +108,10 @@ pub fn available() bool {
 
 pub fn create(uri: [:0]const u8, volume: f32, callbacks: Callbacks) ?*Player {
     const api = getApi() orelse return null;
+    const yuv = if (comptime gtk_version.atLeast(4, 20, 0))
+        gtk_version.atLeast(4, 20, 0) and initYuvColorStates()
+    else
+        false;
 
     var pipeline: ?*anyopaque = api.element_factory_make("playbin3", null) orelse
         api.element_factory_make("playbin", null) orelse return null;
@@ -104,8 +119,13 @@ pub fn create(uri: [:0]const u8, volume: f32, callbacks: Callbacks) ?*Player {
     defer if (pipeline) |value| api.object_unref(value);
 
     var parse_error: ?*glib.Error = null;
+    // YUV lets the GPU convert and copies 1.5 bytes per pixel instead of 4.
+    const sink_description = if (yuv)
+        "videoconvert ! videoscale ! appsink name=bgm_sink caps=video/x-raw,format=I420,pixel-aspect-ratio=1/1 max-buffers=2 drop=true sync=true emit-signals=true"
+    else
+        "videoconvert ! videoscale ! appsink name=bgm_sink caps=video/x-raw,format=RGBA,pixel-aspect-ratio=1/1 max-buffers=2 drop=true sync=true emit-signals=true";
     const sink_bin = api.parse_bin_from_description(
-        "videoconvert ! videoscale ! appsink name=bgm_sink caps=video/x-raw,format=RGBA,pixel-aspect-ratio=1/1 max-buffers=2 drop=true sync=true emit-signals=true",
+        sink_description,
         1,
         &parse_error,
     ) orelse {
@@ -137,6 +157,7 @@ pub fn create(uri: [:0]const u8, volume: f32, callbacks: Callbacks) ?*Player {
         .bus = bus.?,
         .sink = sink.?,
         .callbacks = callbacks,
+        .yuv = yuv,
     };
     pipeline = null;
     bus = null;
@@ -419,21 +440,41 @@ fn onNewSample(sink: ?*anyopaque, data: ?*anyopaque) callconv(.c) c_int {
         player.pending.store(false, .release);
         return 0;
     };
-    const row_width: usize = @intCast(width);
-    if (row_width > map_info.size / 4) {
-        api.buffer_unmap(buffer, &map_info);
-        api.mini_object_unref(sample);
-        player.pending.store(false, .release);
-        return 0;
+    const layout = if (player.yuv)
+        bg.yuv.i420Layout(@intCast(width), @intCast(height))
+    else
+        null;
+    if (player.yuv) {
+        const i420_layout = layout orelse {
+            api.buffer_unmap(buffer, &map_info);
+            api.mini_object_unref(sample);
+            player.pending.store(false, .release);
+            return 0;
+        };
+        if (map_info.size < i420_layout.size) {
+            api.buffer_unmap(buffer, &map_info);
+            api.mini_object_unref(sample);
+            player.pending.store(false, .release);
+            return 0;
+        }
+    } else {
+        const row_width: usize = @intCast(width);
+        if (row_width > map_info.size / 4) {
+            api.buffer_unmap(buffer, &map_info);
+            api.mini_object_unref(sample);
+            player.pending.store(false, .release);
+            return 0;
+        }
+        const stride = row_width * 4;
+        if (@as(usize, @intCast(height)) > map_info.size / stride) {
+            api.buffer_unmap(buffer, &map_info);
+            api.mini_object_unref(sample);
+            player.pending.store(false, .release);
+            return 0;
+        }
     }
-    const stride = row_width * 4;
-    if (@as(usize, @intCast(height)) > map_info.size / stride) {
-        api.buffer_unmap(buffer, &map_info);
-        api.mini_object_unref(sample);
-        player.pending.store(false, .release);
-        return 0;
-    }
-    const bytes = glib.Bytes.new(data_bytes[0..map_info.size].ptr, map_info.size);
+    const copy_size = if (layout) |i420_layout| i420_layout.size else map_info.size;
+    const bytes = glib.Bytes.new(data_bytes[0..copy_size].ptr, copy_size);
     api.buffer_unmap(buffer, &map_info);
     api.mini_object_unref(sample);
 
@@ -448,6 +489,8 @@ fn onNewSample(sink: ?*anyopaque, data: ?*anyopaque) callconv(.c) c_int {
         .bytes = bytes,
         .width = width,
         .height = height,
+        .yuv = player.yuv,
+        .layout = layout,
     };
     player.retain();
     _ = glib.idleAddOnce(onFrame, frame);
@@ -467,6 +510,13 @@ fn onFrame(data: ?*anyopaque) callconv(.c) void {
     if (frame.generation != player.generation.load(.acquire) or
         player.destroyed.load(.acquire)) return;
 
+    if (frame.yuv) {
+        if (comptime gtk_version.atLeast(4, 20, 0)) {
+            const texture = buildYuvTexture(frame) orelse return;
+            player.callbacks.frame(texture);
+        }
+        return;
+    }
     const texture = gdk.MemoryTexture.new(
         frame.width,
         frame.height,
@@ -475,6 +525,60 @@ fn onFrame(data: ?*anyopaque) callconv(.c) void {
         @as(usize, @intCast(frame.width)) * 4,
     );
     player.callbacks.frame(texture.as(gdk.Texture));
+}
+
+fn initYuvColorStates() bool {
+    if (!yuv_color_states_initialized) {
+        yuv_color_states_initialized = true;
+        yuv_color_state_601 = buildYuvColorState(6);
+        yuv_color_state_709 = buildYuvColorState(1);
+    }
+
+    if (yuv_color_state_601 != null and yuv_color_state_709 != null) return true;
+    if (!yuv_color_state_warned) {
+        log.warn("background-media: yuv color state unavailable; using rgba", .{});
+        yuv_color_state_warned = true;
+    }
+    return false;
+}
+
+fn buildYuvColorState(matrix_coefficients: c_uint) ?*gdk.ColorState {
+    const params = gdk.CicpParams.new();
+    defer params.unref();
+
+    params.setRange(.narrow);
+    params.setColorPrimaries(1);
+    params.setTransferFunction(1);
+    params.setMatrixCoefficients(matrix_coefficients);
+
+    var error_value: ?*glib.Error = null;
+    const state = params.buildColorState(&error_value);
+    if (error_value) |value| value.free();
+    return state;
+}
+
+fn buildYuvTexture(frame: *const Frame) ?*gdk.Texture {
+    const layout = frame.layout orelse return null;
+    const color_state = if (frame.height >= 720)
+        yuv_color_state_709 orelse return null
+    else
+        yuv_color_state_601 orelse return null;
+
+    const builder = gdk.MemoryTextureBuilder.new();
+    defer builder.unref();
+
+    builder.setBytes(frame.bytes);
+    builder.setWidth(@intCast(layout.width));
+    builder.setHeight(@intCast(layout.height));
+    builder.setFormat(.g8_b8_r8_420);
+    builder.setStrideForPlane(0, layout.y_stride);
+    builder.setStrideForPlane(1, layout.c_stride);
+    builder.setStrideForPlane(2, layout.c_stride);
+    builder.setOffset(0, 0);
+    builder.setOffset(1, layout.u_offset);
+    builder.setOffset(2, layout.v_offset);
+    builder.setColorState(color_state);
+    return builder.build();
 }
 
 fn onBusError(_: ?*anyopaque, message: ?*anyopaque, data: ?*anyopaque) callconv(.c) void {
