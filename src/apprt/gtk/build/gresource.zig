@@ -56,6 +56,7 @@ pub const blueprints: []const Blueprint = &.{
     .{ .major = 1, .minor = 5, .name = "close-confirmation-dialog" },
     .{ .major = 1, .minor = 5, .name = "command-palette" },
     .{ .major = 1, .minor = 5, .name = "config-errors-dialog" },
+    .{ .major = 1, .minor = 5, .name = "media-panel" },
     .{ .major = 1, .minor = 5, .name = "title-dialog" },
 };
 

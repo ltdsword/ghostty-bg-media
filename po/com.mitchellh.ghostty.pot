@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: com.mitchellh.ghostty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
-"POT-Creation-Date: 2026-10-14 14:34-0500\n"
+"POT-Creation-Date: 2026-10-24 09:37+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -115,7 +115,7 @@ msgid "Tab"
 msgstr ""
 
 #: src/apprt/gtk/ui/1.0/surface.blp:381 src/apprt/gtk/ui/1.4/window.blp:234
-#: src/apprt/gtk/ui/1.4/window.blp:341 src/input/command.zig:464
+#: src/apprt/gtk/ui/1.4/window.blp:346 src/input/command.zig:464
 msgid "Change Tab Title…"
 msgstr ""
 
@@ -148,19 +148,19 @@ msgstr ""
 msgid "Close Window"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.0/surface.blp:419 src/apprt/gtk/ui/1.4/window.blp:305
+#: src/apprt/gtk/ui/1.0/surface.blp:419 src/apprt/gtk/ui/1.4/window.blp:310
 msgid "Config"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.0/surface.blp:422 src/apprt/gtk/ui/1.4/window.blp:308
+#: src/apprt/gtk/ui/1.0/surface.blp:422 src/apprt/gtk/ui/1.4/window.blp:313
 msgid "Open Configuration in OS Editor"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.0/surface.blp:428 src/apprt/gtk/ui/1.4/window.blp:314
+#: src/apprt/gtk/ui/1.0/surface.blp:428 src/apprt/gtk/ui/1.4/window.blp:319
 msgid "Open Configuration in New Window"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.0/surface.blp:434 src/apprt/gtk/ui/1.4/window.blp:320
+#: src/apprt/gtk/ui/1.0/surface.blp:434 src/apprt/gtk/ui/1.4/window.blp:325
 #: src/apprt/gtk/ui/1.5/config-errors-dialog.blp:12
 msgid "Reload Configuration"
 msgstr ""
@@ -191,14 +191,18 @@ msgid "Command Palette"
 msgstr ""
 
 #: src/apprt/gtk/ui/1.4/window.blp:300
+msgid "Background Media…"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.4/window.blp:305
 msgid "Terminal Inspector"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.4/window.blp:328
+#: src/apprt/gtk/ui/1.4/window.blp:333
 msgid "About Ghostty"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.4/window.blp:333 src/input/command.zig:702
+#: src/apprt/gtk/ui/1.4/window.blp:338 src/input/command.zig:702
 msgid "Quit"
 msgstr ""
 
@@ -246,6 +250,153 @@ msgstr ""
 
 #: src/apprt/gtk/ui/1.5/config-errors-dialog.blp:11
 msgid "Ignore"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:6
+msgid "Background Media"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:22
+msgid "Source"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:25
+msgid "Image, video or URL"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:31
+msgid "Choose File…"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:37
+msgid "Use Configuration"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:43
+msgid "Status"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:47
+msgid "Retry"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:54
+msgid "Go Live"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:62
+msgid "Appearance"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:65
+msgid "Fit"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:68
+msgid "contain"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:69
+msgid "cover"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:70
+msgid "stretch"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:71
+msgid "none"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:78
+msgid "Position"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:81
+msgid "center"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:82
+msgid "top-left"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:83
+msgid "top-center"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:84
+msgid "top-right"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:85
+msgid "center-left"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:86
+msgid "center-right"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:87
+msgid "bottom-left"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:88
+msgid "bottom-center"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:89
+msgid "bottom-right"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:96
+msgid "Dim"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:114
+#: src/apprt/gtk/ui/1.5/media-panel.blp:117
+msgid "Playback"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:121
+#: src/apprt/gtk/class/media_panel.zig:337
+msgid "Pause"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:127
+msgid "Loop"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:132
+msgid "Volume"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:149
+msgid "Play when unfocused"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:154
+msgid "Maximum frame rate"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:166
+#: src/apprt/gtk/ui/1.5/media-panel.blp:169
+msgid "Diagnostics"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:173
+msgid "GStreamer URL player"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:177
+msgid "yt-dlp"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:184
+msgid "Save to Configuration"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/media-panel.blp:190
+msgid "Reset Changes"
 msgstr ""
 
 #: src/apprt/gtk/ui/1.5/title-dialog.blp:5
@@ -334,16 +485,108 @@ msgstr ""
 msgid "The currently running process in this split will be terminated."
 msgstr ""
 
-#: src/apprt/gtk/class/surface.zig:1191
+#: src/apprt/gtk/class/media_panel.zig:139
+msgid "Choose Background Media"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:145
+msgid "Images and videos"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:232
+msgid "Available"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:232
+msgid "Not available"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:235
+msgid " (GHOSTTY_YTDLP)"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:240
+msgid "Not found: install yt-dlp or set GHOSTTY_YTDLP"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:272
+msgid "Could not save: {s}"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:279
+msgid "Saved to {s}"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:305
+msgid "No background media"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:308
+msgid "Local file"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:309
+msgid "Web video"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:310
+msgid "HLS stream"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:311
+msgid "YouTube"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:316
+msgid "Idle"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:317
+msgid "Loading"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:318
+msgid "Playing"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:318
+msgid "Paused"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:320
+msgid "Failed: "
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:326
+msgid " · LIVE"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:328
+msgid " · Waiting for the stream to start"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:330
+msgid " · Stream ended"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:337
+msgid "Play"
+msgstr ""
+
+#: src/apprt/gtk/class/media_panel.zig:348
+msgid " · Reconnecting (attempt {d})"
+msgstr ""
+
+#: src/apprt/gtk/class/surface.zig:1193
 msgid "Command Finished"
 msgstr ""
 
-#: src/apprt/gtk/class/surface.zig:1192
+#: src/apprt/gtk/class/surface.zig:1194
 #: src/apprt/gtk/class/surface_child_exited.zig:102
 msgid "Command Succeeded"
 msgstr ""
 
-#: src/apprt/gtk/class/surface.zig:1193
+#: src/apprt/gtk/class/surface.zig:1195
 #: src/apprt/gtk/class/surface_child_exited.zig:106
 msgid "Command Failed"
 msgstr ""
@@ -360,19 +603,19 @@ msgstr ""
 msgid "Change Window Title"
 msgstr ""
 
-#: src/apprt/gtk/class/window.zig:1184
+#: src/apprt/gtk/class/window.zig:1186
 msgid "Reloaded the configuration"
 msgstr ""
 
-#: src/apprt/gtk/class/window.zig:1886
+#: src/apprt/gtk/class/window.zig:1888
 msgid "Copied to clipboard"
 msgstr ""
 
-#: src/apprt/gtk/class/window.zig:1888
+#: src/apprt/gtk/class/window.zig:1890
 msgid "Cleared clipboard"
 msgstr ""
 
-#: src/apprt/gtk/class/window.zig:2027
+#: src/apprt/gtk/class/window.zig:2029
 msgid "Ghostty Developers"
 msgstr ""
 

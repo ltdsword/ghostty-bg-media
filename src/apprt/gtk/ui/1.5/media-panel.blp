@@ -1,0 +1,198 @@
+using Gtk 4.0;
+using Gio 2.0;
+using Adw 1;
+
+template $GhosttyMediaPanel: Adw.Dialog {
+  title: _("Background Media");
+  content-width: 480;
+  closed => $closed();
+
+  Adw.ToastOverlay toast_overlay {
+    Adw.ToolbarView {
+      top-bar-style: flat;
+
+      [top]
+      Adw.HeaderBar {}
+
+      Gtk.ScrolledWindow {
+        min-content-height: 420;
+
+        Adw.PreferencesPage {
+          Adw.PreferencesGroup {
+            title: _("Source");
+
+            Adw.EntryRow source_row {
+              title: _("Image, video or URL");
+              show-apply-button: true;
+              apply => $source_applied();
+
+              [suffix]
+              Gtk.Button {
+                label: _("Choose File…");
+                clicked => $choose_file();
+              }
+
+              [suffix]
+              Gtk.Button {
+                label: _("Use Configuration");
+                clicked => $use_configuration();
+              }
+            }
+
+            Adw.ActionRow status_row {
+              title: _("Status");
+
+              [suffix]
+              Gtk.Button retry_button {
+                label: _("Retry");
+                visible: false;
+                clicked => $retry();
+              }
+
+              [suffix]
+              Gtk.Button live_button {
+                label: _("Go Live");
+                visible: false;
+                clicked => $go_live();
+              }
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Appearance");
+
+            Adw.ComboRow fit_row {
+              title: _("Fit");
+              model: Gtk.StringList {
+                strings [
+                  _("contain"),
+                  _("cover"),
+                  _("stretch"),
+                  _("none")
+                ]
+              };
+              notify::selected => $fit_changed();
+            }
+
+            Adw.ComboRow position_row {
+              title: _("Position");
+              model: Gtk.StringList {
+                strings [
+                  _("center"),
+                  _("top-left"),
+                  _("top-center"),
+                  _("top-right"),
+                  _("center-left"),
+                  _("center-right"),
+                  _("bottom-left"),
+                  _("bottom-center"),
+                  _("bottom-right")
+                ]
+              };
+              notify::selected => $position_changed();
+            }
+
+            Adw.ActionRow {
+              title: _("Dim");
+
+              [suffix]
+              Gtk.Scale dim_scale {
+                orientation: horizontal;
+                width-request: 200;
+                adjustment: Gtk.Adjustment {
+                  lower: 0;
+                  upper: 1;
+                  step-increment: 0.05;
+                  page-increment: 0.05;
+                };
+                value-changed => $dim_changed();
+              }
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Playback");
+
+            Adw.ActionRow {
+              title: _("Playback");
+
+              [suffix]
+              Gtk.Button play_button {
+                label: _("Pause");
+                clicked => $toggle_play();
+              }
+            }
+
+            Adw.SwitchRow loop_row {
+              title: _("Loop");
+              notify::active => $loop_changed();
+            }
+
+            Adw.ActionRow {
+              title: _("Volume");
+
+              [suffix]
+              Gtk.Scale volume_scale {
+                orientation: horizontal;
+                width-request: 200;
+                adjustment: Gtk.Adjustment {
+                  lower: 0;
+                  upper: 1;
+                  step-increment: 0.05;
+                  page-increment: 0.05;
+                };
+                value-changed => $volume_changed();
+              }
+            }
+
+            Adw.SwitchRow background_row {
+              title: _("Play when unfocused");
+              notify::active => $background_changed();
+            }
+
+            Adw.SpinRow fps_row {
+              title: _("Maximum frame rate");
+              adjustment: Gtk.Adjustment {
+                lower: 1;
+                upper: 120;
+                step-increment: 1;
+                page-increment: 1;
+              };
+              notify::value => $fps_changed();
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Diagnostics");
+
+            Adw.ExpanderRow diag_row {
+              title: _("Diagnostics");
+              notify::expanded => $diagnostics_expanded();
+
+              Adw.ActionRow gst_row {
+                title: _("GStreamer URL player");
+              }
+
+              Adw.ActionRow ytdlp_row {
+                title: _("yt-dlp");
+              }
+            }
+          }
+
+          Adw.PreferencesGroup {
+            Gtk.Button save_button {
+              label: _("Save to Configuration");
+              styles [ "suggested-action" ]
+              clicked => $save();
+            }
+
+            Gtk.Button reset_button {
+              label: _("Reset Changes");
+              clicked => $reset();
+            }
+          }
+        }
+      }
+    }
+  }
+}

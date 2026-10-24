@@ -29,6 +29,7 @@ const DebugWarning = @import("debug_warning.zig").DebugWarning;
 const CommandPalette = @import("command_palette.zig").CommandPalette;
 const WeakRef = @import("../weak_ref.zig").WeakRef;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
+const MediaPanel = @import("media_panel.zig").MediaPanel;
 const Overrides = @import("Overrides.zig");
 
 const log = std.log.scoped(.gtk_ghostty_window);
@@ -393,6 +394,7 @@ pub const Window = extern struct {
 
         const actions = [_]ext.actions.Action(Self){
             .init("about", actionAbout, null),
+            .init("background-media", actionBackgroundMedia, null),
             .init("close", actionClose, null),
             .init("close-tab", actionCloseTab, s_variant_type),
             .init("new-tab", actionNewTab, null),
@@ -2035,6 +2037,16 @@ pub const Window = extern struct {
             website,
             @as(?*anyopaque, null),
         );
+    }
+
+    fn actionBackgroundMedia(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const panel = MediaPanel.new();
+        defer panel.unref();
+        panel.present(self.as(gtk.Widget));
     }
 
     fn actionClose(
