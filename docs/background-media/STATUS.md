@@ -26,7 +26,7 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M14 — Docs/release candidate | TBD               | DONE        | —                    | [README fork section](../../README.md); [INSTALL](INSTALL.md); [CONFIGURATION](CONFIGURATION.md); [STATUS](STATUS.md); [CHANGELOG](CHANGELOG.md)                                                                                                                                                                                                                                                       | —                                                                                  | —                                                  |
 | M15 — CI lanes               | TBD               | SKIPPED (user) | —                  | User decision, 2026-10-24                                                                                                                                                                                                                                                                                                                                                                             | —                                                                                  | —                                                  |
 | M16 — Public packaging       | TBD               | DONE        | f55670384, 4486a52d0 | [INSTALL](INSTALL.md), [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak), [D-028](DECISIONS.md#d-028-side-by-side-application-identity), [TEST_MATRIX](TEST_MATRIX.md), clean-install evidence below; fresh Ubuntu 24.04.5 Flatpak container: workspace `.pkg-test/clean-install-24.04-flatpak.log` | —                                                                                  | —                                                  |
-| M17 — Public beta            | TBD               | PREPARED    | —                    | Tag `bgm-v0.1.0-beta`, assets and notes prepared; GitHub Release publication pending (maintainer, user decision 2026-10-25); download-flow check pending | —                                                                                  | —                                                  |
+| M17 — Public beta            | TBD               | DONE        | df2cc8f23           | Published pre-release [bgm-v0.1.0-beta](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta); download-flow check passed (2026-10-25). Stable designation not met (macOS unverified). | — | — |
 | M18 — Optional macOS parity  | TBD               | NOT_STARTED | —                    | Approval required                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Seek approval before considering additive parity   |
 
 ## M00 — Fork inheritance and baselines
@@ -50,7 +50,8 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 - **Linux evidence:** [baseline](BASELINE.md),
   gate log (Agent-Kit workspace `notes/m00/gate-full-baseline.log`).
 - **macOS CI evidence:** UNVERIFIED; no macOS runner result is recorded.
-- **Remaining risks:** No target-host GTK build/launch and no macOS build or runtime validation.
+- **Remaining risks:** No macOS build or runtime validation (macOS deferred by the user,
+  2026-10-24). The host GTK build and launch were verified in M01.
 - **Next task:** Complete the approved Linux build/launch lane and establish macOS CI evidence.
 
 ## M01 — Developer environment and checks
@@ -333,7 +334,8 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
   produced the recorded failure or retry states in [TEST_MATRIX](TEST_MATRIX.md); evidence is
   workspace `notes/m13/fault-matrix.txt`.
 - **Platform and isolation:** X11 through XWayland played local video, live HLS, GIF, and PNG;
-  terminal text remained over the media. Native Xorg is untested. With media disabled there are
+  terminal text remained over the media. Native Xorg is untested (this Ubuntu 26.04 / GNOME 50
+  host has no Xorg session). With media disabled there are
   zero media threads; Ghostty uses GStreamer through `dlopen`, and the executable's NEEDED list
   has no GStreamer, libsoup, or AV libraries. The path audit against `24fa0219908a` found no
   changes in `macos/`, `BACKGROUND_VIDEO.md`, `src/apprt/embedded.zig`, or the
@@ -395,15 +397,26 @@ incorrect broadcast-damage and appsink-QoS explanations. See [D-026](DECISIONS.m
 
 ## M17 — Public pre-release bgm-v0.1.0-beta
 
-- **Status:** PREPARED. Tag `bgm-v0.1.0-beta`, assets and notes are prepared; GitHub Release publication is pending (maintainer, user decision 2026-10-25).
+- **Status:** DONE (pre-release). GitHub pre-release `bgm-v0.1.0-beta` is published
+  (`prerelease=true`, `draft=false`); the tag points at `df2cc8f23`.
 - **Release page:** <https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta>.
 - **Assets:** `ghostty-bg-media-bgm-v0.1.0-beta-amd64.deb`,
   `ghostty-bg-media-bgm-v0.1.0-beta-x86_64.flatpak`, `SHA256SUMS`, and
   `ghostty-bg-media-bgm-v0.1.0-beta-manifest.txt`. Release body:
   [bgm-v0.1.0-beta](release-notes/bgm-v0.1.0-beta.md).
-- **Verification:** Download-flow check is pending until after publication.
+- **Download-flow verification (2026-10-25):** All four public assets downloaded; `sha256sum -c
+  SHA256SUMS` passed for all three files, and the published `SHA256SUMS` matches the built file.
+  In a fresh `ubuntu:26.04` container, `.deb` install exited 0, `Version` was
+  `1.3.2+bgm.0.1.0~beta-1`, `+version` printed `Ghostty 1.3.2-bgm.0.1.0-beta`, there were 0
+  missing libraries and no `/usr/bin/ghostty`; remove exited 0 and left no files. Evidence:
+  workspace `notes/m17/download-flow-26.04.log`.
+- **Pre-publication checks:** The same assets passed a fresh Ubuntu 24.04.5 Flatpak container
+  install (correct version, 0 missing libraries, H.264 and HLS plugins) and uninstall. On the host
+  Ubuntu 26.04 GUI, the final Flatpak played video; Terminal opacity 1.0 → 0.5 showed video behind
+  the text. The debug build's AT-SPI slider check at 0.5 showed media without reload or toast;
+  Reset returned it to 1.0.
 - **macOS:** No binary in this release; build and inherited-video smoke remain UNVERIFIED.
-- **Stable designation:** NOT MET; this is a beta pre-release.
+- **Stable designation:** NOT MET; macOS is unverified.
 
 ## How to resume
 
