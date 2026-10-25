@@ -8,33 +8,160 @@ Ghostty Background Media is an unofficial Ghostty fork that adds configurable im
 
 ## Install
 
-Download the [bgm-v0.1.0-beta pre-release](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta) or browse [all releases](https://github.com/ltdsword/ghostty-bg-media/releases). See the [installation guide](docs/background-media/INSTALL.md).
+Download from the [bgm-v0.1.0-beta pre-release](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta) or browse [all releases](https://github.com/ltdsword/ghostty-bg-media/releases). It installs next to official Ghostty and does not replace it.
 
-- Ubuntu 26.04 amd64: install the `.deb`.
-- Ubuntu 24.04 and other Linux distributions: install the Flatpak bundle.
+| Your system | Package |
+| --- | --- |
+| Ubuntu 26.04 amd64 | `.deb` |
+| Ubuntu 24.04 and other Linux distributions | Flatpak bundle (uses the GNOME 50 runtime from Flathub) |
+
+**Ubuntu 26.04 (`.deb`):**
+
+```sh
+wget https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.1.0-beta/ghostty-bg-media-bgm-v0.1.0-beta-amd64.deb \
+     https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.1.0-beta/SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing
+sudo apt install ./ghostty-bg-media-bgm-v0.1.0-beta-amd64.deb
+```
+
+**Ubuntu 24.04 / other distributions (Flatpak):**
+
+```sh
+sudo apt install flatpak   # if Flatpak is not installed yet
+wget https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.1.0-beta/ghostty-bg-media-bgm-v0.1.0-beta-x86_64.flatpak
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user ./ghostty-bg-media-bgm-v0.1.0-beta-x86_64.flatpak
+```
+
+For YouTube sources, also install `yt-dlp` on the host (`sudo apt install yt-dlp`). Uninstall with
+`sudo apt remove ghostty-bg-media` or `flatpak uninstall --user io.github.ltdsword.GhosttyBgMedia`; your config and
+media files are kept.
+
+Details: [installation guide](docs/background-media/INSTALL.md) (upgrade, troubleshooting, checksums).
 
 ## Quick start
 
-Add this to your Ghostty configuration:
+1. Open your config file:
+   - `.deb`: `~/.config/ghostty/config` (shared with official Ghostty)
+   - Flatpak: `~/.var/app/io.github.ltdsword.GhosttyBgMedia/config/ghostty/config`
+2. Add a background and make the terminal background see-through:
+
+   ```conf
+   background-media = ~/Pictures/wallpaper.png
+   background-opacity = 0.7
+   ```
+
+3. Start **Ghostty Background Media** from the app grid, or reload a running window with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>.
+
+Media is drawn behind the terminal and is visible only when `background-opacity` is below `1`.
+
+## Usage
+
+The command is `ghostty-bg-media` for the `.deb` and `flatpak run io.github.ltdsword.GhosttyBgMedia` for the
+Flatpak. Both take the same arguments as `ghostty`:
+
+```text
+ghostty-bg-media [--<config-key>=<value> ...] [-e <command> [args...]]
+ghostty-bg-media +<action> [options]
+```
+
+Any config key can be passed as a flag for that launch only, without editing the config file:
+
+```sh
+# Video background at 70% terminal opacity
+ghostty-bg-media --background-media=~/Videos/ambient.mp4 --background-opacity=0.7
+
+# Livestream, dimmed and slightly blurred
+ghostty-bg-media --background-media=https://www.youtube.com/@channel/live \
+  --background-media-dim=0.3 --background-media-blur=8 --background-opacity=0.6
+
+# Same with the Flatpak
+flatpak run io.github.ltdsword.GhosttyBgMedia --background-media=~/Pictures/loop.gif --background-opacity=0.7
+
+# Run a command in the new window
+ghostty-bg-media --background-media=~/Pictures/wallpaper.png --background-opacity=0.7 -e htop
+```
+
+Useful actions:
+
+| Command | What it does |
+| --- | --- |
+| `ghostty-bg-media +version` | Show the version, for example `Ghostty 1.3.2-bgm.0.1.0-beta` |
+| `ghostty-bg-media +validate-config` | Check your config file for errors |
+| `ghostty-bg-media +show-config --default \| grep background-media` | List the media settings and their defaults |
+| `ghostty-bg-media +list-keybinds --default` | List keybindings |
+
+**Control panel:** open **Background Media…** from the window menu, or click the video icon in the header bar.
+Change the source, fit, dim, blur, terminal opacity, loop, volume and playback live, then press **Save to
+Configuration** to keep them (written to `background-media.ghostty` next to your config). There is no default
+keybinding for the panel.
+
+## Configuration
+
+| Key | Default | Values | Effect |
+| --- | --- | --- | --- |
+| `background-media` | unset | file path or `http(s)://` URL | The media to show; unset = off |
+| `background-media-fit` | `cover` | `contain`, `cover`, `stretch`, `none` | How media fills the window |
+| `background-media-position` | `center` | `center`, `top-left`, `top-center`, `top-right`, `center-left`, `center-right`, `bottom-left`, `bottom-center`, `bottom-right` | Alignment |
+| `background-media-dim` | `0` | `0`–`1` | Darken with the theme background color |
+| `background-media-blur` | `0` | `0`–`40` px | Blur the media only; text stays sharp |
+| `background-media-loop` | `true` | `true`, `false` | Repeat video and GIF |
+| `background-media-volume` | `0` | `0`–`1` | Sound; `0` is muted |
+| `background-media-play-in-background` | `false` | `true`, `false` | Keep playing when no Ghostty window is focused |
+| `background-media-max-fps` | `30` | `1`–`240` | Redraw cap |
+| `background-media-youtube-quality` | `auto` (720p) | `auto` or a height such as `1080` | Preferred YouTube resolution |
+| `background-opacity` | `1` | `0`–`1` | Standard Ghostty key; set below `1` to see the media |
+
+Example:
 
 ```conf
-background-media = ~/Pictures/wallpaper.png
+background-media = ~/Videos/ambient.mp4
+background-media-fit = cover
+background-media-dim = 0.25
+background-media-volume = 0
 background-opacity = 0.7
 ```
 
-Media is drawn behind the terminal and shows through when the terminal background is transparent. Set `background-opacity` below `1`, or adjust the **Terminal opacity** slider in the panel's **Appearance** group. Open the panel from **Background Media…** in the main window menu; there is no default keybinding. **Save to Configuration** writes `background-media.ghostty` next to the main config, including `background-opacity`.
+Paths may start with `~/`; a leading `?` (for example `?~/Videos/ambient.mp4`) makes a missing file silent.
+Changes apply on config reload. The Flatpak can read media only under your home directory.
 
-## Linux support
+Details: [configuration reference](docs/background-media/CONFIGURATION.md).
 
-| Platform | Support |
+## Features
+
+| Source | Example |
 | --- | --- |
-| Linux GTK | Ubuntu 26.04 amd64 `.deb`; Ubuntu 24.04 and other distributions via Flatpak. PNG/JPEG/WebP, animated GIF, local MP4 H.264/AAC, WebM/MKV, direct HTTP(S) MP4 and HLS, and YouTube video/livestreams through user-installed `yt-dlp` (best effort). Fit, position, dim, blur, loop, pause, seek where supported, Go Live, optional sound, and pause-on-unfocus are available. Audio is muted by default. |
+| Images: PNG, JPEG, WebP | `~/Pictures/wall.webp` |
+| Animated GIF | `~/Pictures/loop.gif` |
+| Local video: MP4 (H.264/AAC), WebM, MKV | `~/Videos/ambient.mp4` |
+| Direct HTTP(S) video | `https://media.example/video.mp4` |
+| HLS, recorded or live | `https://media.example/live.m3u8` |
+| YouTube videos and livestreams (needs `yt-dlp`, best effort) | `https://www.youtube.com/watch?v=VIDEO_ID` |
 
-## macOS status
+- One media decoder is shared by all tabs and windows; each tab's media spans all its splits.
+- Fit, position, dim and media-only blur; terminal text stays sharp on top.
+- Loop, volume (muted by default), pause and seek where the source supports it, **Go Live** for streams.
+- Pauses when no Ghostty window is focused, unless **Keep playing in background** is on.
+- Streams reconnect automatically; upcoming YouTube streams wait until they go live.
+- With no media configured, nothing extra runs.
+
+Details: [feature list](docs/background-media/FEATURES.md).
+
+## Status
+
+**bgm-v0.1.0-beta** is a public pre-release (beta).
 
 | Platform | Status |
 | --- | --- |
+| Ubuntu 26.04 amd64 (`.deb`), GNOME Wayland | Supported; tested on desktop and in a clean container |
+| Ubuntu 24.04 and others (Flatpak) | Supported; install and playback tested in a clean Ubuntu 24.04 container, not yet on a real 24.04 desktop |
+| X11 apps via XWayland | Tested |
+| Native Xorg session | Untested |
 | macOS | The inherited background video feature is preserved. This release has no macOS binary; the macOS build and inherited-video smoke test are **UNVERIFIED**. Build from source using the [upstream docs](https://ghostty.org/docs) and [background video notes](BACKGROUND_VIDEO.md). |
+
+Known limits: YouTube depends on `yt-dlp` and can break when YouTube changes; there is no CI yet.
+
+Details: [project status](docs/background-media/STATUS.md) · [changelog](docs/background-media/CHANGELOG.md).
 
 ## Credits
 
