@@ -1,7 +1,7 @@
 # Background media configuration
 
 The `background-media` settings are Linux GTK settings. macOS ignores them and keeps its existing
-`background-video*` behavior. All ten settings are parsed, validated and reloadable. M04 applies
+`background-video*` behavior. All twelve settings are parsed, validated and reloadable. M04 applies
 fit, position and dim to static images; M05 implements the playback settings for local video; M06
 adds local GIF playback. No settings remain pending for local media.
 
@@ -12,6 +12,8 @@ The panel's **Appearance** group includes a **Terminal opacity** slider for `bac
 It changes the current session as an override. **Save to Configuration** writes it to
 `background-media.ghostty` next to the main config; the managed file loads after the main config
 and its value takes precedence. The `background-opacity` config key remains shared with Ghostty.
+Appearance also includes a **Boxes** slider and **Round and outline boxes** switch; Playback shows
+playlist navigation while a playlist is playing.
 
 ## Keys
 
@@ -27,6 +29,8 @@ and its value takes precedence. The `background-opacity` config key remains shar
 | `background-media-play-in-background` | Boolean | `false` | `true` / `false` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-max-fps` | `u32` | `30` | `1..240` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-youtube-quality` | Choice | `auto` (720p) | `auto` or `1..4320` | Config reload or panel | Linux GTK; ignored on macOS |
+| `background-media-box-opacity` | `f32` | `1` | `0..1` | Config reload | Linux GTK; ignored on macOS |
+| `background-media-box-round` | Boolean | `false` | `true` / `false` | Config reload | Linux GTK; ignored on macOS |
 
 The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` is clamped to
 `1..240`. Blur is clamped to `0..40`; NaN becomes `0`. The default source is unset, so no media is selected.
@@ -36,6 +40,25 @@ otherwise the largest offered height at or below the preference is selected, fal
 video's smallest offered height. Heights above 1080p use VP9 and are labelled “(high CPU)” in the
 panel. The panel lists the current video's available heights, and **Save to Configuration** saves
 the selected value (D-025).
+
+## Boxes
+
+`background-media-box-opacity` controls cells with their own background colour, including prompt
+highlights, diff lines, and ANSI background colours. The default `1` keeps them opaque as before;
+selected and inverse cells stay opaque. Below `1`, this setting takes precedence over
+`background-opacity-cells` for those cells. `background-media-box-round = true` draws each block of
+same-coloured cells as a rounded rectangle with a thin lighter outline.
+
+## YouTube playlists
+
+A YouTube `background-media` URL with `list=` plays playlist entries in order, starting at the
+linked video when present or at the first entry. Entries are listed in batches of 50 (about 4 seconds
+per batch), up to 1000.
+After each video, playback waits a fixed 3 seconds before the next. At the end,
+`background-media-loop = true` starts over; otherwise playback stops on the last frame. An
+unresolvable video is skipped after 3 seconds; five consecutive failures stop playback with an
+error. **Next** skips immediately. If listing fails and the URL has `v=`, that video plays alone.
+URLs without `list=` behave as before.
 
 ## Sources and visibility
 
@@ -108,6 +131,10 @@ change). A reload with the same ready source does not restart it. These are M03 
 local image, video, and GIF sessions are implemented in M04, M05, and M06, with remote playback in
 M07–M09.
 
+The panel's managed `background-media.ghostty` is loaded through `config-file` after command-line
+flags, so saved values override `--background-media…` flags. Use `--config-default-files=false` to
+test flags alone, or clear the saved values.
+
 ## Control panel
 
 The GTK panel opens from **Background Media…** in the main menu. It exposes Source, status with
@@ -117,10 +144,12 @@ The panel also opens from the header-bar video icon beside **View Open Tabs** in
 layout; there is no default keybinding. **Turn Off** stops background media for the current session
 without clearing the source box; **Play** reapplies the box text. **Keep playing in background**
 (`background-media-play-in-background`) keeps playback running when the window loses focus or is
-minimized.
+minimized. **Appearance** has a **Boxes** slider and **Round and outline boxes** switch. While a
+playlist plays, **Playback** shows a **Playlist** row such as `2 / 3 · <playlist title>` (with `+`
+after the count when more entries can be fetched) and **Previous** / **Next** buttons.
 Pause is runtime-only. **Save to Configuration** writes the managed `background-media.ghostty`
-file next to the main config, with a comment header, all ten `background-media*` keys, and
-`background-opacity`. It appends
+file next to the main config, with a comment header, all twelve `background-media*` keys, including
+both box settings, and `background-opacity`. It appends
 `config-file = ?background-media.ghostty` (with a comment) to the main config once, then reloads
 configuration and clears the overrides. The managed include loads after the main config, so its
 values take precedence. Other main-config lines are not changed; writes use a temporary file and

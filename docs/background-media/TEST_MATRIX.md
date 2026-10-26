@@ -77,9 +77,14 @@ build.
 | Packaging   | Flatpak in fresh Ubuntu 24.04.5 container                       | Install, run `+version`, check missing libraries and H.264/HLS plugins, uninstall                  | Passed (orchestrator); 0 missing libraries; install and uninstall passed                                  | workspace `.pkg-test/clean-install-24.04-flatpak.log`                                                        |
 | Manual      | Terminal opacity slider in panel Appearance group               | Adjust **Terminal opacity** and confirm media shows through terminal background                     | Passed (orchestrator, 2026-10-25)                                                                           | Final Flatpak host GUI: video visible at opacity 0.5; debug build AT-SPI: media visible at 0.5, no reload or toast, Reset to 1.0 |
 | Packaging   | Public release download flow                                    | Download all four public `bgm-v0.1.0-beta` assets, verify checksums, install and remove `.deb` in fresh Ubuntu 26.04 | Passed (orchestrator, 2026-10-25); all assets downloaded, all checksums passed, install/remove exit 0, 0 missing libraries | [Public release](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta); workspace `notes/m17/download-flow-26.04.log` |
+| Audit       | Cell box opacity and rounding                                   | Set box opacity to 0.5 and enable rounding; compare defaults                                        | Passed (orchestrator, 2026-10-26, headless GNOME Shell 50); translucent rounded boxes with lighter outlines, defaults unchanged | workspace `notes/m19/boxes-compare.png` |
+| YouTube     | Playlist order, gap, and loop                                    | Play three 5 s clips from the linked video; check gaps and both loop settings                       | Passed (orchestrator, 2026-10-26, headless GNOME Shell 50); started at linked `v=`, 3 s gaps, loop wrapped, loop off ended on “playlist ended” | workspace `notes/m19/playlist-loop-{true,false}.log` |
+| Manual      | Boxes and playlist panel controls                                | Adjust/save Boxes and rounding; use Next during playlist playback                                   | Passed (orchestrator, 2026-10-26, headless GNOME Shell 50); opacity saved as `0.50`, round=true saved, Next skipped immediately | workspace `notes/m19/panel-playlist.png` |
+| Manual      | Playlist on a real desktop with a real YouTube Mix through several videos | Play a real Mix and observe multiple entries on a desktop                                           | Pending; manual                                                                                             | Not run |
 
 ## Pending checks
 
-Flatpak installation on a real Ubuntu 24.04 desktop, Native Xorg, and all macOS items remain open.
+Flatpak installation on a real Ubuntu 24.04 desktop, Native Xorg, playlist playback on a real desktop
+through several videos of a real YouTube Mix, and all macOS items remain open.
 The five human terminal regression checks passed per the user's 2026-10-24 report; the full
 original `zig build test` and two-hour soak also passed.

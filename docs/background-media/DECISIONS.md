@@ -3,6 +3,44 @@
 Accepted decisions and proposals are recorded newest first. Evidence links point to the milestone
 docs and logs.
 
+## D-029 Translucent rounded cell boxes (GTK only)
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-26
+- **User decision:** “A: Slider + round/outline (Recommended)”.
+- **Context:** Cells with their own background colour, such as prompt highlights, diff lines, and
+  ANSI backgrounds, were opaque. Make their opacity adjustable and optionally soften their shape.
+- **Decision:** Add `background-media-box-opacity` (`f32`, default `1`, range `0..1`) and
+  `background-media-box-round` (boolean, default `false`). Opacity below `1` takes precedence over
+  `background-opacity-cells` for these cells; selected and inverse cells stay opaque. Rounding draws
+  each same-coloured block as a rounded rectangle with a thin lighter outline. Gate the shared
+  renderer change at comptime on the GTK apprt and use the OpenGL shader only; leave Metal
+  untouched.
+- **Consequences:** Defaults preserve the previous rendering. Both settings are reloadable, Linux
+  GTK only, and ignored on macOS.
+- **Evidence:** [CONFIGURATION](CONFIGURATION.md), [FEATURES](FEATURES.md),
+  [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m19/boxes-compare.png`.
+
+## D-030 YouTube playlists with a fixed 3 s gap
+
+- **Status:** ACCEPTED
+- **Date:** 2026-10-26
+- **User decisions:** “A: Play in order, 3 s gap (Recommended)” and “A: Fixed 3 s (Recommended)”.
+- **Context:** YouTube playlist URLs did not play as playlists; `playlist?list=` failed with
+  `playlist_unsupported`.
+- **Decision:** Accept YouTube URLs with `list=` (including `watch?v=ID&list=LIST`,
+  `playlist?list=LIST`, and Mix lists), list entries with `yt-dlp --flat-playlist` in batches of 50
+  up to 1000, and start at the linked video or first entry. Wait a fixed 3 seconds between videos;
+  skip an unresolved video after 3 seconds and stop with an error after five consecutive failures.
+  At the end, `background-media-loop = true` restarts the list; otherwise hold the last frame. If
+  listing fails and the URL has `v=`, play that single video. **Next** skips immediately. Do not add
+  a playlist setting key.
+- **Consequences:** URLs without `list=` behave as before. The panel shows playlist position and
+  title, with Previous and Next controls while a playlist plays. Listing is capped at 1000 entries.
+- **Evidence:** [CONFIGURATION](CONFIGURATION.md), [FEATURES](FEATURES.md),
+  [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m19/playlist-loop-{true,false}.log` and
+  `notes/m19/panel-playlist.png`.
+
 ## D-028 Side-by-side application identity
 
 - **Status:** ACCEPTED

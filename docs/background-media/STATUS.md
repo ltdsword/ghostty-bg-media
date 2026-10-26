@@ -28,6 +28,7 @@ Flatpak remains the distribution lane. M07 and later evidence is from the native
 | M16 — Public packaging       | TBD               | DONE        | f55670384, 4486a52d0 | [INSTALL](INSTALL.md), [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak), [D-028](DECISIONS.md#d-028-side-by-side-application-identity), [TEST_MATRIX](TEST_MATRIX.md), clean-install evidence below; fresh Ubuntu 24.04.5 Flatpak container: workspace `.pkg-test/clean-install-24.04-flatpak.log` | —                                                                                  | —                                                  |
 | M17 — Public beta            | TBD               | DONE        | df2cc8f23           | Published pre-release [bgm-v0.1.0-beta](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta); download-flow check passed (2026-10-25). Stable designation not met (macOS unverified). | — | — |
 | M18 — Optional macOS parity  | TBD               | NOT_STARTED | —                    | Approval required                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                  | Seek approval before considering additive parity   |
+| M19 — Post-beta: boxes + playlists | T1–T3             | DONE        | 0f2f93847, e82bccb80, edc8e06f4 | [D-029](DECISIONS.md#d-029-translucent-rounded-cell-boxes-gtk-only), [D-030](DECISIONS.md#d-030-youtube-playlists-with-a-fixed-3-s-gap); workspace `notes/m19/boxes-compare.png`, `notes/m19/playlist-loop-{true,false}.log`, `notes/m19/panel-playlist.png`; real yt-dlp Mix listed 554 entries in 4.2 s; gate PASS (7 checks) | — | — |
 
 ## M00 — Fork inheritance and baselines
 
@@ -417,6 +418,21 @@ incorrect broadcast-damage and appsink-QoS explanations. See [D-026](DECISIONS.m
   Reset returned it to 1.0.
 - **macOS:** No binary in this release; build and inherited-video smoke remain UNVERIFIED.
 - **Stable designation:** NOT MET; macOS is unverified.
+
+## M19 — Post-beta: boxes + playlists
+
+- **Status:** DONE; user-approved extra scope on 2026-10-26, not in the master plan.
+- **Commits:** T1 `0f2f93847`, T2 `e82bccb80`, T3 `edc8e06f4`.
+- **Boxes:** In the private headless GNOME Shell 50 session, opacity `0.5` plus rounding showed
+  translucent rounded boxes with lighter outlines; defaults matched the previous rendering. Evidence:
+  workspace `notes/m19/boxes-compare.png`.
+- **Playlists:** Fake yt-dlp with three 5-second clips verified starting at the linked `v=` entry,
+  fixed 3-second gaps, loop wrapping, and `playlist ended` when looping was off. Real yt-dlp listed
+  the user's 554-entry Mix in 4.2 seconds. Evidence: workspace
+  `notes/m19/playlist-loop-{true,false}.log`.
+- **Panel:** Boxes slider save wrote `background-media-box-opacity = 0.50`; round=true saved; Next
+  skipped immediately. Gate PASS (7 checks). Evidence: workspace `notes/m19/panel-playlist.png`.
+- **Platform:** macOS diff empty; both new settings are ignored there.
 
 ## How to resume
 

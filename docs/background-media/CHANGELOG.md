@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Linux
+
+- Add opacity and optional rounded, outlined boxes for cells with their own background colour.
+- Play YouTube playlists in order with a fixed 3-second gap, playlist navigation, and loop or
+  stop-at-end behavior.
+
 ## bgm-v0.1.0-beta (2026-10-25)
 
 First public pre-release of Ghostty Background Media.

@@ -82,6 +82,9 @@ flatpak run io.github.ltdsword.GhosttyBgMedia --background-media=~/Pictures/loop
 ghostty-bg-media --background-media=~/Pictures/wallpaper.png --background-opacity=0.7 -e htop
 ```
 
+Values saved by the panel in `background-media.ghostty` load after command-line flags and override them; use
+`--config-default-files=false` to test flags alone, or clear the saved values.
+
 Useful actions:
 
 | Command | What it does |
@@ -110,6 +113,8 @@ keybinding for the panel.
 | `background-media-play-in-background` | `false` | `true`, `false` | Keep playing when no Ghostty window is focused |
 | `background-media-max-fps` | `30` | `1`–`240` | Redraw cap |
 | `background-media-youtube-quality` | `auto` (720p) | `auto` or a height such as `1080` | Preferred YouTube resolution |
+| `background-media-box-opacity` | `1` | `0`–`1` | Opacity of cells with their own background colour; selected and inverse cells stay opaque |
+| `background-media-box-round` | `false` | `true`, `false` | Draw same-coloured cell blocks as rounded rectangles with a thin lighter outline |
 | `background-opacity` | `1` | `0`–`1` | Standard Ghostty key; set below `1` to see the media |
 
 Example:
@@ -137,9 +142,12 @@ Details: [configuration reference](docs/background-media/CONFIGURATION.md).
 | Direct HTTP(S) video | `https://media.example/video.mp4` |
 | HLS, recorded or live | `https://media.example/live.m3u8` |
 | YouTube videos and livestreams (needs `yt-dlp`, best effort) | `https://www.youtube.com/watch?v=VIDEO_ID` |
+| YouTube playlist (needs `yt-dlp`) | `https://www.youtube.com/watch?v=VIDEO_ID&list=LIST_ID` |
 
 - One media decoder is shared by all tabs and windows; each tab's media spans all its splits.
 - Fit, position, dim and media-only blur; terminal text stays sharp on top.
+- Set the opacity of cells with their own background colour and optionally draw them as rounded, outlined boxes.
+- Play YouTube playlists in order with a fixed 3-second gap; `background-media-loop` restarts at the end or stops on the last frame.
 - Loop, volume (muted by default), pause and seek where the source supports it, **Go Live** for streams.
 - Pauses when no Ghostty window is focused, unless **Keep playing in background** is on.
 - Streams reconnect automatically; upcoming YouTube streams wait until they go live.

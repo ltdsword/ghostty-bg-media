@@ -45,6 +45,8 @@ inherited paths.
 The panel's **Appearance** group has a **Terminal opacity** slider. It changes the shared
 `background-opacity` value as a session override; **Save to Configuration** writes it to
 `background-media.ghostty` next to the main config, where it takes precedence after saving.
+`background-media-box-opacity` and `background-media-box-round` are Linux GTK settings; macOS
+ignores both.
 
 The M03 config contract is:
 

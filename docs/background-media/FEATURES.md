@@ -11,7 +11,9 @@ Status words: **Shipped** (merged and verified by the agent), **Manual check** (
 - Show local PNG, JPEG, WebP, GIF, MP4, WebM, and MKV backgrounds.
 - Play direct HTTP(S) video and HLS VOD or live streams.
 - Resolve recorded, live, and upcoming YouTube URLs with a separately installed `yt-dlp`.
+- Play YouTube playlists in order with a fixed 3-second gap, then loop or stop on the last frame.
 - Choose image fit and alignment, theme-color dim, and media-only blur.
+- Set the opacity of cells with their own background colour and optionally draw them as rounded, outlined boxes.
 - Control looping, volume, background playback, and a maximum redraw frame rate.
 - Share one media session across tabs and one view across each tab's splits.
 - Pause when no window is active, or keep playing in the background by setting a preference.
@@ -35,12 +37,13 @@ Status words: **Shipped** (merged and verified by the agent), **Manual check** (
 | HLS VOD and live | `https://media.example/live.m3u8` | HTTP(S) URL path ending in `.m3u8`; a query string does not change path classification. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`media_loader.zig`](../../src/apprt/gtk/media_loader.zig); D-014, D-016. | Linux GStreamer URL player. | Shipped | Supports VOD and live playlists. HLS retries indefinitely with a stall watchdog and backoff. |
 | YouTube recorded | `https://www.youtube.com/watch?v=…` | Recognized YouTube hostnames, including `youtube.com`, `youtu.be`, and `youtube-nocookie.com`. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`youtube.zig`](../../src/apprt/gtk/background_media/youtube.zig), [`youtube_resolver.zig`](../../src/apprt/gtk/youtube_resolver.zig); D-017, D-025, D-026. | User-installed `yt-dlp`, then the GStreamer URL player. | Shipped | Quality defaults to Auto (720p); listed HLS audio is fetched only above zero volume. Recorded playback keeps its position when volume is raised. H.264 segment keyframes render cleanly after the continuity fix. |
 | YouTube live/upcoming | `https://www.youtube.com/@channel/live` | Same host classification; `yt-dlp` supplies recorded/live/upcoming state. [`source.zig`](../../src/apprt/gtk/background_media/source.zig), [`youtube.zig`](../../src/apprt/gtk/background_media/youtube.zig), [`live.zig`](../../src/apprt/gtk/background_media/live.zig); D-017, D-018, D-025, D-026. | User-installed `yt-dlp`, then the GStreamer URL player. | Shipped | Quality uses the current video's offered heights. Listed HLS audio is fetched only above zero volume; live playback rejoins at the live edge after a volume-up restart. Upcoming streams are polled; **Go Live** reconnects at the live edge. H.264 segment keyframes render cleanly after the continuity fix. |
+| YouTube playlist | `https://www.youtube.com/watch?v=VIDEO_ID&list=LIST_ID` | YouTube URL with `list=`; accepts `watch?v=…&list=…` and `playlist?list=…`, including Mix lists. | User-installed `yt-dlp` in flat-playlist batches of 50, then the GStreamer URL player. | Shipped | Starts at the linked video or first entry; waits 3 seconds between entries, skips unresolved videos after 3 seconds, and caps listing at 1000 entries. Loop wraps at the end; with loop off, the last frame remains. |
 
 Local image, GIF, and video file classification reads at most 65,536 bytes for header sniffing. An unrecognized signature falls back to the file extension. Configured URLs accept only HTTP or HTTPS.
 
 ## Settings
 
-All ten settings are Linux GTK settings and apply on configuration reload. Their definitions are in [`Config.zig`](../../src/config/Config.zig); the GTK controls are in [`media-panel.blp`](../../src/apprt/gtk/ui/1.5/media-panel.blp).
+All twelve settings are Linux GTK settings and apply on configuration reload. Their definitions are in [`Config.zig`](../../src/config/Config.zig); the GTK controls are in [`media-panel.blp`](../../src/apprt/gtk/ui/1.5/media-panel.blp).
 
 | Key | Default | Range | What it does | Live reload | Panel control |
 | --- | --- | --- | --- | --- | --- |
@@ -54,8 +57,10 @@ All ten settings are Linux GTK settings and apply on configuration reload. Their
 | `background-media-play-in-background` | `false` | Boolean | Keeps playback running when no window is active. [`Config.zig`](../../src/config/Config.zig) | Yes | **Keep playing in background** switch |
 | `background-media-max-fps` | `30` | `1..240` | Caps redraw cadence; it does not accelerate video decoding. [`Config.zig`](../../src/config/Config.zig) | Yes | **30 fps** or **60 fps** |
 | `background-media-youtube-quality` | `auto` (720p) | `auto` or `1..4320` | Sets the preferred YouTube maximum height; Auto uses 720p. [`Config.zig`](../../src/config/Config.zig) | Yes | **YouTube quality** row for a resolved YouTube source |
+| `background-media-box-opacity` | `1` | `0..1` | Controls opacity for cells with their own background colour; below `1` it takes precedence over `background-opacity-cells`, while selected and inverse cells stay opaque. [`Config.zig`](../../src/config/Config.zig) | Yes | **Boxes** slider |
+| `background-media-box-round` | `false` | Boolean | Draws each same-coloured cell block as a rounded rectangle with a thin lighter outline. [`Config.zig`](../../src/config/Config.zig) | Yes | **Round and outline boxes** switch |
 
-The panel's available frame-rate buttons are 30 and 60 fps; configuration accepts 1 through 240. macOS ignores all ten `background-media*` keys.
+The panel's available frame-rate buttons are 30 and 60 fps; configuration accepts 1 through 240. macOS ignores all twelve `background-media*` keys.
 
 ## Display and appearance
 
@@ -80,12 +85,12 @@ The panel's available frame-rate buttons are 30 and 60 fps; configuration accept
 Open the panel with the header-bar background-media button or the `background-media` window action. The main menu also has **Background Media…**; there is no default keybinding. [`window.zig`](../../src/apprt/gtk/class/window.zig), [`media_panel.zig`](../../src/apprt/gtk/class/media_panel.zig).
 
 - **Source:** choose a file, enter a path or URL, **Apply** the entry, or restore the configured source with **Use Configuration**.
-- **Playback:** view status; **Pause/Play**, **Turn Off**, **Retry**, and **Go Live** when applicable; seek finite video when its backend reports timing; set **Loop**, **Volume**, background playback, and 30/60 fps.
+- **Playback:** view status; **Pause/Play**, **Turn Off**, **Retry**, and **Go Live** when applicable; seek finite video when its backend reports timing; set **Loop**, **Volume**, background playback, and 30/60 fps. While a playlist plays, the **Playlist** row shows its position and title, with **Previous** / **Next** buttons.
 - **YouTube quality:** when the source resolves to YouTube, select Auto (720p) or a height offered by the current video; choices above 1080p are labelled “(high CPU)”. **Save to Configuration** persists the preferred maximum (D-025).
-- **Appearance:** choose **Fit** and **Position**, and set **Dim**, **Blur**, and **Terminal opacity** sliders. Terminal opacity controls `background-opacity` as a session override; **Save to Configuration** stores it in `background-media.ghostty` next to the main config, where it overrides the main config value.
+- **Appearance:** choose **Fit** and **Position**, and set **Dim**, **Blur**, **Terminal opacity**, and **Boxes** sliders; **Round and outline boxes** toggles box styling. Terminal opacity controls `background-opacity` as a session override; **Save to Configuration** stores these values, including both box settings, in `background-media.ghostty` next to the main config.
 - **Diagnostics:** see whether the GStreamer URL player is available and the selected `yt-dlp` path or missing-tool hint.
 - Status includes **No background media**, **Idle**, **Loading**, **Showing** for a still image, **Playing**, **Paused**, **Failed**, **LIVE**, **Waiting for the stream to start**, **Reconnecting**, and **Stream ended**.
-- Source and settings changes apply immediately as runtime overrides. **Turn Off** stops playback for the session while preserving the source-box text; **Play** reapplies it. **Save to Configuration** writes `background-media.ghostty` with all ten `background-media*` settings and `background-opacity`, adds `config-file = ?background-media.ghostty` to the main config once, reloads config, and clears overrides. The managed include loads after the main config and takes precedence. **Reset Changes** restores configured values (D-019). [`media_panel.zig`](../../src/apprt/gtk/class/media_panel.zig), [`config_save.zig`](../../src/apprt/gtk/background_media/config_save.zig).
+- Source and settings changes apply immediately as runtime overrides. **Turn Off** stops playback for the session while preserving the source-box text; **Play** reapplies it. **Save to Configuration** writes `background-media.ghostty` with all twelve `background-media*` settings, including both box settings, and `background-opacity`, adds `config-file = ?background-media.ghostty` to the main config once, reloads config, and clears overrides. The managed include loads after the main config and takes precedence. **Reset Changes** restores configured values (D-019). [`media_panel.zig`](../../src/apprt/gtk/class/media_panel.zig), [`config_save.zig`](../../src/apprt/gtk/background_media/config_save.zig).
 
 ## Lifecycle and resource use
 
