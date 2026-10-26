@@ -42,6 +42,14 @@ pub const Playback = struct {
     duration_us: i64 = 0,
 };
 
+pub const PlaylistInfo = struct {
+    index: usize,
+    count: usize,
+    more: bool,
+    title: []const u8,
+    waiting: bool,
+};
+
 const ViewEntry = struct {
     view: *MediaView,
     active: bool = false,
@@ -65,6 +73,15 @@ const Loader = struct {
     url_player: ?*gst_url_player.Player = null,
     url: ?[:0]u8 = null,
     url_kind: bg.source.Kind = .local_file,
+    item_url: ?[:0]u8 = null,
+    playlist: ?struct {
+        ids: std.ArrayList([]u8) = .empty,
+        title: []u8,
+        cursor: bg.playlist.Cursor,
+        failures: u32 = 0,
+    } = null,
+    gap_timer: c_uint = 0,
+    listing: bool = false,
     resolved: ?youtube_resolver.Resolved = null,
     audio_attached: bool = false,
     pending_seek_ns: i64 = 0,
@@ -213,7 +230,27 @@ pub fn requestUrl(req: UrlRequest) void {
     loader.current_id = req.id;
     loader.status = .loading;
     loader.failed_attempts = 0;
+    if (bg.playlist.listId(req.url) != null) {
+        startPlaylistListing(1, bg.playlist.batch_size);
+        return;
+    }
     connectUrl();
+}
+
+pub fn playlistInfo() ?PlaylistInfo {
+    const playlist_state = loader.playlist orelse return null;
+    return .{
+        .index = playlist_state.cursor.index,
+        .count = playlist_state.ids.items.len,
+        .more = playlist_state.cursor.more,
+        .title = playlist_state.title,
+        .waiting = loader.listing or loader.gap_timer != 0,
+    };
+}
+
+pub fn playlistStep(delta: i32) void {
+    if (loader.playlist == null) return;
+    playlistAdvance(delta);
 }
 
 pub fn paintable() ?*gdk.Paintable {
@@ -540,6 +577,14 @@ fn release() void {
     loader.texture = null;
     if (loader.url) |url| alloc.free(url);
     loader.url = null;
+    if (loader.item_url) |url| alloc.free(url);
+    loader.item_url = null;
+    clearPlaylist();
+    loader.listing = false;
+    if (loader.gap_timer != 0) {
+        _ = glib.Source.remove(loader.gap_timer);
+        loader.gap_timer = 0;
+    }
     if (loader.resolved) |resolved| freeResolved(resolved);
     loader.resolved = null;
     loader.resolving = false;
@@ -570,6 +615,15 @@ fn release() void {
     loader.current_id = 0;
     loader.status = .idle;
     loader.generation += 1;
+}
+
+fn clearPlaylist() void {
+    if (loader.playlist) |*playlist_state| {
+        for (playlist_state.ids.items) |id| alloc.free(id);
+        playlist_state.ids.deinit(alloc);
+        alloc.free(playlist_state.title);
+    }
+    loader.playlist = null;
 }
 
 fn dropStream() void {
@@ -628,7 +682,8 @@ fn takeParked(id: u64) ?*gtk.MediaFile {
 fn connectUrl() void {
     // Keep callbacks from replacing an already-running player with a duplicate.
     if (loader.url_player != null) return;
-    const source_url = loader.url orelse return;
+    const source_url = loader.item_url orelse loader.url orelse return;
+    if (loader.listing) return;
     // Let the in-flight resolver finish instead of starting a duplicate resolve.
     if (loader.url_kind == .youtube and loader.resolving) return;
     if (loader.live_state == .waiting_upcoming) {
@@ -709,6 +764,228 @@ fn connectUrl() void {
         bg.source.redactUrl(&redacted_buf, source_url),
         loader.failed_attempts + 1,
     });
+}
+
+fn startPlaylistListing(first: u32, last: u32) void {
+    const source_url = loader.url orelse return;
+    loader.listing = true;
+    notifyViews();
+    if (!youtube_resolver.startList(source_url, first, last, loader.generation, onPlaylistListed)) {
+        loader.listing = false;
+        var result: youtube_resolver.ListResult = .{ .failed = "list_thread_start" };
+        onPlaylistListed(loader.generation, &result);
+    }
+}
+
+fn onPlaylistListed(generation: u64, result: *youtube_resolver.ListResult) void {
+    if (generation != loader.generation) return;
+    loader.listing = false;
+    switch (result.*) {
+        .ok => |batch_value| {
+            var batch = batch_value;
+            result.* = .missing;
+            defer batch.deinit(alloc);
+            if (loader.playlist == null) {
+                onFirstPlaylistBatch(&batch);
+            } else {
+                onNextPlaylistBatch(&batch);
+            }
+        },
+        .failed => |reason| {
+            if (loader.playlist == null) {
+                firstPlaylistFailure(reason, false);
+            } else {
+                loader.playlist.?.cursor.more = false;
+                playlistAdvance(1);
+            }
+        },
+        .missing => {
+            if (loader.playlist == null) {
+                firstPlaylistFailure("ytdlp_missing", true);
+            } else {
+                loader.playlist.?.cursor.more = false;
+                playlistAdvance(1);
+            }
+        },
+    }
+}
+
+fn onFirstPlaylistBatch(batch: *bg.playlist.Batch) void {
+    if (batch.ids.len == 0) {
+        firstPlaylistFailure("playlist_empty", false);
+        return;
+    }
+
+    const title = alloc.dupe(u8, batch.title) catch {
+        firstPlaylistFailure("out_of_memory", false);
+        return;
+    };
+    loader.playlist = .{
+        .ids = .empty,
+        .title = title,
+        .cursor = .{ .index = 0, .count = 0, .more = false },
+    };
+    appendPlaylistBatch(batch) catch {
+        clearPlaylist();
+        firstPlaylistFailure("out_of_memory", false);
+        return;
+    };
+
+    const playlist_state = &loader.playlist.?;
+    playlist_state.cursor.count = playlist_state.ids.items.len;
+    playlist_state.cursor.more = batch.ids.len == @as(usize, bg.playlist.batch_size) and
+        playlist_state.cursor.count < bg.playlist.max_entries;
+    if (bg.playlist.videoId(loader.url.?)) |video_id| {
+        for (playlist_state.ids.items, 0..) |id, index| {
+            if (std.mem.eql(u8, id, video_id)) {
+                playlist_state.cursor.index = index;
+                break;
+            }
+        }
+    }
+
+    const title_view = playlist_state.title[0..@min(playlist_state.title.len, 80)];
+    log.info("background-media: playlist title=\"{s}\" entries={d} start={d}", .{
+        title_view,
+        playlist_state.cursor.count,
+        playlist_state.cursor.index,
+    });
+    _ = setPlaylistItem(playlist_state.cursor.index);
+}
+
+fn onNextPlaylistBatch(batch: *bg.playlist.Batch) void {
+    const playlist_state = &loader.playlist.?;
+    const first_new = playlist_state.ids.items.len;
+    appendPlaylistBatch(batch) catch {
+        playlist_state.cursor.more = false;
+        playlistAdvance(1);
+        return;
+    };
+    playlist_state.cursor.count = playlist_state.ids.items.len;
+    playlist_state.cursor.more = batch.ids.len == @as(usize, bg.playlist.batch_size) and
+        playlist_state.cursor.count < bg.playlist.max_entries;
+    if (playlist_state.ids.items.len == first_new) {
+        playlist_state.cursor.more = false;
+        playlistAdvance(1);
+        return;
+    }
+    _ = setPlaylistItem(first_new);
+}
+
+fn appendPlaylistBatch(batch: *const bg.playlist.Batch) error{OutOfMemory}!void {
+    const playlist_state = &loader.playlist.?;
+    const available = bg.playlist.max_entries - playlist_state.ids.items.len;
+    const count = @min(batch.ids.len, available);
+    var copies: std.ArrayList([]u8) = .empty;
+    for (batch.ids[0..count]) |id| {
+        const copy = alloc.dupe(u8, id) catch {
+            freePlaylistIds(&copies);
+            return error.OutOfMemory;
+        };
+        copies.append(alloc, copy) catch {
+            alloc.free(copy);
+            freePlaylistIds(&copies);
+            return error.OutOfMemory;
+        };
+    }
+    playlist_state.ids.appendSlice(alloc, copies.items) catch {
+        freePlaylistIds(&copies);
+        return error.OutOfMemory;
+    };
+    copies.deinit(alloc);
+}
+
+fn freePlaylistIds(ids: *std.ArrayList([]u8)) void {
+    for (ids.items) |id| alloc.free(id);
+    ids.deinit(alloc);
+}
+
+fn firstPlaylistFailure(reason: []const u8, missing: bool) void {
+    const source_url = loader.url orelse return;
+    if (bg.playlist.videoId(source_url)) |video_id| {
+        const item_url = bg.playlist.watchUrl(alloc, video_id) catch {
+            loader.status = .failed;
+            setFailure("unreadable");
+            notifyViews();
+            return;
+        };
+        if (loader.item_url) |old_url| alloc.free(old_url);
+        loader.item_url = item_url;
+        log.warn("background-media: playlist unavailable reason={s} fallback=single", .{reason});
+        connectUrl();
+        notifyViews();
+        return;
+    }
+
+    if (missing) {
+        youtubeMissing();
+        return;
+    }
+    loader.status = .failed;
+    setFailure("playlist_unavailable");
+    log.warn("background-media: failed reason=playlist_unavailable source=youtube", .{});
+    notifyViews();
+}
+
+fn setPlaylistItem(index: usize) bool {
+    const playlist_state = &loader.playlist.?;
+    if (index >= playlist_state.ids.items.len) return false;
+    const item_url = bg.playlist.watchUrl(alloc, playlist_state.ids.items[index]) catch {
+        loader.status = .failed;
+        setFailure("unreadable");
+        notifyViews();
+        return false;
+    };
+    playlist_state.cursor.index = index;
+    if (loader.item_url) |old_url| alloc.free(old_url);
+    loader.item_url = item_url;
+    dropStream();
+    if (loader.resolved) |resolved| freeResolved(resolved);
+    loader.resolved = null;
+    loader.resolving = false;
+    loader.pending_seek_ns = 0;
+    loader.live_state = .idle;
+    loader.url_ended = false;
+    connectUrl();
+    notifyViews();
+    return true;
+}
+
+fn schedulePlaylistGap() void {
+    if (loader.gap_timer != 0) return;
+    loader.gap_timer = glib.timeoutAdd(bg.playlist.gap_ms, onPlaylistGap, null);
+    notifyViews();
+}
+
+fn onPlaylistGap(_: ?*anyopaque) callconv(.c) c_int {
+    loader.gap_timer = 0;
+    playlistAdvance(1);
+    return 0;
+}
+
+fn playlistAdvance(delta: i32) void {
+    if (loader.gap_timer != 0) {
+        _ = glib.Source.remove(loader.gap_timer);
+        loader.gap_timer = 0;
+    }
+    loader.generation += 1;
+    loader.listing = false;
+    loader.resolving = false;
+    const playlist_state = if (loader.playlist) |*state| state else return;
+    switch (bg.playlist.step(playlist_state.cursor, delta, loader.settings.loop)) {
+        .play => |index| {
+            _ = setPlaylistItem(index);
+        },
+        .fetch_more => {
+            const first = @as(u32, @intCast(playlist_state.ids.items.len)) + 1;
+            const last = @min(first + bg.playlist.batch_size - 1, @as(u32, @intCast(bg.playlist.max_entries)));
+            startPlaylistListing(first, last);
+        },
+        .end => {
+            log.info("background-media: playlist ended", .{});
+            notifyViews();
+        },
+    }
 }
 
 fn attachStream(stream: *gtk.MediaFile) void {
@@ -793,6 +1070,7 @@ fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
 
     switch (result.*) {
         .ok => |resolved| {
+            if (loader.playlist) |*playlist_state| playlist_state.failures = 0;
             if (rechecking_live) {
                 loader.live_state = bg.live.next(loader.live_state, .{ .recheck_result = resolved.live });
                 if (resolved.live != .live) {
@@ -820,6 +1098,7 @@ fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
             connectUrl();
         },
         .fatal => |fatal| {
+            if (playlistSkip(@tagName(fatal))) return;
             if (rechecking_live) {
                 finishLiveEnded();
                 return;
@@ -838,6 +1117,7 @@ fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
             notifyViews();
         },
         .retriable => |reason| {
+            if (playlistSkip(reason)) return;
             if (rechecking_live) {
                 finishLiveEnded();
                 return;
@@ -851,17 +1131,34 @@ fn onYoutubeResolved(generation: u64, result: *youtube_resolver.Result) void {
                 finishLiveEnded();
                 return;
             }
-            if (!ytdlp_missing_warned) {
-                ytdlp_missing_warned = true;
-                setFailure("ytdlp_missing");
-                log.warn("background-media: failed reason=ytdlp_missing hint=\"install yt-dlp or set GHOSTTY_YTDLP\"", .{});
-            }
-            loader.live_state = bg.live.next(loader.live_state, .fatal);
-            loader.status = .failed;
-            setFailure("ytdlp_missing");
-            notifyViews();
+            youtubeMissing();
         },
     }
+}
+
+fn playlistSkip(reason: []const u8) bool {
+    const playlist_state = if (loader.playlist) |*state| state else return false;
+    playlist_state.failures +|= 1;
+    if (playlist_state.failures >= bg.playlist.max_consecutive_failures) return false;
+    const id = if (playlist_state.cursor.index < playlist_state.ids.items.len)
+        playlist_state.ids.items[playlist_state.cursor.index]
+    else
+        "";
+    log.warn("background-media: playlist skip id={s} reason={s}", .{ id, reason });
+    schedulePlaylistGap();
+    return true;
+}
+
+fn youtubeMissing() void {
+    if (!ytdlp_missing_warned) {
+        ytdlp_missing_warned = true;
+        setFailure("ytdlp_missing");
+        log.warn("background-media: failed reason=ytdlp_missing hint=\"install yt-dlp or set GHOSTTY_YTDLP\"", .{});
+    }
+    loader.live_state = bg.live.next(loader.live_state, .fatal);
+    loader.status = .failed;
+    setFailure("ytdlp_missing");
+    notifyViews();
 }
 
 fn freeResolved(resolved: youtube_resolver.Resolved) void {
@@ -1160,6 +1457,12 @@ fn onUrlFailed() void {
 fn onUrlEnded() void {
     const player = loader.url_player orelse return;
     _ = player;
+    if (loader.playlist != null) {
+        loader.url_ended = true;
+        schedulePlaylistGap();
+        log.info("background-media: playlist next in 3s", .{});
+        return;
+    }
     const was_live = loader.stream_was_live;
     loader.live_state = bg.live.next(loader.live_state, .{ .eos = .{
         .was_live = was_live,

@@ -3,6 +3,7 @@ const std = @import("std");
 const glib = @import("glib");
 
 const global = @import("../../global.zig");
+const playlist = @import("background_media/playlist.zig");
 const source = @import("background_media/source.zig");
 const youtube = @import("background_media/youtube.zig");
 
@@ -33,6 +34,12 @@ pub const Result = union(enum) {
     missing,
 };
 
+pub const ListResult = union(enum) {
+    ok: playlist.Batch,
+    failed: []const u8,
+    missing,
+};
+
 const Job = struct {
     url: [:0]u8,
     max_fps: u32,
@@ -40,6 +47,22 @@ const Job = struct {
     generation: u64,
     done: *const fn (generation: u64, result: *Result) void,
     result: Result = .missing,
+};
+
+const ListJob = struct {
+    url: [:0]u8,
+    first: u32,
+    last: u32,
+    generation: u64,
+    done: *const fn (generation: u64, result: *ListResult) void,
+    result: ListResult = .missing,
+};
+
+const CommandResult = union(enum) {
+    stdout: []u8,
+    missing,
+    retriable: []const u8,
+    process_failed: youtube.StderrClass,
 };
 
 const StderrReader = struct {
@@ -82,6 +105,35 @@ pub fn start(
     return true;
 }
 
+pub fn startList(
+    url: []const u8,
+    first: u32,
+    last: u32,
+    generation: u64,
+    done: *const fn (generation: u64, result: *ListResult) void,
+) bool {
+    const job = alloc.create(ListJob) catch return false;
+    const owned_url = alloc.dupeZ(u8, url) catch {
+        alloc.destroy(job);
+        return false;
+    };
+    job.* = .{
+        .url = owned_url,
+        .first = first,
+        .last = last,
+        .generation = generation,
+        .done = done,
+    };
+
+    const thread = std.Thread.spawn(.{}, listWorker, .{job}) catch {
+        alloc.free(owned_url);
+        alloc.destroy(job);
+        return false;
+    };
+    thread.detach();
+    return true;
+}
+
 pub fn freeResult(result: *Result) void {
     switch (result.*) {
         .ok => |resolved| {
@@ -96,19 +148,88 @@ pub fn freeResult(result: *Result) void {
     result.* = .missing;
 }
 
+pub fn freeListResult(result: *ListResult) void {
+    switch (result.*) {
+        .ok => |*batch| batch.deinit(alloc),
+        else => {},
+    }
+    result.* = .missing;
+}
+
 fn worker(job: *Job) void {
     job.result = run(job.url, job.max_fps, job.max_height);
     if (glib.idleAddOnce(onDone, job) == 0) freeJob(job);
 }
 
+fn listWorker(job: *ListJob) void {
+    job.result = runList(job.url, job.first, job.last);
+    if (glib.idleAddOnce(onListDone, job) == 0) freeListJob(job);
+}
+
 fn run(url: []const u8, max_fps: u32, max_height: u32) Result {
-    const io = global.io();
     var environ_map = global.environMap() catch null;
     defer if (environ_map) |*map| map.deinit();
     const override = if (environ_map) |map| map.get("GHOSTTY_YTDLP") else null;
 
     var argv_buf: [12][]const u8 = undefined;
-    const argv = youtube.argv(&argv_buf, url, override, inFlatpak(io));
+    const argv = youtube.argv(&argv_buf, url, override, inFlatpak(global.io()));
+    const command = runCommand(argv);
+    defer switch (command) {
+        .stdout => |stdout| alloc.free(stdout),
+        else => {},
+    };
+
+    switch (command) {
+        .missing => return .missing,
+        .retriable => |reason| return .{ .retriable = reason },
+        .process_failed => |class| return switch (class) {
+            .retriable => .{ .retriable = "process_failed" },
+            .fatal => |fatal| .{ .fatal = fatal },
+        },
+        .stdout => |output| {
+            var parsed = youtube.resolve(alloc, output, max_height, max_fps) catch |err| switch (err) {
+                error.OutOfMemory => return .{ .retriable = "out_of_memory" },
+                else => |resolve_err| return .{ .fatal = youtube.fatalOf(@errorCast(resolve_err)) },
+            };
+            defer parsed.deinit();
+            if (parsed.info.live == .upcoming) return .{ .fatal = .upcoming };
+            const resolved = copyResolved(parsed.info) catch return .{ .retriable = "out_of_memory" };
+            return .{ .ok = resolved };
+        },
+    }
+}
+
+fn runList(url: []const u8, first: u32, last: u32) ListResult {
+    var environ_map = global.environMap() catch null;
+    defer if (environ_map) |*map| map.deinit();
+    const override = if (environ_map) |map| map.get("GHOSTTY_YTDLP") else null;
+
+    var range_buf: [32]u8 = undefined;
+    const range = std.fmt.bufPrint(&range_buf, "{d}:{d}", .{ first, last }) catch return .{ .failed = "invalid_range" };
+    var argv_buf: [16][]const u8 = undefined;
+    const argv = youtube.playlistArgv(&argv_buf, range, url, override, inFlatpak(global.io()));
+    const command = runCommand(argv);
+    defer switch (command) {
+        .stdout => |stdout| alloc.free(stdout),
+        else => {},
+    };
+
+    switch (command) {
+        .missing => return .missing,
+        .retriable => |reason| return .{ .failed = reason },
+        .process_failed => return .{ .failed = "process_failed" },
+        .stdout => |output| {
+            return .{ .ok = playlist.parseBatch(alloc, output) catch |err| switch (err) {
+                error.OutOfMemory => return .{ .failed = "out_of_memory" },
+                error.NotPlaylist => return .{ .failed = "not_playlist" },
+                error.BadJson => return .{ .failed = "bad_json" },
+            } };
+        },
+    }
+}
+
+fn runCommand(argv: []const []const u8) CommandResult {
+    const io = global.io();
     var child = std.process.spawn(io, .{
         .argv = argv,
         .pgid = 0,
@@ -189,23 +310,11 @@ fn run(url: []const u8, max_fps: u32, max_height: u32) Result {
 
     const process_term = term orelse return .{ .retriable = "wait_failed" };
     switch (process_term) {
-        .exited => |code| if (code == 0) {
-            var parsed = youtube.resolve(alloc, output.items, max_height, max_fps) catch |err| switch (err) {
-                error.OutOfMemory => return .{ .retriable = "out_of_memory" },
-                else => |resolve_err| return .{ .fatal = youtube.fatalOf(@errorCast(resolve_err)) },
-            };
-            defer parsed.deinit();
-            if (parsed.info.live == .upcoming) return .{ .fatal = .upcoming };
-            const resolved = copyResolved(parsed.info) catch return .{ .retriable = "out_of_memory" };
-            return .{ .ok = resolved };
-        } else {},
+        .exited => |code| if (code == 0) return .{ .stdout = output.toOwnedSlice(alloc) catch return .{ .retriable = "out_of_memory" } },
         else => {},
     }
 
-    return switch (youtube.classifyStderr(stderr_reader.bytes[0..stderr_reader.len])) {
-        .retriable => .{ .retriable = "process_failed" },
-        .fatal => |fatal| .{ .fatal = fatal },
-    };
+    return .{ .process_failed = youtube.classifyStderr(stderr_reader.bytes[0..stderr_reader.len]) };
 }
 
 fn copyResolved(info: youtube.Info) error{OutOfMemory}!Resolved {
@@ -281,8 +390,20 @@ fn onDone(ud: ?*anyopaque) callconv(.c) void {
     job.done(job.generation, &job.result);
 }
 
+fn onListDone(ud: ?*anyopaque) callconv(.c) void {
+    const job: *ListJob = @ptrCast(@alignCast(ud orelse return));
+    defer freeListJob(job);
+    job.done(job.generation, &job.result);
+}
+
 fn freeJob(job: *Job) void {
     freeResult(&job.result);
+    alloc.free(job.url);
+    alloc.destroy(job);
+}
+
+fn freeListJob(job: *ListJob) void {
+    freeListResult(&job.result);
     alloc.free(job.url);
     alloc.destroy(job);
 }

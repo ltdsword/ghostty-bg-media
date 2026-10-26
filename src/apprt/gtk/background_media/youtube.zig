@@ -112,6 +112,40 @@ pub fn argv(
     return buf[0..len];
 }
 
+pub fn playlistArgv(
+    buf: *[16][]const u8,
+    range: []const u8,
+    url: []const u8,
+    override: ?[]const u8,
+    in_flatpak: bool,
+) []const []const u8 {
+    var len: usize = 0;
+    if (in_flatpak) {
+        buf[len] = "flatpak-spawn";
+        len += 1;
+        buf[len] = "--host";
+        len += 1;
+        buf[len] = "--watch-bus";
+        len += 1;
+    }
+
+    buf[len] = override orelse "yt-dlp";
+    len += 1;
+    inline for (.{ "--ignore-config", "--flat-playlist", "--no-warnings", "--no-progress", "-I" }) |arg| {
+        buf[len] = arg;
+        len += 1;
+    }
+    buf[len] = range;
+    len += 1;
+    inline for (.{ "-J", "--" }) |arg| {
+        buf[len] = arg;
+        len += 1;
+    }
+    buf[len] = url;
+    len += 1;
+    return buf[0..len];
+}
+
 pub fn resolve(
     alloc: std.mem.Allocator,
     json: []const u8,
@@ -414,6 +448,29 @@ test "argv builds yt-dlp arguments for normal and Flatpak execution" {
     try std.testing.expectEqualSlices([]const u8, &expected_override, argv(&buf, url, "/custom/yt-dlp", false));
     try std.testing.expectEqualSlices([]const u8, &expected_flatpak, argv(&buf, url, null, true));
     try std.testing.expectEqualSlices([]const u8, &expected_flatpak_override, argv(&buf, url, "/custom/yt-dlp", true));
+}
+
+test "playlistArgv builds flat-playlist arguments for normal and Flatpak execution" {
+    const url = "https://youtube.com/playlist?list=abc";
+    const range = "1:50";
+    const expected_plain = [_][]const u8{
+        "yt-dlp", "--ignore-config", "--flat-playlist", "--no-warnings", "--no-progress", "-I", range, "-J", "--", url,
+    };
+    const expected_override = [_][]const u8{
+        "/custom/yt-dlp", "--ignore-config", "--flat-playlist", "--no-warnings", "--no-progress", "-I", range, "-J", "--", url,
+    };
+    const expected_flatpak = [_][]const u8{
+        "flatpak-spawn", "--host", "--watch-bus", "yt-dlp", "--ignore-config", "--flat-playlist", "--no-warnings", "--no-progress", "-I", range, "-J", "--", url,
+    };
+    const expected_flatpak_override = [_][]const u8{
+        "flatpak-spawn", "--host", "--watch-bus", "/custom/yt-dlp", "--ignore-config", "--flat-playlist", "--no-warnings", "--no-progress", "-I", range, "-J", "--", url,
+    };
+    var buf: [16][]const u8 = undefined;
+
+    try std.testing.expectEqualSlices([]const u8, &expected_plain, playlistArgv(&buf, range, url, null, false));
+    try std.testing.expectEqualSlices([]const u8, &expected_override, playlistArgv(&buf, range, url, "/custom/yt-dlp", false));
+    try std.testing.expectEqualSlices([]const u8, &expected_flatpak, playlistArgv(&buf, range, url, null, true));
+    try std.testing.expectEqualSlices([]const u8, &expected_flatpak_override, playlistArgv(&buf, range, url, "/custom/yt-dlp", true));
 }
 
 test "YouTube URL check only accepts classified YouTube URLs" {
