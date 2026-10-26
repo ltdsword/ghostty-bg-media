@@ -4,14 +4,14 @@ Ghostty Background Media is a separate build of Ghostty with background media su
 
 ## Downloads
 
-The [bgm-v0.1.0-beta pre-release](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.1.0-beta) provides these files. See [all releases](https://github.com/ltdsword/ghostty-bg-media/releases) for later versions.
+The [bgm-v0.2.0-beta pre-release](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.2.0-beta) provides these files. See [all releases](https://github.com/ltdsword/ghostty-bg-media/releases) for later versions.
 
 | File | Use |
 | --- | --- |
-| [`.deb` package](https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.1.0-beta/ghostty-bg-media-bgm-v0.1.0-beta-amd64.deb) (`ghostty-bg-media-bgm-v0.1.0-beta-amd64.deb`) | Ubuntu 26.04 amd64 |
-| [Flatpak bundle](https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.1.0-beta/ghostty-bg-media-bgm-v0.1.0-beta-x86_64.flatpak) (`ghostty-bg-media-bgm-v0.1.0-beta-x86_64.flatpak`) | Ubuntu 24.04 and other Linux distributions |
-| [`SHA256SUMS`](https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.1.0-beta/SHA256SUMS) | Checksums for release files |
-| [`ghostty-bg-media-bgm-v0.1.0-beta-manifest.txt`](https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.1.0-beta/ghostty-bg-media-bgm-v0.1.0-beta-manifest.txt) | Build details for the `.deb` |
+| [`.deb` package](https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.0-beta/ghostty-bg-media-bgm-v0.2.0-beta-amd64.deb) (`ghostty-bg-media-bgm-v0.2.0-beta-amd64.deb`) | Ubuntu 26.04 amd64 |
+| [Flatpak bundle](https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.0-beta/ghostty-bg-media-bgm-v0.2.0-beta-x86_64.flatpak) (`ghostty-bg-media-bgm-v0.2.0-beta-x86_64.flatpak`) | Ubuntu 24.04 and other Linux distributions |
+| [`SHA256SUMS`](https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.0-beta/SHA256SUMS) | Checksums for release files |
+| [`ghostty-bg-media-bgm-v0.2.0-beta-manifest.txt`](https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.0-beta/ghostty-bg-media-bgm-v0.2.0-beta-manifest.txt) | Build details for the `.deb` |
 
 To build packages from source, see [BUILDING.md](BUILDING.md).
 
@@ -35,7 +35,7 @@ sha256sum -c SHA256SUMS --ignore-missing
 Install the package:
 
 ```sh
-sudo apt install ./ghostty-bg-media-bgm-v0.1.0-beta-amd64.deb
+sudo apt install ./ghostty-bg-media-bgm-v0.2.0-beta-amd64.deb
 ```
 
 Open **Ghostty Background Media** from the app grid, or run `ghostty-bg-media` in a terminal.
@@ -52,7 +52,7 @@ Add Flathub for your user and install the downloaded bundle. The install pulls t
 
 ```sh
 flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak install --user ./ghostty-bg-media-bgm-v0.1.0-beta-x86_64.flatpak
+flatpak install --user ./ghostty-bg-media-bgm-v0.2.0-beta-x86_64.flatpak
 ```
 
 Run it from the app grid or with:
@@ -95,7 +95,7 @@ official desktop entry, or system terminfo.
 
 ## Upgrade
 
-For the `.deb`, install the newer package the same way as the first install. For Flatpak, install the newer downloaded bundle with `flatpak install --user ./ghostty-bg-media-bgm-v0.1.0-beta-x86_64.flatpak` (replace the filename with the downloaded release asset).
+For the `.deb`, install the newer package the same way as the first install. For Flatpak, install the newer downloaded bundle with `flatpak install --user ./ghostty-bg-media-bgm-v0.2.0-beta-x86_64.flatpak` (replace the filename with the downloaded release asset).
 
 ## Uninstall
 

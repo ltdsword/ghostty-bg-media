@@ -2,7 +2,7 @@
 
 Linux GTK feature set, inventoried from the current code and project docs.
 macOS keeps its inherited `background-video` feature unchanged and ignores `background-media*`.
-There is no macOS binary in `bgm-v0.1.0-beta`; the macOS build and inherited-video smoke test are
+There is no macOS binary in `bgm-v0.2.0-beta`; the macOS build and inherited-video smoke test are
 UNVERIFIED.
 Status words: **Shipped** (merged and verified by the agent), **Manual check** (merged, needs a human check), **Limitation**, **Not started**.
 

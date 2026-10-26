@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased
+## bgm-v0.2.0-beta (2026-10-26)
 
 ### Linux
 
 - Add opacity and optional rounded, outlined boxes for cells with their own background colour.
 - Play YouTube playlists in order with a fixed 3-second gap, playlist navigation, and loop or
   stop-at-end behavior.
+- Saved panel settings load after command-line flags and override them; see CONFIGURATION.
 
 ## bgm-v0.1.0-beta (2026-10-25)
 
