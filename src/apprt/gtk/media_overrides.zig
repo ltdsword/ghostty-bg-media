@@ -16,6 +16,8 @@ pub const Overrides = struct {
     dim: ?f32 = null,
     blur: ?f32 = null,
     opacity: ?f32 = null,
+    box_opacity: ?f32 = null,
+    box_round: ?bool = null,
     loop: ?bool = null,
     volume: ?f32 = null,
     play_in_background: ?bool = null,
@@ -80,6 +82,16 @@ pub fn setBlur(value: f32) void {
 
 pub fn setOpacity(value: f32) void {
     current.opacity = value;
+    on_change();
+}
+
+pub fn setBoxOpacity(value: f32) void {
+    current.box_opacity = if (std.math.isNan(value)) 1 else std.math.clamp(value, 0, 1);
+    on_change();
+}
+
+pub fn setBoxRound(value: bool) void {
+    current.box_round = value;
     on_change();
 }
 
@@ -219,8 +231,14 @@ test "media override opacity set and clear" {
 
     setOpacity(0.7);
     try std.testing.expectEqual(@as(f32, 0.7), current.opacity.?);
+    setBoxOpacity(0.6);
+    try std.testing.expectEqual(@as(f32, 0.6), current.box_opacity.?);
+    setBoxRound(true);
+    try std.testing.expect(current.box_round.?);
     clearAll();
     try std.testing.expect(current.opacity == null);
+    try std.testing.expect(current.box_opacity == null);
+    try std.testing.expect(current.box_round == null);
 }
 
 test "media override source ownership and clearing" {

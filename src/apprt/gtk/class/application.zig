@@ -1248,19 +1248,33 @@ pub const Application = extern struct {
         return self.private().config.get().@"background-opacity";
     }
 
-    pub fn applyOpacityOverride(self: *Self) void {
+    pub fn applyRendererOverrides(self: *Self) void {
         const priv = self.private();
         const value: f64 = if (media_overrides.get().opacity) |v| v else priv.file_background_opacity;
         var clone = priv.config.get().clone(self.allocator()) catch |err| {
-            log.warn("failed to clone config for background opacity override err={}", .{err});
+            log.warn("failed to clone config for renderer overrides err={}", .{err});
             return;
         };
         defer clone.deinit();
 
         clone.@"background-opacity" = value;
+        if (media_overrides.get().box_opacity) |box_opacity| {
+            clone.@"background-media-box-opacity" = box_opacity;
+        }
+        if (media_overrides.get().box_round) |box_round| {
+            clone.@"background-media-box-round" = box_round;
+        }
         clone.@"app-notifications".@"config-reload" = false;
         self.core().updateConfig(self.rt(), &clone) catch |err| {
-            log.warn("failed to apply background opacity override err={}", .{err});
+            log.warn("failed to apply renderer overrides err={}", .{err});
+        };
+    }
+
+    pub fn boxSettings(self: *Self) struct { opacity: f32, round: bool } {
+        const config = self.private().config.get();
+        return .{
+            .opacity = config.@"background-media-box-opacity",
+            .round = config.@"background-media-box-round",
         };
     }
 

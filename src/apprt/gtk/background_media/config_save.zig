@@ -18,6 +18,8 @@ pub const Values = struct {
     play_in_background: bool,
     max_fps: u32,
     background_opacity: f32,
+    box_opacity: f32,
+    box_round: bool,
     youtube_quality: u32,
 };
 
@@ -48,7 +50,9 @@ pub fn renderManaged(writer: *std.Io.Writer, values: Values) !void {
             "background-media-volume = {d:.2}\n" ++
             "background-media-play-in-background = {}\n" ++
             "background-media-max-fps = {d}\n" ++
-            "background-opacity = {d:.2}\n",
+            "background-opacity = {d:.2}\n" ++
+            "background-media-box-opacity = {d:.2}\n" ++
+            "background-media-box-round = {}\n",
         .{
             values.fit,
             values.position,
@@ -59,6 +63,8 @@ pub fn renderManaged(writer: *std.Io.Writer, values: Values) !void {
             values.play_in_background,
             values.max_fps,
             values.background_opacity,
+            values.box_opacity,
+            values.box_round,
         },
     );
     if (values.youtube_quality == 0) {
@@ -221,6 +227,8 @@ test "renderManaged outputs exact values with and without a source" {
         .play_in_background = false,
         .max_fps = 30,
         .background_opacity = 0.7,
+        .box_opacity = 0.55,
+        .box_round = true,
         .youtube_quality = 1080,
     };
 
@@ -240,6 +248,8 @@ test "renderManaged outputs exact values with and without a source" {
             "background-media-play-in-background = false\n" ++
             "background-media-max-fps = 30\n" ++
             "background-opacity = 0.70\n" ++
+            "background-media-box-opacity = 0.55\n" ++
+            "background-media-box-round = true\n" ++
             "background-media-youtube-quality = 1080\n",
         output.written(),
     );
@@ -248,6 +258,7 @@ test "renderManaged outputs exact values with and without a source" {
     var no_source = values;
     no_source.source = null;
     no_source.youtube_quality = 0;
+    no_source.box_round = false;
     try renderManaged(&output.writer, no_source);
     try testing.expectEqualStrings(
         "# Managed by the Ghostty background-media panel.\n" ++
@@ -262,6 +273,8 @@ test "renderManaged outputs exact values with and without a source" {
             "background-media-play-in-background = false\n" ++
             "background-media-max-fps = 30\n" ++
             "background-opacity = 0.70\n" ++
+            "background-media-box-opacity = 0.55\n" ++
+            "background-media-box-round = false\n" ++
             "background-media-youtube-quality = auto\n",
         output.written(),
     );
@@ -282,6 +295,8 @@ test "renderManaged rejects line breaks and NUL in source" {
         .play_in_background = false,
         .max_fps = 30,
         .background_opacity = 1.0,
+        .box_opacity = 1.0,
+        .box_round = false,
         .youtube_quality = 0,
     };
     try testing.expectError(error.InvalidValue, renderManaged(&output.writer, values));
@@ -296,6 +311,8 @@ test "renderManaged rejects line breaks and NUL in source" {
         .play_in_background = false,
         .max_fps = 30,
         .background_opacity = 1.0,
+        .box_opacity = 1.0,
+        .box_round = false,
         .youtube_quality = 0,
     }));
     try testing.expectError(error.InvalidValue, renderManaged(&output.writer, .{
@@ -309,6 +326,8 @@ test "renderManaged rejects line breaks and NUL in source" {
         .play_in_background = false,
         .max_fps = 30,
         .background_opacity = 1.0,
+        .box_opacity = 1.0,
+        .box_round = false,
         .youtube_quality = 0,
     }));
 }
@@ -362,6 +381,8 @@ test "saveInDir creates the main config and managed include" {
         .play_in_background = true,
         .max_fps = 24,
         .background_opacity = 1.0,
+        .box_opacity = 1.0,
+        .box_round = false,
         .youtube_quality = 0,
     });
     defer {
@@ -416,6 +437,8 @@ test "saveInDir preserves existing main config and does not append twice" {
         .play_in_background = false,
         .max_fps = 30,
         .background_opacity = 1.0,
+        .box_opacity = 0.75,
+        .box_round = true,
         .youtube_quality = 0,
     });
     defer {
@@ -443,6 +466,8 @@ test "saveInDir preserves existing main config and does not append twice" {
         .play_in_background = true,
         .max_fps = 60,
         .background_opacity = 1.0,
+        .box_opacity = 0.5,
+        .box_round = false,
         .youtube_quality = 0,
     });
     defer {

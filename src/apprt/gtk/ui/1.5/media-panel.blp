@@ -80,6 +80,29 @@ template $GhosttyMediaPanel: Adw.Dialog {
               }
             }
 
+            Adw.ActionRow playlist_row {
+              title: _("Playlist");
+              visible: false;
+
+              [suffix]
+              Gtk.Button playlist_prev_button {
+                icon-name: "media-skip-backward-symbolic";
+                tooltip-text: _("Previous video");
+                styles [ "flat" ]
+                valign: center;
+                clicked => $playlist_prev();
+              }
+
+              [suffix]
+              Gtk.Button playlist_next_button {
+                icon-name: "media-skip-forward-symbolic";
+                tooltip-text: _("Next video");
+                styles [ "flat" ]
+                valign: center;
+                clicked => $playlist_next();
+              }
+            }
+
             Adw.ActionRow seek_row {
               title: _("Time");
               visible: false;
@@ -263,6 +286,32 @@ template $GhosttyMediaPanel: Adw.Dialog {
                 };
                 value-changed => $opacity_changed();
               }
+            }
+
+            Adw.ActionRow box_opacity_row {
+              title: _("Boxes");
+              subtitle: _("Coloured rows such as prompts and diffs");
+
+              [suffix]
+              Gtk.Scale box_opacity_scale {
+                accessibility {
+                  label: _("Boxes");
+                }
+                orientation: horizontal;
+                width-request: 200;
+                adjustment: Gtk.Adjustment {
+                  lower: 0;
+                  upper: 1;
+                  step-increment: 0.05;
+                  page-increment: 0.1;
+                };
+                value-changed => $box_opacity_changed();
+              }
+            }
+
+            Adw.SwitchRow box_round_row {
+              title: _("Round and outline boxes");
+              notify::active => $box_round_changed();
             }
           }
 

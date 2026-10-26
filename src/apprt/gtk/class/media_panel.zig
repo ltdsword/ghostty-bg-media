@@ -34,7 +34,7 @@ pub const MediaPanel = extern struct {
         syncing: bool = false,
         diagnostics_loaded: bool = false,
         status_timer: c_uint = 0,
-        opacity_timer: c_uint = 0,
+        renderer_timer: c_uint = 0,
         quality_heights: [12]u32 = [_]u32{0} ** 12,
         quality_len: u8 = 0,
 
@@ -47,7 +47,13 @@ pub const MediaPanel = extern struct {
         blur_scale: *gtk.Scale,
         opacity_row: *adw.ActionRow,
         opacity_scale: *gtk.Scale,
+        box_opacity_row: *adw.ActionRow,
+        box_opacity_scale: *gtk.Scale,
+        box_round_row: *adw.SwitchRow,
         playback_row: *adw.ActionRow,
+        playlist_row: *adw.ActionRow,
+        playlist_prev_button: *gtk.Button,
+        playlist_next_button: *gtk.Button,
         retry_button: *gtk.Button,
         live_button: *gtk.Button,
         play_button: *gtk.Button,
@@ -134,6 +140,9 @@ pub const MediaPanel = extern struct {
         priv.blur_scale.as(gtk.Range).setValue(@floatCast(overrides.blur orelse config.@"background-media-blur"));
         priv.opacity_scale.as(gtk.Range).setValue(if (overrides.opacity) |value| @floatCast(value) else Application.default().backgroundOpacity());
         self.syncOpacityHint();
+        const box_settings = Application.default().boxSettings();
+        priv.box_opacity_scale.as(gtk.Range).setValue(@floatCast(overrides.box_opacity orelse box_settings.opacity));
+        priv.box_round_row.setActive(@intFromBool(overrides.box_round orelse box_settings.round));
         priv.loop_row.setActive(@intFromBool(overrides.loop orelse config.@"background-media-loop"));
         priv.volume_scale.as(gtk.Range).setValue(@floatCast(overrides.volume orelse config.@"background-media-volume"));
         priv.background_row.setActive(@intFromBool(overrides.play_in_background orelse config.@"background-media-play-in-background"));
@@ -224,17 +233,34 @@ pub const MediaPanel = extern struct {
 
         media_overrides.setOpacity(@floatCast(scale.as(gtk.Range).getValue()));
         self.syncOpacityHint();
-        if (priv.opacity_timer != 0) {
-            _ = glib.Source.remove(priv.opacity_timer);
-            priv.opacity_timer = 0;
-        }
-        priv.opacity_timer = glib.timeoutAdd(120, opacityTimeout, self);
+        self.scheduleRendererApply();
     }
 
-    fn opacityTimeout(user_data: ?*anyopaque) callconv(.c) c_int {
+    fn onBoxOpacityChanged(scale: *gtk.Scale, self: *Self) callconv(.c) void {
+        if (self.private().syncing) return;
+        media_overrides.setBoxOpacity(@floatCast(scale.as(gtk.Range).getValue()));
+        self.scheduleRendererApply();
+    }
+
+    fn onBoxRoundChanged(row: *adw.SwitchRow, _: *gobject.ParamSpec, self: *Self) callconv(.c) void {
+        if (self.private().syncing) return;
+        media_overrides.setBoxRound(row.getActive() != 0);
+        Application.default().applyRendererOverrides();
+    }
+
+    fn scheduleRendererApply(self: *Self) void {
+        const priv = self.private();
+        if (priv.renderer_timer != 0) {
+            _ = glib.Source.remove(priv.renderer_timer);
+            priv.renderer_timer = 0;
+        }
+        priv.renderer_timer = glib.timeoutAdd(120, rendererTimeout, self);
+    }
+
+    fn rendererTimeout(user_data: ?*anyopaque) callconv(.c) c_int {
         const self: *Self = @ptrCast(@alignCast(user_data.?));
-        self.private().opacity_timer = 0;
-        Application.default().applyOpacityOverride();
+        self.private().renderer_timer = 0;
+        Application.default().applyRendererOverrides();
         return 0;
     }
 
@@ -306,6 +332,16 @@ pub const MediaPanel = extern struct {
         media_loader.goLive();
     }
 
+    fn onPlaylistPrev(_: *gtk.Button, self: *Self) callconv(.c) void {
+        media_loader.playlistStep(-1);
+        self.updateStatus();
+    }
+
+    fn onPlaylistNext(_: *gtk.Button, self: *Self) callconv(.c) void {
+        media_loader.playlistStep(1);
+        self.updateStatus();
+    }
+
     fn onDiagnosticsExpanded(row: *adw.ExpanderRow, _: *gobject.ParamSpec, self: *Self) callconv(.c) void {
         const priv = self.private();
         if (priv.diagnostics_loaded or row.getExpanded() == 0) return;
@@ -355,6 +391,8 @@ pub const MediaPanel = extern struct {
             .play_in_background = overrides.play_in_background orelse config.@"background-media-play-in-background",
             .max_fps = overrides.max_fps orelse config.@"background-media-max-fps",
             .background_opacity = overrides.opacity orelse @floatCast(Application.default().backgroundOpacity()),
+            .box_opacity = overrides.box_opacity orelse config.@"background-media-box-opacity",
+            .box_round = overrides.box_round orelse config.@"background-media-box-round",
             .youtube_quality = overrides.youtube_quality orelse configured_youtube_quality,
         };
 
@@ -370,13 +408,13 @@ pub const MediaPanel = extern struct {
         defer alloc.free(saved_message);
         _ = self.as(gtk.Widget).activateAction("app.reload-config", null);
         media_overrides.clearAll();
-        Application.default().applyOpacityOverride();
+        Application.default().applyRendererOverrides();
         self.addToast(saved_message);
     }
 
     fn onReset(_: *gtk.Button, self: *Self) callconv(.c) void {
         media_overrides.clearAll();
-        Application.default().applyOpacityOverride();
+        Application.default().applyRendererOverrides();
         self.populate();
         self.updateStatus();
     }
@@ -456,6 +494,21 @@ pub const MediaPanel = extern struct {
         }
 
         priv.playback_row.setSubtitle(buffer[0..len :0]);
+        if (media_loader.playlistInfo()) |playlist| {
+            priv.playlist_row.as(gtk.Widget).setVisible(1);
+            const title = truncateUtf8(playlist.title, 60);
+            const more = if (playlist.more) "+" else "";
+            const waiting = if (playlist.waiting) std.mem.span(i18n._(" · next video in a moment")) else "";
+            const subtitle = std.fmt.bufPrint(
+                buffer[0 .. buffer.len - 1],
+                "{d} / {d}{s} · {s}{s}",
+                .{ playlist.index + 1, playlist.count, more, title, waiting },
+            ) catch unreachable;
+            buffer[subtitle.len] = 0;
+            priv.playlist_row.setSubtitle(buffer[0..subtitle.len :0]);
+        } else {
+            priv.playlist_row.as(gtk.Widget).setVisible(0);
+        }
         priv.retry_button.as(gtk.Widget).setVisible(@intFromBool(info.status == .failed or info.retry_pending));
         priv.live_button.as(gtk.Widget).setVisible(@intFromBool(info.live.is_live));
         priv.play_button.setLabel(if (media_overrides.get().paused or media_overrides.get().source == .none) i18n._("Play") else i18n._("Pause"));
@@ -473,6 +526,12 @@ pub const MediaPanel = extern struct {
         const suffix = std.fmt.bufPrint(buffer[len.*..], std.mem.span(i18n._(" · Reconnecting (attempt {d})")), .{attempts}) catch return;
         len.* += suffix.len;
         buffer[len.*] = 0;
+    }
+
+    fn truncateUtf8(text: []const u8, max_bytes: usize) []const u8 {
+        var len = @min(text.len, max_bytes);
+        while (len > 0 and !std.unicode.utf8ValidateSlice(text[0..len])) len -= 1;
+        return text[0..len];
     }
 
     fn rebuildQualityList(priv: *Private, heights: []const u32) void {
@@ -534,9 +593,9 @@ pub const MediaPanel = extern struct {
     fn dispose(self: *Self) callconv(.c) void {
         self.stopStatusTimer();
         const priv = self.private();
-        if (priv.opacity_timer != 0) {
-            _ = glib.Source.remove(priv.opacity_timer);
-            priv.opacity_timer = 0;
+        if (priv.renderer_timer != 0) {
+            _ = glib.Source.remove(priv.renderer_timer);
+            priv.renderer_timer = 0;
         }
         gtk.Widget.disposeTemplate(self.as(gtk.Widget), getGObjectType());
         gobject.Object.virtual_methods.dispose.call(Class.parent, self.as(Parent));
@@ -569,7 +628,13 @@ pub const MediaPanel = extern struct {
             class.bindTemplateChildPrivate("blur_scale", .{});
             class.bindTemplateChildPrivate("opacity_row", .{});
             class.bindTemplateChildPrivate("opacity_scale", .{});
+            class.bindTemplateChildPrivate("box_opacity_row", .{});
+            class.bindTemplateChildPrivate("box_opacity_scale", .{});
+            class.bindTemplateChildPrivate("box_round_row", .{});
             class.bindTemplateChildPrivate("playback_row", .{});
+            class.bindTemplateChildPrivate("playlist_row", .{});
+            class.bindTemplateChildPrivate("playlist_prev_button", .{});
+            class.bindTemplateChildPrivate("playlist_next_button", .{});
             class.bindTemplateChildPrivate("retry_button", .{});
             class.bindTemplateChildPrivate("live_button", .{});
             class.bindTemplateChildPrivate("play_button", .{});
@@ -597,6 +662,10 @@ pub const MediaPanel = extern struct {
             class.bindTemplateCallback("dim_changed", &onDimChanged);
             class.bindTemplateCallback("blur_changed", &onBlurChanged);
             class.bindTemplateCallback("opacity_changed", &onOpacityChanged);
+            class.bindTemplateCallback("box_opacity_changed", &onBoxOpacityChanged);
+            class.bindTemplateCallback("box_round_changed", &onBoxRoundChanged);
+            class.bindTemplateCallback("playlist_prev", &onPlaylistPrev);
+            class.bindTemplateCallback("playlist_next", &onPlaylistNext);
             class.bindTemplateCallback("loop_changed", &onLoopChanged);
             class.bindTemplateCallback("volume_changed", &onVolumeChanged);
             class.bindTemplateCallback("background_changed", &onBackgroundChanged);
