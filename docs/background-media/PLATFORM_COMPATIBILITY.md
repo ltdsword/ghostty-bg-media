@@ -2,7 +2,7 @@
 
 This matrix distinguishes source-inherited macOS behavior from verified runtime support. Every
 macOS runtime item remains UNVERIFIED until a macOS build and smoke test are recorded.
-There is no macOS binary in `bgm-v0.2.0-beta`; the inherited background video is unchanged, but
+There is no macOS binary in `bgm-v0.2.1-beta`; the inherited background video is unchanged, but
 the macOS build and inherited-video smoke test remain UNVERIFIED.
 
 ## Support matrix
@@ -129,7 +129,7 @@ an independent CI lane is planned for M15. See [MACOS_BASELINE.md §7](MACOS_BAS
 
 - Ubuntu 26.04 amd64: native `.deb` package.
 - Ubuntu 24.04 and other Linux distributions: single-file Flatpak bundle using the GNOME 50 runtime from Flathub.
-- macOS: inherited background video is unchanged; there is no macOS binary in `bgm-v0.2.0-beta`,
+- macOS: inherited background video is unchanged; there is no macOS binary in `bgm-v0.2.1-beta`,
   and the build and inherited-video smoke test are UNVERIFIED.
 
 See [INSTALL.md](INSTALL.md) and [D-027](DECISIONS.md#d-027-linux-packaging-formats-ubuntu-2604-deb-and-flatpak).

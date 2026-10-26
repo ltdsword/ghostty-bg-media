@@ -8,7 +8,7 @@ Ghostty Background Media is an unofficial Ghostty fork that adds configurable im
 
 ## Install
 
-Download from the [bgm-v0.2.0-beta pre-release](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.2.0-beta) or browse [all releases](https://github.com/ltdsword/ghostty-bg-media/releases). It installs next to official Ghostty and does not replace it.
+Download from the [bgm-v0.2.1-beta pre-release](https://github.com/ltdsword/ghostty-bg-media/releases/tag/bgm-v0.2.1-beta) or browse [all releases](https://github.com/ltdsword/ghostty-bg-media/releases). It installs next to official Ghostty and does not replace it.
 
 | Your system | Package |
 | --- | --- |
@@ -18,19 +18,19 @@ Download from the [bgm-v0.2.0-beta pre-release](https://github.com/ltdsword/ghos
 **Ubuntu 26.04 (`.deb`):**
 
 ```sh
-wget https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.0-beta/ghostty-bg-media-bgm-v0.2.0-beta-amd64.deb \
-     https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.0-beta/SHA256SUMS
+wget https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.1-beta/ghostty-bg-media-bgm-v0.2.1-beta-amd64.deb \
+     https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.1-beta/SHA256SUMS
 sha256sum -c SHA256SUMS --ignore-missing
-sudo apt install ./ghostty-bg-media-bgm-v0.2.0-beta-amd64.deb
+sudo apt install ./ghostty-bg-media-bgm-v0.2.1-beta-amd64.deb
 ```
 
 **Ubuntu 24.04 / other distributions (Flatpak):**
 
 ```sh
 sudo apt install flatpak   # if Flatpak is not installed yet
-wget https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.0-beta/ghostty-bg-media-bgm-v0.2.0-beta-x86_64.flatpak
+wget https://github.com/ltdsword/ghostty-bg-media/releases/download/bgm-v0.2.1-beta/ghostty-bg-media-bgm-v0.2.1-beta-x86_64.flatpak
 flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak install --user ./ghostty-bg-media-bgm-v0.2.0-beta-x86_64.flatpak
+flatpak install --user ./ghostty-bg-media-bgm-v0.2.1-beta-x86_64.flatpak
 ```
 
 For YouTube sources, also install `yt-dlp` on the host (`sudo apt install yt-dlp`). Uninstall with
@@ -89,7 +89,7 @@ Useful actions:
 
 | Command | What it does |
 | --- | --- |
-| `ghostty-bg-media +version` | Show the version, for example `Ghostty 1.3.2-bgm.0.2.0-beta` |
+| `ghostty-bg-media +version` | Show the version, for example `Ghostty 1.3.2-bgm.0.2.1-beta` |
 | `ghostty-bg-media +validate-config` | Check your config file for errors |
 | `ghostty-bg-media +show-config --default \| grep background-media` | List the media settings and their defaults |
 | `ghostty-bg-media +list-keybinds --default` | List keybindings |
@@ -157,7 +157,7 @@ Details: [feature list](docs/background-media/FEATURES.md).
 
 ## Status
 
-**bgm-v0.2.0-beta** is a public pre-release (beta).
+**bgm-v0.2.1-beta** is a public pre-release (beta).
 
 | Platform | Status |
 | --- | --- |

@@ -1,10 +1,18 @@
 # Changelog
 
+## bgm-v0.2.1-beta (2026-10-26)
+
+### Linux
+
+- Fix `background-media-box-round`: it now rounds only the outer corners of each coloured area (at least 4
+  cells wide) with no outline, instead of drawing a separate outlined pill around every word highlight,
+  panel widget, and tab. The panel switch is now **Round box corners**.
+
 ## bgm-v0.2.0-beta (2026-10-26)
 
 ### Linux
 
-- Add opacity and optional rounded corners for cells with their own background colour.
+- Add opacity and optional rounded, outlined boxes for cells with their own background colour.
 - Play YouTube playlists in order with a fixed 3-second gap, playlist navigation, and loop or
   stop-at-end behavior.
 - Saved panel settings load after command-line flags and override them; see CONFIGURATION.
