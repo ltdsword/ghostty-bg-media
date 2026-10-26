@@ -593,6 +593,8 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             background: terminal.color.RGB,
             background_opacity: f64,
             background_opacity_cells: bool,
+            box_opacity: f32,
+            box_round: bool,
             background_video: bool,
             foreground: terminal.color.RGB,
             selection_background: ?configpkg.Config.TerminalColor,
@@ -655,6 +657,17 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 return .{
                     .background_opacity = @max(0, @min(1, config.@"background-opacity")),
                     .background_opacity_cells = config.@"background-opacity-cells",
+                    .box_opacity = if (comptime apprt.runtime == apprt.gtk) blk: {
+                        const opacity = config.@"background-media-box-opacity";
+                        break :blk if (std.math.isNan(opacity))
+                            1.0
+                        else
+                            @max(0.0, @min(1.0, opacity));
+                    } else 1.0,
+                    .box_round = if (comptime apprt.runtime == apprt.gtk)
+                        config.@"background-media-box-round"
+                    else
+                        false,
                     .background_video = config.@"background-video" != null,
                     .font_thicken = config.@"font-thicken",
                     .font_thicken_strength = config.@"font-thicken-strength",
@@ -824,6 +837,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 // Shaders are initialized lazily on the render thread.
                 .shaders = .uninit,
             };
+
+            if (@hasField(@TypeOf(result.uniforms.bools), "box_round")) {
+                result.uniforms.bools.box_round = options.config.box_round;
+            }
 
             // Ensure our undefined values above are correctly initialized.
             result.updateFontGridUniforms();
@@ -2195,6 +2212,9 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             self.uniforms.bools.use_display_p3 = config.colorspace == .@"display-p3";
             self.uniforms.bools.use_linear_blending = config.blending.isLinear();
             self.uniforms.bools.use_linear_correction = config.blending == .@"linear-corrected";
+            if (@hasField(@TypeOf(self.uniforms.bools), "box_round")) {
+                self.uniforms.bools.box_round = config.box_round;
+            }
 
             const bg_image_config_changed =
                 self.config.bg_image_fit != config.bg_image_fit or
@@ -3206,6 +3226,11 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
                         // Cells that are reversed should be fully opaque.
                         if (style.flags.inverse) break :bg_alpha default;
+
+                        // Cells with an explicit background color can be translucent over background media.
+                        if (bg_style != null and self.config.box_opacity < 1.0) {
+                            break :bg_alpha @intFromFloat(@round(255.0 * self.config.box_opacity));
+                        }
 
                         // If the user requested to have opacity on all cells, apply it.
                         if (self.config.background_opacity_cells and bg_style != null) {

@@ -798,6 +798,22 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// This can be changed at runtime by reloading the configuration.
 @"background-media-youtube-quality": background_media.YoutubeQuality = .auto,
 
+/// Opacity for cells with an explicit background color, from `0` to `1`.
+///
+/// The default value is `1`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-box-opacity": f32 = 1.0,
+
+/// Draw blocks of same-colored cells as rounded rectangles with a thin outline.
+///
+/// The default value is `false`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-box-round": bool = false,
+
 /// Video to play behind the terminal, looping. Only supported on macOS,
 /// where it can also be set from View > Background Video….
 ///
@@ -11580,6 +11596,8 @@ test "background-media defaults" {
     try testing.expect(!cfg.@"background-media-play-in-background");
     try testing.expectEqual(@as(u32, 30), cfg.@"background-media-max-fps");
     try testing.expect(cfg.@"background-media-youtube-quality" == .auto);
+    try testing.expectEqual(@as(f32, 1.0), cfg.@"background-media-box-opacity");
+    try testing.expect(!cfg.@"background-media-box-round");
 }
 
 test "background-media paths expand and URLs do not" {
