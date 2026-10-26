@@ -31,6 +31,8 @@ const uint USE_DISPLAY_P3 = 2u;
 const uint USE_LINEAR_BLENDING = 4u;
 const uint USE_LINEAR_CORRECTION = 8u;
 const uint BOX_ROUND = 16u;
+const uint BOX_BORDER_THIN = 32u;
+const uint BOX_BORDER_THICK = 64u;
 
 // Padding extend enum
 const uint EXTEND_LEFT = 1u;

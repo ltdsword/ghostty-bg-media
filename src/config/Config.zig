@@ -815,6 +815,16 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// This can be changed at runtime by reloading the configuration.
 @"background-media-box-round": bool = false,
 
+/// Draw a border along the outer edge of blocks of cells that have their own
+/// background colour (blocks at least 4 cells wide). It follows the rounded
+/// corners when `background-media-box-round` is on.
+///
+/// Valid values: `none`, `thin`, `thick`. The default value is `none`.
+///
+/// Linux (GTK) only. Ignored on macOS.
+/// This can be changed at runtime by reloading the configuration.
+@"background-media-box-border": BackgroundMediaBoxBorder = .none,
+
 /// Video to play behind the terminal, looping. Only supported on macOS,
 /// where it can also be set from View > Background Video….
 ///
@@ -10113,6 +10123,9 @@ pub const BackgroundImageFit = enum {
     none,
 };
 
+/// See background-media-box-border
+pub const BackgroundMediaBoxBorder = enum { none, thin, thick };
+
 /// See freetype-load-flag
 pub const FreetypeLoadFlags = packed struct {
     // The defaults here at the time of writing this match the defaults
@@ -11599,6 +11612,7 @@ test "background-media defaults" {
     try testing.expect(cfg.@"background-media-youtube-quality" == .auto);
     try testing.expectEqual(@as(f32, 1.0), cfg.@"background-media-box-opacity");
     try testing.expect(!cfg.@"background-media-box-round");
+    try testing.expectEqual(Config.BackgroundMediaBoxBorder.none, cfg.@"background-media-box-border");
 }
 
 test "background-media paths expand and URLs do not" {

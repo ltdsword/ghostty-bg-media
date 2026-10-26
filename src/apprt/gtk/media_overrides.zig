@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const Config = @import("../../config.zig").Config;
 const bg = @import("background_media/main.zig");
 const media_loader = @import("media_loader.zig");
 
@@ -18,6 +19,7 @@ pub const Overrides = struct {
     opacity: ?f32 = null,
     box_opacity: ?f32 = null,
     box_round: ?bool = null,
+    box_border: ?Config.BackgroundMediaBoxBorder = null,
     loop: ?bool = null,
     volume: ?f32 = null,
     play_in_background: ?bool = null,
@@ -92,6 +94,11 @@ pub fn setBoxOpacity(value: f32) void {
 
 pub fn setBoxRound(value: bool) void {
     current.box_round = value;
+    on_change();
+}
+
+pub fn setBoxBorder(value: Config.BackgroundMediaBoxBorder) void {
+    current.box_border = value;
     on_change();
 }
 
@@ -235,10 +242,13 @@ test "media override opacity set and clear" {
     try std.testing.expectEqual(@as(f32, 0.6), current.box_opacity.?);
     setBoxRound(true);
     try std.testing.expect(current.box_round.?);
+    setBoxBorder(.thick);
+    try std.testing.expectEqual(Config.BackgroundMediaBoxBorder.thick, current.box_border.?);
     clearAll();
     try std.testing.expect(current.opacity == null);
     try std.testing.expect(current.box_opacity == null);
     try std.testing.expect(current.box_round == null);
+    try std.testing.expect(current.box_border == null);
 }
 
 test "media override source ownership and clearing" {

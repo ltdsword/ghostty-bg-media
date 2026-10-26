@@ -1,7 +1,7 @@
 # Background media configuration
 
 The `background-media` settings are Linux GTK settings. macOS ignores them and keeps its existing
-`background-video*` behavior. All twelve settings are parsed, validated and reloadable. M04 applies
+`background-video*` behavior. All thirteen settings are parsed, validated and reloadable. M04 applies
 fit, position and dim to static images; M05 implements the playback settings for local video; M06
 adds local GIF playback. No settings remain pending for local media.
 
@@ -12,7 +12,7 @@ The panel's **Appearance** group includes a **Terminal opacity** slider for `bac
 It changes the current session as an override. **Save to Configuration** writes it to
 `background-media.ghostty` next to the main config; the managed file loads after the main config
 and its value takes precedence. The `background-opacity` config key remains shared with Ghostty.
-Appearance also includes a **Boxes** slider and **Round box corners** switch; Playback shows
+Appearance also includes a **Boxes** slider, **Round box corners** switch, and **Box border** row; Playback shows
 playlist navigation while a playlist is playing.
 
 ## Keys
@@ -31,6 +31,7 @@ playlist navigation while a playlist is playing.
 | `background-media-youtube-quality` | Choice | `auto` (720p) | `auto` or `1..4320` | Config reload or panel | Linux GTK; ignored on macOS |
 | `background-media-box-opacity` | `f32` | `1` | `0..1` | Config reload | Linux GTK; ignored on macOS |
 | `background-media-box-round` | Boolean | `false` | `true` / `false` | Config reload | Linux GTK; ignored on macOS |
+| `background-media-box-border` | Enum | `none` | `none`, `thin`, `thick` | Config reload or panel | Linux GTK; ignored on macOS |
 
 The `dim` and `volume` values are clamped to `0..1`; NaN becomes `0`. `max-fps` is clamped to
 `1..240`. Blur is clamped to `0..40`; NaN becomes `0`. The default source is unset, so no media is selected.
@@ -47,7 +48,10 @@ the selected value (D-025).
 highlights, diff lines, and ANSI background colours. The default `1` keeps them opaque as before;
 selected and inverse cells stay opaque. Below `1`, this setting takes precedence over
 `background-opacity-cells` for those cells. `background-media-box-round = true` rounds the outer
-corners of blocks of cells with their own background colour.
+corners of blocks of cells with their own background colour, using a radius of one cell width.
+`background-media-box-border` draws an optional thin or thick border along the outer edge of each
+box region; it follows the rounded corners when rounding is enabled. The panel's **Box border** row
+applies the setting live, and **Save to Configuration** writes it.
 
 ## YouTube playlists
 
@@ -144,12 +148,12 @@ The panel also opens from the header-bar video icon beside **View Open Tabs** in
 layout; there is no default keybinding. **Turn Off** stops background media for the current session
 without clearing the source box; **Play** reapplies the box text. **Keep playing in background**
 (`background-media-play-in-background`) keeps playback running when the window loses focus or is
-minimized. **Appearance** has a **Boxes** slider and **Round box corners** switch. While a
+minimized. **Appearance** has a **Boxes** slider, **Round box corners** switch, and **Box border** row. While a
 playlist plays, **Playback** shows a **Playlist** row such as `2 / 3 · <playlist title>` (with `+`
 after the count when more entries can be fetched) and **Previous** / **Next** buttons.
 Pause is runtime-only. **Save to Configuration** writes the managed `background-media.ghostty`
-file next to the main config, with a comment header, all twelve `background-media*` keys, including
-both box settings, and `background-opacity`. It appends
+file next to the main config, with a comment header, all thirteen `background-media*` keys, including
+the box settings, and `background-opacity`. It appends
 `config-file = ?background-media.ghostty` (with a comment) to the main config once, then reloads
 configuration and clears the overrides. The managed include loads after the main config, so its
 values take precedence. Other main-config lines are not changed; writes use a temporary file and

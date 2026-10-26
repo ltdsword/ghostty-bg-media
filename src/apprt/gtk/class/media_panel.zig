@@ -50,6 +50,7 @@ pub const MediaPanel = extern struct {
         box_opacity_row: *adw.ActionRow,
         box_opacity_scale: *gtk.Scale,
         box_round_row: *adw.SwitchRow,
+        box_border_row: *adw.ComboRow,
         playback_row: *adw.ActionRow,
         playlist_row: *adw.ActionRow,
         playlist_prev_button: *gtk.Button,
@@ -143,6 +144,7 @@ pub const MediaPanel = extern struct {
         const box_settings = Application.default().boxSettings();
         priv.box_opacity_scale.as(gtk.Range).setValue(@floatCast(overrides.box_opacity orelse box_settings.opacity));
         priv.box_round_row.setActive(@intFromBool(overrides.box_round orelse box_settings.round));
+        priv.box_border_row.setSelected(@intCast(@intFromEnum(overrides.box_border orelse box_settings.border)));
         priv.loop_row.setActive(@intFromBool(overrides.loop orelse config.@"background-media-loop"));
         priv.volume_scale.as(gtk.Range).setValue(@floatCast(overrides.volume orelse config.@"background-media-volume"));
         priv.background_row.setActive(@intFromBool(overrides.play_in_background orelse config.@"background-media-play-in-background"));
@@ -245,6 +247,12 @@ pub const MediaPanel = extern struct {
     fn onBoxRoundChanged(row: *adw.SwitchRow, _: *gobject.ParamSpec, self: *Self) callconv(.c) void {
         if (self.private().syncing) return;
         media_overrides.setBoxRound(row.getActive() != 0);
+        Application.default().applyRendererOverrides();
+    }
+
+    fn onBoxBorderChanged(row: *adw.ComboRow, _: *gobject.ParamSpec, self: *Self) callconv(.c) void {
+        if (self.private().syncing or row.getSelected() > 2) return;
+        media_overrides.setBoxBorder(@enumFromInt(row.getSelected()));
         Application.default().applyRendererOverrides();
     }
 
@@ -393,6 +401,7 @@ pub const MediaPanel = extern struct {
             .background_opacity = overrides.opacity orelse @floatCast(Application.default().backgroundOpacity()),
             .box_opacity = overrides.box_opacity orelse config.@"background-media-box-opacity",
             .box_round = overrides.box_round orelse config.@"background-media-box-round",
+            .box_border = @tagName(overrides.box_border orelse config.@"background-media-box-border"),
             .youtube_quality = overrides.youtube_quality orelse configured_youtube_quality,
         };
 
@@ -631,6 +640,7 @@ pub const MediaPanel = extern struct {
             class.bindTemplateChildPrivate("box_opacity_row", .{});
             class.bindTemplateChildPrivate("box_opacity_scale", .{});
             class.bindTemplateChildPrivate("box_round_row", .{});
+            class.bindTemplateChildPrivate("box_border_row", .{});
             class.bindTemplateChildPrivate("playback_row", .{});
             class.bindTemplateChildPrivate("playlist_row", .{});
             class.bindTemplateChildPrivate("playlist_prev_button", .{});
@@ -664,6 +674,7 @@ pub const MediaPanel = extern struct {
             class.bindTemplateCallback("opacity_changed", &onOpacityChanged);
             class.bindTemplateCallback("box_opacity_changed", &onBoxOpacityChanged);
             class.bindTemplateCallback("box_round_changed", &onBoxRoundChanged);
+            class.bindTemplateCallback("box_border_changed", &onBoxBorderChanged);
             class.bindTemplateCallback("playlist_prev", &onPlaylistPrev);
             class.bindTemplateCallback("playlist_next", &onPlaylistNext);
             class.bindTemplateCallback("loop_changed", &onLoopChanged);

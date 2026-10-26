@@ -114,7 +114,8 @@ keybinding for the panel.
 | `background-media-max-fps` | `30` | `1`–`240` | Redraw cap |
 | `background-media-youtube-quality` | `auto` (720p) | `auto` or a height such as `1080` | Preferred YouTube resolution |
 | `background-media-box-opacity` | `1` | `0`–`1` | Opacity of cells with their own background colour; selected and inverse cells stay opaque |
-| `background-media-box-round` | `false` | `true`, `false` | Round the outer corners of blocks of cells with their own background colour |
+| `background-media-box-round` | `false` | `true`, `false` | Round the outer corners of blocks of cells with their own background colour; radius is one cell width |
+| `background-media-box-border` | `none` | `none`, `thin`, `thick` | Border along the outer edge of boxes; follows round corners |
 | `background-opacity` | `1` | `0`–`1` | Standard Ghostty key; set below `1` to see the media |
 
 Example:

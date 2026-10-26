@@ -595,6 +595,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             background_opacity_cells: bool,
             box_opacity: f32,
             box_round: bool,
+            box_border: configpkg.Config.BackgroundMediaBoxBorder,
             background_video: bool,
             foreground: terminal.color.RGB,
             selection_background: ?configpkg.Config.TerminalColor,
@@ -668,6 +669,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                         config.@"background-media-box-round"
                     else
                         false,
+                    .box_border = if (comptime apprt.runtime == apprt.gtk)
+                        config.@"background-media-box-border"
+                    else
+                        .none,
                     .background_video = config.@"background-video" != null,
                     .font_thicken = config.@"font-thicken",
                     .font_thicken_strength = config.@"font-thicken-strength",
@@ -840,6 +845,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
             if (@hasField(@TypeOf(result.uniforms.bools), "box_round")) {
                 result.uniforms.bools.box_round = options.config.box_round;
+            }
+            if (@hasField(@TypeOf(result.uniforms.bools), "box_border_thin")) {
+                result.uniforms.bools.box_border_thin = options.config.box_border == .thin;
+                result.uniforms.bools.box_border_thick = options.config.box_border == .thick;
             }
 
             // Ensure our undefined values above are correctly initialized.
@@ -2214,6 +2223,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             self.uniforms.bools.use_linear_correction = config.blending == .@"linear-corrected";
             if (@hasField(@TypeOf(self.uniforms.bools), "box_round")) {
                 self.uniforms.bools.box_round = config.box_round;
+            }
+            if (@hasField(@TypeOf(self.uniforms.bools), "box_border_thin")) {
+                self.uniforms.bools.box_border_thin = config.box_border == .thin;
+                self.uniforms.bools.box_border_thick = config.box_border == .thick;
             }
 
             const bg_image_config_changed =

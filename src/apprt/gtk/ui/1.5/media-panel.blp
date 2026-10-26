@@ -313,6 +313,18 @@ template $GhosttyMediaPanel: Adw.Dialog {
               title: _("Round box corners");
               notify::active => $box_round_changed();
             }
+
+            Adw.ComboRow box_border_row {
+              title: _("Box border");
+              model: Gtk.StringList {
+                strings [
+                  _("None"),
+                  _("Thin"),
+                  _("Thick")
+                ]
+              };
+              notify::selected => $box_border_changed();
+            }
           }
 
           Adw.PreferencesGroup {

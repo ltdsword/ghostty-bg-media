@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Linux
+
+- Add `background-media-box-border` (`none`, `thin`, `thick`) and a **Box border** panel row.
+- Round box corners now use a radius of one cell width (was about half).
+
 ## bgm-v0.2.1-beta (2026-10-26)
 
 ### Linux

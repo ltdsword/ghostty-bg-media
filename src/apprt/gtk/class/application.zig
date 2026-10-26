@@ -1264,17 +1264,21 @@ pub const Application = extern struct {
         if (media_overrides.get().box_round) |box_round| {
             clone.@"background-media-box-round" = box_round;
         }
+        if (media_overrides.get().box_border) |box_border| {
+            clone.@"background-media-box-border" = box_border;
+        }
         clone.@"app-notifications".@"config-reload" = false;
         self.core().updateConfig(self.rt(), &clone) catch |err| {
             log.warn("failed to apply renderer overrides err={}", .{err});
         };
     }
 
-    pub fn boxSettings(self: *Self) struct { opacity: f32, round: bool } {
+    pub fn boxSettings(self: *Self) struct { opacity: f32, round: bool, border: CoreConfig.BackgroundMediaBoxBorder } {
         const config = self.private().config.get();
         return .{
             .opacity = config.@"background-media-box-opacity",
             .round = config.@"background-media-box-round",
+            .border = config.@"background-media-box-border",
         };
     }
 

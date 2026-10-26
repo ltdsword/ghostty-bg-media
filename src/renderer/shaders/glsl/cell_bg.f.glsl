@@ -67,7 +67,9 @@ vec4 cell_bg() {
             use_linear_blending
         );
 
-    if ((bools & BOX_ROUND) == 0 || cell_color.a <= 0.0 || !inside_grid) {
+    bool box_round = (bools & BOX_ROUND) != 0;
+    bool box_border = (bools & (BOX_BORDER_THIN | BOX_BORDER_THICK)) != 0u;
+    if ((!box_round && !box_border) || cell_color.a <= 0.0 || !inside_grid) {
         return cell_color;
     }
 
@@ -84,23 +86,62 @@ vec4 cell_bg() {
     bool top = !boxed(grid_pos, ivec2(0, -1), grid_size_i);
     bool bottom = !boxed(grid_pos, ivec2(0, 1), grid_size_i);
 
-    // Round only the outer corners of the region.
     vec2 p = mod(gl_FragCoord.xy - grid_padding.wx, cell_size);
-    float radius = min(cell_size.x, cell_size.y) * 0.45;
-    vec2 center;
-    if (left && top && p.x < radius && p.y < radius) {
-        center = vec2(radius, radius);
-    } else if (right && top && p.x >= cell_size.x - radius && p.y < radius) {
-        center = vec2(cell_size.x - radius, radius);
-    } else if (left && bottom && p.x < radius && p.y >= cell_size.y - radius) {
-        center = vec2(radius, cell_size.y - radius);
-    } else if (right && bottom && p.x >= cell_size.x - radius && p.y >= cell_size.y - radius) {
-        center = vec2(cell_size.x - radius, cell_size.y - radius);
-    } else {
-        return cell_color;
+    float unit = min(cell_size.x, cell_size.y);
+    float border = 0.0;
+    if ((bools & BOX_BORDER_THICK) != 0u) {
+        border = 2.0 * max(1.0, floor(unit / 9.0));
+    } else if ((bools & BOX_BORDER_THIN) != 0u) {
+        border = max(1.0, floor(unit / 9.0));
     }
 
-    return cell_color * clamp(radius - distance(p, center) + 0.5, 0.0, 1.0);
+    // Border colour: the box colour pushed towards white on dark boxes, black on light ones.
+    vec3 rgb = cell_color.rgb / cell_color.a;
+    float luma = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+    float edge_a = max(cell_color.a, 0.75);
+    vec4 edge_color = vec4(mix(rgb, luma > 0.5 ? vec3(0.0) : vec3(1.0), 0.45) * edge_a, edge_a);
+
+    // Round only the outer corners of the region; the radius is one cell width.
+    if (box_round) {
+        float radius = unit;
+        bool corner = true;
+        vec2 center;
+        if (left && top && p.x < radius && p.y < radius) {
+            center = vec2(radius, radius);
+        } else if (right && top && p.x >= cell_size.x - radius && p.y < radius) {
+            center = vec2(cell_size.x - radius, radius);
+        } else if (left && bottom && p.x < radius && p.y >= cell_size.y - radius) {
+            center = vec2(radius, cell_size.y - radius);
+        } else if (right && bottom && p.x >= cell_size.x - radius && p.y >= cell_size.y - radius) {
+            center = vec2(cell_size.x - radius, cell_size.y - radius);
+        } else {
+            corner = false;
+        }
+        if (corner) {
+            float d = distance(p, center);
+            float coverage = clamp(radius - d + 0.5, 0.0, 1.0);
+            if (border <= 0.0) return cell_color * coverage;
+            float fill = clamp(radius - border - d + 0.5, 0.0, 1.0);
+            return mix(edge_color, cell_color, fill) * coverage;
+        }
+    }
+
+    if (border > 0.0) {
+        bool near_l = p.x < border;
+        bool near_r = p.x >= cell_size.x - border;
+        bool near_t = p.y < border;
+        bool near_b = p.y >= cell_size.y - border;
+        bool edge = (left && near_l) || (right && near_r) || (top && near_t) || (bottom && near_b);
+        // Inner (concave) corners: both neighbours are boxed but the diagonal one is not.
+        edge = edge ||
+            (near_l && near_t && !left && !top && !boxed(grid_pos, ivec2(-1, -1), grid_size_i)) ||
+            (near_r && near_t && !right && !top && !boxed(grid_pos, ivec2(1, -1), grid_size_i)) ||
+            (near_l && near_b && !left && !bottom && !boxed(grid_pos, ivec2(-1, 1), grid_size_i)) ||
+            (near_r && near_b && !right && !bottom && !boxed(grid_pos, ivec2(1, 1), grid_size_i));
+        if (edge) return edge_color;
+    }
+
+    return cell_color;
 }
 
 void main() {

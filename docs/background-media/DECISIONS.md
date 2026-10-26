@@ -21,6 +21,7 @@ docs and logs.
 - **Evidence:** [CONFIGURATION](CONFIGURATION.md), [FEATURES](FEATURES.md),
   [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m19/boxes-compare.png`.
 - 2026-10-26 user decision “A: All three fixes (Recommended)”: round mode merges all coloured cells into one region, rounds only outer corners of runs ≥ 4 cells (radius 0.45 × cell), no outline; per-colour boxes split word highlights and TUI panels into pills.
+- 2026-10-26 user request (quoted in m23): corner radius = one cell width; new `background-media-box-border = none|thin|thick` (default none) draws an outer-edge-only border, 1 or 2 px-units (`max(1, floor(min(cell)/9))`), colour = box colour pushed 45% to white (dark boxes) or black (light).
 
 ## D-030 YouTube playlists with a fixed 3 s gap
 

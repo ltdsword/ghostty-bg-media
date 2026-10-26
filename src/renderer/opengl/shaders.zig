@@ -219,8 +219,10 @@ pub const Uniforms = extern struct {
         use_linear_correction: bool = false,
 
         box_round: bool = false,
+        box_border_thin: bool = false,
+        box_border_thick: bool = false,
 
-        _padding: u27 = 0,
+        _padding: u25 = 0,
     };
 
     const PaddingExtend = packed struct(u32) {
