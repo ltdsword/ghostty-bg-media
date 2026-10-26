@@ -24,6 +24,10 @@ zig build
 GHOSTTY_GTK_BUILD_CMD="zig build" scripts/verify-ghostty.sh --quick
 ```
 
+When the checkout is exactly at a release tag such as `bgm-v0.2.0-beta`, plain `zig build` stops
+with "tagged releases must be in vX.Y.Z format" (upstream Ghostty only accepts `vX.Y.Z` tags). Pass
+the version explicitly: `zig build -Dversion-string=1.3.2-bgm.0.2.0-beta`.
+
 URL / YouTube fixtures are documented in [test/background-media/README.md](../../test/background-media/README.md).
 The fixture server and fake yt-dlp support URL playback checks; set `GHOSTTY_YTDLP` to select a
 yt-dlp executable.
