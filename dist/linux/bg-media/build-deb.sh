@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-version=1.3.2-bgm.0.2.1-beta
+version=1.3.2-bgm.0.2.2-beta
 revision=1
 out=
 

@@ -45,7 +45,7 @@ modules:
       - zig build
         -Doptimize=ReleaseFast
         -Dcpu=baseline
-        -Dversion-string=1.3.2-bgm.0.2.1-beta
+        -Dversion-string=1.3.2-bgm.0.2.2-beta
         -Dflatpak=true
         -Dstrip=false
         -fno-sys=oniguruma
