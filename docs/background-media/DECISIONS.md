@@ -42,6 +42,8 @@ docs and logs.
 - **Evidence:** [CONFIGURATION](CONFIGURATION.md), [FEATURES](FEATURES.md),
   [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m19/playlist-loop-{true,false}.log` and
   `notes/m19/panel-playlist.png`.
+- 2026-10-26 user report and decision “B: Fix it, release later”: Loop on repeats the current video (no gap);
+  Loop off advances after 3 s and holds the last frame at the end. Replaces “loop restarts the list”.
 
 ## D-028 Side-by-side application identity
 

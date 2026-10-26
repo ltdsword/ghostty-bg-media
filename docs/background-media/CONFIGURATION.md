@@ -58,11 +58,11 @@ applies the setting live, and **Save to Configuration** writes it.
 A YouTube `background-media` URL with `list=` plays playlist entries in order, starting at the
 linked video when present or at the first entry. Entries are listed in batches of 50 (about 4 seconds
 per batch), up to 1000.
-After each video, playback waits a fixed 3 seconds before the next. At the end,
-`background-media-loop = true` starts over; otherwise playback stops on the last frame. An
-unresolvable video is skipped after 3 seconds; five consecutive failures stop playback with an
-error. **Next** skips immediately. If listing fails and the URL has `v=`, that video plays alone.
-URLs without `list=` behave as before.
+After each video, playback waits a fixed 3 seconds before the next and stops on the last frame of the
+last entry. With `background-media-loop = true` (the default) the current video repeats instead and
+the playlist only moves with **Next** or **Previous**. An unresolvable video is skipped after 3
+seconds; five consecutive failures stop playback with an error. **Next** skips immediately. If
+listing fails and the URL has `v=`, that video plays alone. URLs without `list=` behave as before.
 
 ## Sources and visibility
 

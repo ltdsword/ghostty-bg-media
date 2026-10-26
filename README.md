@@ -148,7 +148,7 @@ Details: [configuration reference](docs/background-media/CONFIGURATION.md).
 - One media decoder is shared by all tabs and windows; each tab's media spans all its splits.
 - Fit, position, dim and media-only blur; terminal text stays sharp on top.
 - Set the opacity of cells with their own background colour and optionally round the outer corners of the resulting blocks.
-- Play YouTube playlists in order with a fixed 3-second gap; `background-media-loop` restarts at the end or stops on the last frame.
+- Play YouTube playlists in order with a fixed 3-second gap; with `background-media-loop` on, the current video repeats instead.
 - Loop, volume (muted by default), pause and seek where the source supports it, **Go Live** for streams.
 - Pauses when no Ghostty window is focused, unless **Keep playing in background** is on.
 - Streams reconnect automatically; upcoming YouTube streams wait until they go live.

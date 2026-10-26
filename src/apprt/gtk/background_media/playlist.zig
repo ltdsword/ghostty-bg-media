@@ -110,6 +110,14 @@ pub fn step(cursor: Cursor, delta: i32, loop: bool) Step {
     return .{ .play = cursor.index };
 }
 
+/// What a playlist does when the current video ends: Loop repeats it, otherwise the
+/// list moves on after the gap.
+pub const AfterEnd = enum { repeat, next };
+
+pub fn afterEnd(loop: bool, was_live: bool) AfterEnd {
+    return if (loop and !was_live) .repeat else .next;
+}
+
 fn queryValue(query: ?std.Uri.Component, key: []const u8) ?[]const u8 {
     const encoded = if (query) |component| component.percent_encoded else return null;
     var parts = std.mem.splitScalar(u8, encoded, '&');
@@ -176,4 +184,10 @@ test "playlist step covers previous, next, fetch, loop, and end" {
     try std.testing.expectEqual(Step.fetch_more, step(.{ .index = 2, .count = 3, .more = true }, 1, false));
     try std.testing.expectEqual(@as(usize, 0), step(.{ .index = 2, .count = 3, .more = false }, 1, true).play);
     try std.testing.expectEqual(Step.end, step(.{ .index = 2, .count = 3, .more = false }, 1, false));
+}
+
+test "playlist loop repeats the current video" {
+    try std.testing.expectEqual(AfterEnd.repeat, afterEnd(true, false));
+    try std.testing.expectEqual(AfterEnd.next, afterEnd(false, false));
+    try std.testing.expectEqual(AfterEnd.next, afterEnd(true, true));
 }

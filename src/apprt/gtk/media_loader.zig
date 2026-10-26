@@ -959,7 +959,8 @@ fn schedulePlaylistGap() void {
 
 fn onPlaylistGap(_: ?*anyopaque) callconv(.c) c_int {
     loader.gap_timer = 0;
-    playlistAdvance(1);
+    // Loop may have been switched on during the gap: replay the same entry.
+    playlistAdvance(if (loader.settings.loop) 0 else 1);
     return 0;
 }
 
@@ -1458,6 +1459,12 @@ fn onUrlEnded() void {
     const player = loader.url_player orelse return;
     _ = player;
     if (loader.playlist != null) {
+        if (bg.playlist.afterEnd(loader.settings.loop, loader.stream_was_live) == .repeat) {
+            const active_player = loader.url_player orelse return;
+            gst_url_player.rewind(active_player);
+            log.info("background-media: playlist loop repeats current video", .{});
+            return;
+        }
         loader.url_ended = true;
         schedulePlaylistGap();
         log.info("background-media: playlist next in 3s", .{});

@@ -11,7 +11,7 @@ Status words: **Shipped** (merged and verified by the agent), **Manual check** (
 - Show local PNG, JPEG, WebP, GIF, MP4, WebM, and MKV backgrounds.
 - Play direct HTTP(S) video and HLS VOD or live streams.
 - Resolve recorded, live, and upcoming YouTube URLs with a separately installed `yt-dlp`.
-- Play YouTube playlists in order with a fixed 3-second gap, then loop or stop on the last frame.
+- Play YouTube playlists in order with a fixed 3-second gap and stop after the last video; with Loop on, the current video repeats instead.
 - Choose image fit and alignment, theme-color dim, and media-only blur.
 - Set the opacity of cells with their own background colour and optionally round the outer corners of the resulting blocks.
 - Control looping, volume, background playback, and a maximum redraw frame rate.

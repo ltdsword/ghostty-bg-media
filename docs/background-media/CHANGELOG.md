@@ -4,6 +4,7 @@
 
 ### Linux
 
+- Fix playlist Loop: Loop now repeats the current video; with Loop off the playlist moves to the next video and stops after the last one (before, Loop restarted the whole playlist and never stopped on a video).
 - Add `background-media-box-border` (`none`, `thin`, `thick`) and a **Box border** panel row.
 - Round box corners now use a radius of one cell width (was about half).
 
