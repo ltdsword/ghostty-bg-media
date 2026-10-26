@@ -20,6 +20,7 @@ docs and logs.
   GTK only, and ignored on macOS.
 - **Evidence:** [CONFIGURATION](CONFIGURATION.md), [FEATURES](FEATURES.md),
   [TEST_MATRIX](TEST_MATRIX.md), workspace `notes/m19/boxes-compare.png`.
+- 2026-10-26 user decision “A: All three fixes (Recommended)”: round mode merges all coloured cells into one region, rounds only outer corners of runs ≥ 4 cells (radius 0.45 × cell), no outline; per-colour boxes split word highlights and TUI panels into pills.
 
 ## D-030 YouTube playlists with a fixed 3 s gap
 

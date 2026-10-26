@@ -806,7 +806,8 @@ foreground: Color = .{ .r = 0xFF, .g = 0xFF, .b = 0xFF },
 /// This can be changed at runtime by reloading the configuration.
 @"background-media-box-opacity": f32 = 1.0,
 
-/// Draw blocks of same-colored cells as rounded rectangles with a thin outline.
+/// Round the outer corners of blocks of cells that have their own background colour
+/// (blocks at least 4 cells wide). Linux GTK only.
 ///
 /// The default value is `false`.
 ///

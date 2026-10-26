@@ -35,7 +35,7 @@ See the [installation guide](../INSTALL.md) for configuration, upgrades, and rem
 
 ## What's new on Linux
 
-- **Boxes:** `background-media-box-opacity` (0–1) makes rows with their own background colour (prompt highlights, diff lines) translucent over the media; `background-media-box-round = true` draws them as rounded, outlined blocks. Panel: **Boxes** slider, **Round and outline boxes** switch. Defaults keep the old look.
+- **Boxes:** `background-media-box-opacity` (0–1) makes rows with their own background colour (prompt highlights, diff lines) translucent over the media; `background-media-box-round = true` draws them with rounded corners. Panel: **Boxes** slider, **Round box corners** switch. Defaults keep the old look.
 - **YouTube playlists:** links with `list=` (including Mix links) play in order, 3 s between videos, start over when Loop is on, otherwise stop. Panel **Playlist** row with Previous/Next.
 
 Media appears through terminal background transparency. Set `background-opacity` below `1` or use the panel slider.

@@ -12,7 +12,7 @@ The panel's **Appearance** group includes a **Terminal opacity** slider for `bac
 It changes the current session as an override. **Save to Configuration** writes it to
 `background-media.ghostty` next to the main config; the managed file loads after the main config
 and its value takes precedence. The `background-opacity` config key remains shared with Ghostty.
-Appearance also includes a **Boxes** slider and **Round and outline boxes** switch; Playback shows
+Appearance also includes a **Boxes** slider and **Round box corners** switch; Playback shows
 playlist navigation while a playlist is playing.
 
 ## Keys
@@ -46,8 +46,8 @@ the selected value (D-025).
 `background-media-box-opacity` controls cells with their own background colour, including prompt
 highlights, diff lines, and ANSI background colours. The default `1` keeps them opaque as before;
 selected and inverse cells stay opaque. Below `1`, this setting takes precedence over
-`background-opacity-cells` for those cells. `background-media-box-round = true` draws each block of
-same-coloured cells as a rounded rectangle with a thin lighter outline.
+`background-opacity-cells` for those cells. `background-media-box-round = true` rounds the outer
+corners of blocks of cells with their own background colour.
 
 ## YouTube playlists
 
@@ -144,7 +144,7 @@ The panel also opens from the header-bar video icon beside **View Open Tabs** in
 layout; there is no default keybinding. **Turn Off** stops background media for the current session
 without clearing the source box; **Play** reapplies the box text. **Keep playing in background**
 (`background-media-play-in-background`) keeps playback running when the window loses focus or is
-minimized. **Appearance** has a **Boxes** slider and **Round and outline boxes** switch. While a
+minimized. **Appearance** has a **Boxes** slider and **Round box corners** switch. While a
 playlist plays, **Playback** shows a **Playlist** row such as `2 / 3 · <playlist title>` (with `+`
 after the count when more entries can be fetched) and **Previous** / **Next** buttons.
 Pause is runtime-only. **Save to Configuration** writes the managed `background-media.ghostty`

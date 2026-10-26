@@ -10,13 +10,15 @@ layout(binding = 1, std430) readonly buffer bg_cells {
     uint cells[];
 };
 
-bool same(ivec2 grid_pos, ivec2 offset, ivec2 grid_size, uint packed_color) {
+// Round mode treats every cell with its own background colour as one box, so
+// word highlights in a diff line or widgets inside a TUI panel do not split it.
+bool boxed(ivec2 grid_pos, ivec2 offset, ivec2 grid_size) {
     ivec2 neighbor = grid_pos + offset;
     if (neighbor.x < 0) return (padding_extend & EXTEND_LEFT) != 0;
     if (neighbor.x >= grid_size.x) return (padding_extend & EXTEND_RIGHT) != 0;
     if (neighbor.y < 0) return (padding_extend & EXTEND_UP) != 0;
     if (neighbor.y >= grid_size.y) return (padding_extend & EXTEND_DOWN) != 0;
-    return cells[neighbor.y * grid_size.x + neighbor.x] == packed_color;
+    return (cells[neighbor.y * grid_size.x + neighbor.x] >> 24) != 0u;
 }
 
 vec4 cell_bg() {
@@ -70,58 +72,35 @@ vec4 cell_bg() {
     }
 
     ivec2 grid_size_i = ivec2(grid_size);
-    bool left = !same(grid_pos, ivec2(-1, 0), grid_size_i, packed_color);
-    bool right = !same(grid_pos, ivec2(1, 0), grid_size_i, packed_color);
-    bool top = !same(grid_pos, ivec2(0, -1), grid_size_i, packed_color);
-    bool bottom = !same(grid_pos, ivec2(0, 1), grid_size_i, packed_color);
+    // Short runs (cursor, a few highlighted cells) stay square.
+    const int BOX_MIN_WIDTH = 4;
+    int run = 1;
+    for (int i = 1; i < BOX_MIN_WIDTH && boxed(grid_pos, ivec2(-i, 0), grid_size_i); i++) run++;
+    for (int i = 1; i < BOX_MIN_WIDTH && boxed(grid_pos, ivec2(i, 0), grid_size_i); i++) run++;
+    if (run < BOX_MIN_WIDTH) return cell_color;
 
+    bool left = !boxed(grid_pos, ivec2(-1, 0), grid_size_i);
+    bool right = !boxed(grid_pos, ivec2(1, 0), grid_size_i);
+    bool top = !boxed(grid_pos, ivec2(0, -1), grid_size_i);
+    bool bottom = !boxed(grid_pos, ivec2(0, 1), grid_size_i);
+
+    // Round only the outer corners of the region.
     vec2 p = mod(gl_FragCoord.xy - grid_padding.wx, cell_size);
-    float radius = min(cell_size.x, cell_size.y) * 0.8;
-    float outline_width = max(1.0, floor(min(cell_size.x, cell_size.y) / 14.0));
-    float corner_coverage = 1.0;
-    bool in_corner = false;
-    bool corner_outline = false;
-
+    float radius = min(cell_size.x, cell_size.y) * 0.45;
+    vec2 center;
     if (left && top && p.x < radius && p.y < radius) {
-        float d = distance(p, vec2(radius, radius));
-        corner_coverage = clamp(radius - d + 0.5, 0.0, 1.0);
-        corner_outline = d > radius - outline_width;
-        in_corner = true;
+        center = vec2(radius, radius);
     } else if (right && top && p.x >= cell_size.x - radius && p.y < radius) {
-        float d = distance(p, vec2(cell_size.x - radius, radius));
-        corner_coverage = clamp(radius - d + 0.5, 0.0, 1.0);
-        corner_outline = d > radius - outline_width;
-        in_corner = true;
+        center = vec2(cell_size.x - radius, radius);
     } else if (left && bottom && p.x < radius && p.y >= cell_size.y - radius) {
-        float d = distance(p, vec2(radius, cell_size.y - radius));
-        corner_coverage = clamp(radius - d + 0.5, 0.0, 1.0);
-        corner_outline = d > radius - outline_width;
-        in_corner = true;
+        center = vec2(radius, cell_size.y - radius);
     } else if (right && bottom && p.x >= cell_size.x - radius && p.y >= cell_size.y - radius) {
-        float d = distance(p, vec2(cell_size.x - radius, cell_size.y - radius));
-        corner_coverage = clamp(radius - d + 0.5, 0.0, 1.0);
-        corner_outline = d > radius - outline_width;
-        in_corner = true;
+        center = vec2(cell_size.x - radius, cell_size.y - radius);
+    } else {
+        return cell_color;
     }
 
-    vec3 rgb = cell_color.rgb / cell_color.a;
-    vec4 outline_color = vec4(mix(rgb, vec3(1.0), 0.3), max(cell_color.a, 0.65));
-    outline_color.rgb *= outline_color.a;
-
-    if (in_corner) {
-        if (corner_coverage <= 0.0) return vec4(0.0);
-        vec4 color = corner_outline ? outline_color : cell_color;
-        return color * corner_coverage;
-    }
-
-    if ((left && p.x < outline_width) ||
-        (right && p.x >= cell_size.x - outline_width) ||
-        (top && p.y < outline_width) ||
-        (bottom && p.y >= cell_size.y - outline_width)) {
-        return outline_color;
-    }
-
-    return cell_color;
+    return cell_color * clamp(radius - distance(p, center) + 0.5, 0.0, 1.0);
 }
 
 void main() {

@@ -4,7 +4,7 @@
 
 ### Linux
 
-- Add opacity and optional rounded, outlined boxes for cells with their own background colour.
+- Add opacity and optional rounded corners for cells with their own background colour.
 - Play YouTube playlists in order with a fixed 3-second gap, playlist navigation, and loop or
   stop-at-end behavior.
 - Saved panel settings load after command-line flags and override them; see CONFIGURATION.
