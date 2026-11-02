@@ -40,6 +40,7 @@ pub const MediaPanel = extern struct {
 
         toast_overlay: *adw.ToastOverlay,
         source_row: *adw.EntryRow,
+        now_playing_row: *adw.ActionRow,
         choose_button: *gtk.Button,
         fit_row: *adw.ComboRow,
         position_row: *adw.ComboRow,
@@ -503,6 +504,15 @@ pub const MediaPanel = extern struct {
         }
 
         priv.playback_row.setSubtitle(buffer[0..len :0]);
+        if (media_loader.videoTitle()) |video_title| {
+            const shown = truncateUtf8(video_title, buffer.len - 1);
+            @memcpy(buffer[0..shown.len], shown);
+            buffer[shown.len] = 0;
+            priv.now_playing_row.setSubtitle(buffer[0..shown.len :0]);
+            priv.now_playing_row.as(gtk.Widget).setVisible(1);
+        } else {
+            priv.now_playing_row.as(gtk.Widget).setVisible(0);
+        }
         if (media_loader.playlistInfo()) |playlist| {
             priv.playlist_row.as(gtk.Widget).setVisible(1);
             const title = truncateUtf8(playlist.title, 60);
@@ -630,6 +640,7 @@ pub const MediaPanel = extern struct {
 
             class.bindTemplateChildPrivate("toast_overlay", .{});
             class.bindTemplateChildPrivate("source_row", .{});
+            class.bindTemplateChildPrivate("now_playing_row", .{});
             class.bindTemplateChildPrivate("choose_button", .{});
             class.bindTemplateChildPrivate("fit_row", .{});
             class.bindTemplateChildPrivate("position_row", .{});

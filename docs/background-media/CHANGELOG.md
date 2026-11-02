@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Linux
+
+- Show the playing YouTube video's title (**Now playing**) under the source entry in the panel.
+
 ## bgm-v0.2.2-beta (2026-10-26)
 
 ### Linux

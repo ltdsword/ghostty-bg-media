@@ -85,7 +85,7 @@ The panel's available frame-rate buttons are 30 and 60 fps; configuration accept
 
 Open the panel with the header-bar background-media button or the `background-media` window action. The main menu also has **Background Media…**; there is no default keybinding. [`window.zig`](../../src/apprt/gtk/class/window.zig), [`media_panel.zig`](../../src/apprt/gtk/class/media_panel.zig).
 
-- **Source:** choose a file, enter a path or URL, **Apply** the entry, or restore the configured source with **Use Configuration**.
+- **Source:** choose a file, enter a path or URL, **Apply** the entry, or restore the configured source with **Use Configuration**. For YouTube, **Now playing** under the entry shows the title of the video that is playing.
 - **Playback:** view status; **Pause/Play**, **Turn Off**, **Retry**, and **Go Live** when applicable; seek finite video when its backend reports timing; set **Loop**, **Volume**, background playback, and 30/60 fps. While a playlist plays, the **Playlist** row shows its position and title, with **Previous** / **Next** buttons.
 - **YouTube quality:** when the source resolves to YouTube, select Auto (720p) or a height offered by the current video; choices above 1080p are labelled “(high CPU)”. **Save to Configuration** persists the preferred maximum (D-025).
 - **Appearance:** choose **Fit** and **Position**, set **Dim**, **Blur**, **Terminal opacity**, and **Boxes** sliders, toggle **Round box corners**, and select an optional thin or thick **Box border**. Round corners now use a radius of one cell width (was about half). Terminal opacity controls `background-opacity` as a session override; **Save to Configuration** stores these values, including all three box settings, in `background-media.ghostty` next to the main config.

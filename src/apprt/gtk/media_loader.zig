@@ -248,6 +248,14 @@ pub fn playlistInfo() ?PlaylistInfo {
     };
 }
 
+/// Title of the YouTube video that is resolved now, or null when there is none.
+pub fn videoTitle() ?[]const u8 {
+    if (loader.url_kind != .youtube) return null;
+    const resolved = loader.resolved orelse return null;
+    if (resolved.title.len == 0) return null;
+    return resolved.title;
+}
+
 pub fn playlistStep(delta: i32) void {
     if (loader.playlist == null) return;
     playlistAdvance(delta);

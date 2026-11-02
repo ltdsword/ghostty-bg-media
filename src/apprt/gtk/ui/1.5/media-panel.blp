@@ -41,6 +41,14 @@ template $GhosttyMediaPanel: Adw.Dialog {
               apply => $source_applied();
             }
 
+            Adw.ActionRow now_playing_row {
+              title: _("Now playing");
+              visible: false;
+              use-markup: false;
+              subtitle-lines: 2;
+              subtitle-selectable: true;
+            }
+
           }
 
           Adw.PreferencesGroup {
