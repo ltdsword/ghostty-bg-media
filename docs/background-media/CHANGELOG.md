@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## bgm-v0.2.3-beta (2026-11-02)
 
 ### Linux
 
